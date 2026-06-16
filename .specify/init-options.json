@@ -1,0 +1,8 @@
+{
+  "integration": "codex",
+  "integration_options": "--skills",
+  "script": "ps",
+  "feature_numbering": "sequential",
+  "initialized_by": "SpecAgent documentation-only pass",
+  "specify_cli_version": "0.10.2"
+}
