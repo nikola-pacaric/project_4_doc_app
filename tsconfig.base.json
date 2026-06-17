@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "ignoreDeprecations": "6.0",
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@project4/contracts": ["packages/contracts/src/index.ts"],
+      "@project4/forms": ["packages/forms/src/index.ts"],
+      "@project4/i18n": ["packages/i18n/src/index.ts"],
+      "@project4/photo": ["packages/photo/src/index.ts"],
+      "@project4/sync": ["packages/sync/src/index.ts"],
+      "@project4/supabase-client": ["packages/supabase-client/src/index.ts"],
+      "@project4/ui-tokens": ["packages/ui-tokens/src/index.ts"]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "Patient Research Tracking",
+    "slug": "patient-research-tracking",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["android"]
+  }
+}

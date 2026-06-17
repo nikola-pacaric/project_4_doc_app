@@ -1,0 +1,19 @@
+{
+  "name": "@project4/web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@project4/contracts": "*",
+    "@project4/i18n": "*",
+    "@project4/ui-tokens": "*",
+    "react": "latest",
+    "react-dom": "latest"
+  }
+}

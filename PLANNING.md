@@ -180,20 +180,7 @@ Photo storage:
 - Serbian/English UI and light/dark theme work in core flows.
 - Web app, Android APK, and Huawei Android when available pass smoke tests.
 
-## 12. Agent Workflow
-For each implementation session:
-1. Pick the next incomplete phase.
-2. Restate the immediate goal.
-3. Inspect only files relevant to that phase.
-4. Implement the smallest complete vertical behavior.
-5. Add/update tests.
-6. Run relevant checks.
-7. Record what passed, failed, and remains.
-8. Do not skip RLS, export, photo, or offline validation.
-
-Ask before changing V1 scope, adding paid services, adding iOS, adding doctor notes, adding patient revocation UI, weakening privacy/RLS behavior, or shipping service-role credentials to any client.
-
-## 13. Main Risks
+## 12. Main Risks
 - RLS gaps exposing patient data.
 - Web/mobile form divergence.
 - Offline queue duplicates.
@@ -202,4 +189,3 @@ Ask before changing V1 scope, adding paid services, adding iOS, adding doctor no
 - Export JSON leaking image data as base64.
 - Hardcoded strings blocking localization.
 - Manual doctor provisioning mistakes.
-
