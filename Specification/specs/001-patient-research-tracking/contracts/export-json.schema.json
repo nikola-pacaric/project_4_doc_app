@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/contracts/patient-research-export.schema.json",
+  "title": "Patient Research Export Package",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "exported_at",
+    "exported_by_doctor_id",
+    "patient_code",
+    "range",
+    "mode",
+    "entries"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "exported_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "exported_by_doctor_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "patient_code": {
+      "type": "string",
+      "minLength": 1
+    },
+    "range": {
+      "type": "object",
+      "required": ["type", "start", "end"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["day", "month"]
+        },
+        "start": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "end": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "all_data",
+        "all_data_with_images",
+        "images_only_with_labels"
+      ]
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/image"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "required": [
+        "id",
+        "timestamp",
+        "entry_type",
+        "title"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "entry_type": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "custom_fields": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "structured_fields": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "photo_metadata": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/photo_metadata"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "photo_metadata": {
+      "type": "object",
+      "required": [
+        "id",
+        "label",
+        "width",
+        "height",
+        "mime_type",
+        "file_size_bytes"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "label": {
+          "type": "string"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1280
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "mime_type": {
+          "type": "string",
+          "const": "image/jpeg"
+        },
+        "file_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "thumbnail_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "image": {
+      "type": "object",
+      "required": [
+        "id",
+        "entry_id",
+        "timestamp",
+        "entry_type",
+        "label",
+        "metadata"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "entry_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "entry_type": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/photo_metadata"
+        },
+        "signed_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "thumbnail_signed_url": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
