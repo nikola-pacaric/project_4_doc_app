@@ -7,6 +7,7 @@ export type EntryKind =
   | 'medication'
   | 'exercise'
   | 'menstruation'
+  | 'note'
   | 'custom';
 
 export interface PatientEntry {
