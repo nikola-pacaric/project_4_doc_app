@@ -125,7 +125,9 @@ Photo storage:
 
 ### Phase 4 - Full Patient Forms
 - Implement baseline: sex, birth year, occupation, chronic diseases, chronic therapy, menstrual history where relevant, weight, height, recent major weight change, and 3-month weight reminder.
+- Show menstrual history and menstruation tracking only when the patient's recorded sex is female; do not show menstruation fields or tracking to male patients.
 - Implement daily fields: wake time, food, appetite, water, other fluids, activity, sleep, stress, day description, medication outside chronic therapy, menstruation, energy, naps, and notes.
+- Require a response for every applicable daily field on each tracked day. Subfields explicitly marked optional remain optional, and conditional details are required only when their triggering answer applies.
 - Implement entry details: meal, symptom, stool, medication, exercise, menstruation, note, and custom fields.
 - Implement symptom fields: intake list, start/end time, intensity 1-3, quality-of-life effect, modifying factors, sleep interruption, pain location/radiation/description, custom description.
 - Implement stool fields: Bristol classification, urgency, pain, mucus, blood, fatty stool, black stool.
