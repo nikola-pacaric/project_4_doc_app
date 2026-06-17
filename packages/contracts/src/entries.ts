@@ -15,7 +15,7 @@ export interface PatientEntry {
   patientId: string;
   kind: EntryKind;
   occurredAt: string;
-  text?: string;
+  text: string | null;
   createdAt: string;
   updatedAt: string;
 }

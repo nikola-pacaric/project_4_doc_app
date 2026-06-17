@@ -12,8 +12,9 @@
   "dependencies": {
     "@project4/contracts": "*",
     "@project4/i18n": "*",
+    "@project4/supabase-client": "*",
     "@project4/ui-tokens": "*",
-    "react": "latest",
-    "react-dom": "latest"
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
   }
 }

@@ -25,6 +25,8 @@
     "eslint-plugin-react-hooks": "latest",
     "eslint-plugin-react-refresh": "latest",
     "prettier": "latest",
+    "react": "19.2.3",
+    "react-native": "0.85.3",
     "typescript": "latest",
     "typescript-eslint": "latest",
     "vite": "latest",

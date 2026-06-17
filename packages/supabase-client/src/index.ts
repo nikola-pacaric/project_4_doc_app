@@ -1,8 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClientOptions } from '@supabase/supabase-js';
+
+export type { Session } from '@supabase/supabase-js';
 
 export interface SupabaseClientConfig {
   url: string;
   publishableKey: string;
+  auth?: SupabaseClientOptions<'public'>['auth'];
 }
 
 export function createAppSupabaseClient(config: SupabaseClientConfig) {
@@ -10,6 +13,13 @@ export function createAppSupabaseClient(config: SupabaseClientConfig) {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
+      ...config.auth,
     },
   });
 }
+
+export type AppSupabaseClient = ReturnType<typeof createAppSupabaseClient>;
+
+export * from './auth';
+export * from './patientEntries';
+export * from './profiles';

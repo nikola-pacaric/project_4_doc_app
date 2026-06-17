@@ -1,12 +1,12 @@
 export const lightTheme = {
   colors: {
-    background: '#f6f8fb',
+    background: '#fff7f5',
     surface: '#ffffff',
-    text: '#16324f',
-    mutedText: '#5b6f85',
-    border: '#c8d4e3',
-    accent: '#0f766e',
-    danger: '#b42318',
+    text: '#34292d',
+    mutedText: '#8a767d',
+    border: '#f0dfe1',
+    accent: '#f45b7a',
+    danger: '#c83f52',
   },
 } as const;
 
