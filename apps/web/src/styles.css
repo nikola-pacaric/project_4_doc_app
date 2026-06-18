@@ -32,8 +32,49 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
+}
+
+.password-input-wrap {
+  position: relative;
+  display: block;
+}
+
+.password-input-wrap input {
+  padding-right: 56px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: #8a767d;
+  opacity: 0.5;
+  padding: 10px;
+}
+
+.password-toggle:hover {
+  color: #e84f70;
+  opacity: 0.85;
+}
+
+.password-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 button {
@@ -365,6 +406,7 @@ textarea {
 }
 
 input:focus,
+select:focus,
 textarea:focus,
 button:focus-visible {
   outline: 3px solid rgba(244, 91, 122, 0.2);
@@ -536,6 +578,133 @@ button:focus-visible {
   padding: 28px 14px;
   color: #8a767d;
   text-align: center;
+}
+
+.baseline-layout {
+  min-height: 100%;
+  padding: 20px;
+}
+
+.baseline-toolbar,
+.baseline-form {
+  display: grid;
+  gap: 16px;
+}
+
+.baseline-toolbar {
+  padding-bottom: 18px;
+  border-bottom: 1px solid #f0dfe1;
+}
+
+.baseline-toolbar .summary {
+  margin: 0;
+}
+
+.baseline-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: 18px;
+}
+
+.baseline-form label {
+  display: grid;
+  gap: 7px;
+  color: #4e3b42;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.choice-field {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.choice-label {
+  color: #4e3b42;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.choice-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.choice-row button {
+  min-height: 48px;
+  border: 1px solid #eadadd;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #59434a;
+  font-weight: 800;
+}
+
+.choice-row button.selected {
+  border-color: #f45b7a;
+  background: #fff0f3;
+  color: #e84f70;
+}
+
+.conditional-field-bubble {
+  overflow: hidden;
+  border: 1px solid #f0dfe1;
+  border-radius: 18px;
+  background: #fff7f8;
+  padding: 14px;
+  transform-origin: top center;
+  animation: conditional-bubble-open 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes conditional-bubble-open {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0 round 18px);
+    transform: translateY(-8px) scale(0.97, 0.82);
+  }
+
+  to {
+    opacity: 1;
+    clip-path: inset(0 round 18px);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conditional-field-bubble {
+    animation: none;
+  }
+}
+
+.baseline-form input,
+.baseline-form select,
+.baseline-form textarea {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #eadadd;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #34292d;
+  padding: 10px 12px;
+}
+
+.baseline-form .full-width {
+  grid-column: 1 / -1;
+}
+
+.form-actions {
+  display: grid;
+  gap: 10px;
+}
+
+@media (max-width: 390px) {
+  .baseline-form {
+    grid-template-columns: 1fr;
+  }
+
+  .baseline-form .full-width {
+    grid-column: auto;
+  }
 }
 
 @media (max-width: 540px) {

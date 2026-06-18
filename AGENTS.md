@@ -49,6 +49,8 @@
 ## App Preview Workflow
 - During actual app UI implementation, run the app locally and inspect it in the Codex/browser preview when feasible.
 - Use mobile-sized browser views, including Pixel 9-style dimensions, plus at least one additional small/mobile and one wider/desktop viewport for responsive checks.
+- When presenting Android/mobile UI in the Codex browser preview, never show it as a bare web page. Display it inside a realistic original Google Pixel 9-style phone frame with a camera cutout, Android status bar, hardware buttons, and gesture navigation bar.
+- Give mobile previews a polished native visual finish comparable to high-quality Swift app design while preserving Android interaction conventions and the shared product design system.
 - Keep the preview visible or easy to surface when the user wants to review what is being developed.
 - Use these previews to catch layout, readability, spacing, overflow, theme, and interaction issues before considering a UI workflow complete.
 - Record which preview viewports were checked in completion notes for app UI work.

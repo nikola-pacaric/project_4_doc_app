@@ -4,6 +4,7 @@ import { signInForRole, signUpPatient, type AppSupabaseClient } from '@project4/
 import { useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { PasswordField } from '../components/PasswordField';
 
 type AuthMode = 'patient-login' | 'patient-signup' | 'doctor-login';
 
@@ -21,6 +22,7 @@ export function AuthScreen({ client }: AuthScreenProps) {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordHidden, setPasswordHidden] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -74,7 +76,10 @@ export function AuthScreen({ client }: AuthScreenProps) {
               aria-selected={mode === item.value}
               className={mode === item.value ? 'selected' : ''}
               key={item.value}
-              onClick={() => setMode(item.value)}
+              onClick={() => {
+                setMode(item.value);
+                setPasswordHidden(true);
+              }}
               role="tab"
               type="button"
             >
@@ -105,17 +110,15 @@ export function AuthScreen({ client }: AuthScreenProps) {
               value={email}
             />
           </label>
-          <label>
-            <span>{t(locale, 'auth.password')}</span>
-            <input
-              autoComplete={mode === 'patient-signup' ? 'new-password' : 'current-password'}
-              minLength={8}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              type="password"
-              value={password}
-            />
-          </label>
+          <PasswordField
+            autoComplete={mode === 'patient-signup' ? 'new-password' : 'current-password'}
+            hidden={passwordHidden}
+            label={t(locale, 'auth.password')}
+            onChange={setPassword}
+            onToggleVisibility={() => setPasswordHidden((current) => !current)}
+            toggleLabel={t(locale, passwordHidden ? 'auth.showPassword' : 'auth.hidePassword')}
+            value={password}
+          />
           {error ? <p className="notice error">{error}</p> : null}
           {message ? <p className="notice success">{message}</p> : null}
           <button className="primary-button" disabled={busy} type="submit">

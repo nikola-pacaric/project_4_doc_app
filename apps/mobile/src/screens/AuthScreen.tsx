@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { FormField } from '../components/FormField';
+import { PasswordField } from '../components/PasswordField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { colors, sharedStyles } from '../theme';
@@ -35,6 +36,7 @@ export function AuthScreen({ client }: AuthScreenProps) {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordHidden, setPasswordHidden] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -115,6 +117,7 @@ export function AuthScreen({ client }: AuthScreenProps) {
                   key={item.value}
                   onPress={() => {
                     setMode(item.value);
+                    setPasswordHidden(true);
                     setError(null);
                     setMessage(null);
                   }}
@@ -147,13 +150,13 @@ export function AuthScreen({ client }: AuthScreenProps) {
               textContentType="emailAddress"
               value={email}
             />
-            <FormField
-              autoCapitalize="none"
-              autoComplete="password"
+            <PasswordField
+              hidden={passwordHidden}
               label={t(locale, 'auth.password')}
               onChangeText={setPassword}
-              secureTextEntry
+              onToggleVisibility={() => setPasswordHidden((current) => !current)}
               textContentType={mode === 'patient-signup' ? 'newPassword' : 'password'}
+              toggleLabel={t(locale, passwordHidden ? 'auth.showPassword' : 'auth.hidePassword')}
               value={password}
             />
             {error ? <Text style={sharedStyles.error}>{error}</Text> : null}

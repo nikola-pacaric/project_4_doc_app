@@ -10,6 +10,7 @@ import {
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { BaselineScreen } from './BaselineScreen';
 
 interface TimelineScreenProps {
   client: AppSupabaseClient;
@@ -39,6 +40,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [showBaseline, setShowBaseline] = useState(false);
 
   async function loadEntries() {
     setError(null);
@@ -126,6 +128,12 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     }
   }
 
+  if (showBaseline) {
+    return (
+      <BaselineScreen client={client} onBack={() => setShowBaseline(false)} profile={profile} />
+    );
+  }
+
   return (
     <main className="timeline-layout">
       <div className="timeline-toolbar">
@@ -134,6 +142,9 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
           title={t(locale, 'timeline.title')}
         />
         <div className="button-row compact">
+          <button className="secondary-button" onClick={() => setShowBaseline(true)} type="button">
+            {t(locale, 'baseline.open')}
+          </button>
           <button className="secondary-button" onClick={() => void loadEntries()} type="button">
             {t(locale, 'timeline.refresh')}
           </button>

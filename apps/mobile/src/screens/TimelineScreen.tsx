@@ -24,6 +24,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { TimelineEntryCard } from '../components/TimelineEntryCard';
 import { colors, sharedStyles } from '../theme';
+import { BaselineScreen } from './BaselineScreen';
 
 interface TimelineScreenProps {
   client: AppSupabaseClient;
@@ -45,6 +46,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [showBaseline, setShowBaseline] = useState(false);
 
   const loadEntries = useCallback(
     async (isRefresh = false) => {
@@ -139,6 +141,12 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     }
   }
 
+  if (showBaseline) {
+    return (
+      <BaselineScreen client={client} onBack={() => setShowBaseline(false)} profile={profile} />
+    );
+  }
+
   const header = (
     <View style={styles.headerContent}>
       <ScreenHeader
@@ -148,6 +156,15 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
       <EntryComposer busy={saving} onCreate={createEntry} />
       {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
       {message ? <Text style={sharedStyles.success}>{message}</Text> : null}
+      <View style={styles.headerActions}>
+        <View style={styles.headerAction}>
+          <PrimaryButton
+            label={t(locale, 'baseline.open')}
+            onPress={() => setShowBaseline(true)}
+            variant="secondary"
+          />
+        </View>
+      </View>
       <View style={styles.headerActions}>
         <View style={styles.headerAction}>
           <PrimaryButton
