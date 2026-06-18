@@ -131,7 +131,9 @@ Photo storage:
 - Implement entry details: meal, symptom, stool, medication, exercise, menstruation, note, and custom fields.
 - Implement symptom fields: intake list, start/end time, intensity 1-3, quality-of-life effect, modifying factors, sleep interruption, pain location/radiation/description, custom description.
 - Implement stool fields: Bristol classification, urgency, pain, mucus, blood, fatty stool, black stool.
-- Done: baseline and daily medical/symptom forms save and reload without required field loss; form schema unit tests pass.
+- Repair Phase 4 form presentation with distinct platform styling: native mobile layouts must follow phone-first React Native patterns, while the companion web app must use its own responsive web layout without inheriting phone-frame or desktop-width assumptions.
+- Validate Phase 4 form layout at Pixel 9-style dimensions, at least one smaller phone viewport, and one wider desktop viewport. Stack or reflow date/time and other multi-column controls before they clip, overflow, or become unreadable.
+- Done: baseline and daily medical/symptom forms save and reload without required field loss; form schema unit tests pass; mobile and web form layouts pass their required viewport review without horizontal clipping or overflow.
 
 ### Phase 5 - Offline-Lite
 - Cache own recent history/opened days, allow pending offline text entries, allow pending timestamp edits, show pending markers, sync on reconnect, and clear pending state.
