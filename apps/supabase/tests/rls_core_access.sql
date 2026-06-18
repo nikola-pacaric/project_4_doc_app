@@ -35,9 +35,23 @@ on conflict (patient_id) do nothing;
 
 insert into public.patient_entries (id, patient_id, kind, occurred_at, text)
 values
-  ('10000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000001', 'text', now(), 'patient a entry'),
-  ('10000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002', 'text', now(), 'patient b entry')
+  ('10000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000001', 'daily', now(), null),
+  ('10000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002', 'daily', now(), null),
+  ('10000000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-000000000001', 'meal', now(), null),
+  ('10000000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-000000000002', 'meal', now(), null)
 on conflict (id) do nothing;
+
+insert into public.daily_form_details (entry_id, wake_time, food_notes, appetite, water_ml)
+values
+  ('10000000-0000-4000-8000-000000000001', '07:00', 'patient a food', 'usual', 1800),
+  ('10000000-0000-4000-8000-000000000002', '08:00', 'patient b food', 'usual', 1600)
+on conflict (entry_id) do nothing;
+
+insert into public.meal_details (entry_id, meal_type, name, description)
+values
+  ('10000000-0000-4000-8000-000000000003', 'breakfast', 'Oatmeal', null),
+  ('10000000-0000-4000-8000-000000000004', 'lunch', 'Soup', 'With bread')
+on conflict (entry_id) do nothing;
 
 set local role authenticated;
 set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000001';
@@ -46,16 +60,28 @@ do $$
 declare
   visible_entries integer;
   visible_baselines integer;
+  visible_daily_forms integer;
+  visible_meals integer;
   changed_rows integer;
 begin
   select count(*) into visible_entries from public.patient_entries;
-  if visible_entries <> 1 then
-    raise exception 'patient A should see exactly 1 own entry, saw %', visible_entries;
+  if visible_entries <> 2 then
+    raise exception 'patient A should see exactly 2 own entries, saw %', visible_entries;
   end if;
 
   select count(*) into visible_baselines from public.patient_baseline_profiles;
   if visible_baselines <> 1 then
     raise exception 'patient A should see exactly 1 own baseline, saw %', visible_baselines;
+  end if;
+
+  select count(*) into visible_daily_forms from public.daily_form_details;
+  if visible_daily_forms <> 1 then
+    raise exception 'patient A should see exactly 1 own daily form, saw %', visible_daily_forms;
+  end if;
+
+  select count(*) into visible_meals from public.meal_details;
+  if visible_meals <> 1 then
+    raise exception 'patient A should see exactly 1 own meal, saw %', visible_meals;
   end if;
 
   update public.patient_baseline_profiles set occupation = 'not allowed'
@@ -73,6 +99,20 @@ begin
   if changed_rows <> 0 then
     raise exception 'patient A should not update patient B entries';
   end if;
+
+  update public.daily_form_details set food_notes = 'not allowed'
+  where entry_id = '10000000-0000-4000-8000-000000000002';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then
+    raise exception 'patient A should not update patient B daily forms';
+  end if;
+
+  update public.meal_details set name = 'not allowed'
+  where entry_id = '10000000-0000-4000-8000-000000000004';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then
+    raise exception 'patient A should not update patient B meals';
+  end if;
 end $$;
 
 reset role;
@@ -84,6 +124,8 @@ do $$
 declare
   visible_entries integer;
   visible_baselines integer;
+  visible_daily_forms integer;
+  visible_meals integer;
   changed_rows integer;
 begin
   select count(*) into visible_entries from public.patient_entries;
@@ -94,6 +136,16 @@ begin
   select count(*) into visible_baselines from public.patient_baseline_profiles;
   if visible_baselines <> 0 then
     raise exception 'unlinked doctor should see 0 baselines, saw %', visible_baselines;
+  end if;
+
+  select count(*) into visible_daily_forms from public.daily_form_details;
+  if visible_daily_forms <> 0 then
+    raise exception 'unlinked doctor should see 0 daily forms, saw %', visible_daily_forms;
+  end if;
+
+  select count(*) into visible_meals from public.meal_details;
+  if visible_meals <> 0 then
+    raise exception 'unlinked doctor should see 0 meals, saw %', visible_meals;
   end if;
 
   update public.patient_entries
@@ -121,16 +173,28 @@ do $$
 declare
   visible_entries integer;
   visible_baselines integer;
+  visible_daily_forms integer;
+  visible_meals integer;
   changed_rows integer;
 begin
   select count(*) into visible_entries from public.patient_entries;
-  if visible_entries <> 1 then
-    raise exception 'linked doctor should see exactly 1 linked patient entry, saw %', visible_entries;
+  if visible_entries <> 2 then
+    raise exception 'linked doctor should see exactly 2 linked patient entries, saw %', visible_entries;
   end if;
 
   select count(*) into visible_baselines from public.patient_baseline_profiles;
   if visible_baselines <> 1 then
     raise exception 'linked doctor should see exactly 1 baseline, saw %', visible_baselines;
+  end if;
+
+  select count(*) into visible_daily_forms from public.daily_form_details;
+  if visible_daily_forms <> 1 then
+    raise exception 'linked doctor should see exactly 1 linked daily form, saw %', visible_daily_forms;
+  end if;
+
+  select count(*) into visible_meals from public.meal_details;
+  if visible_meals <> 1 then
+    raise exception 'linked doctor should see exactly 1 linked meal, saw %', visible_meals;
   end if;
 
   update public.patient_baseline_profiles set occupation = 'doctor attempted edit'
@@ -147,6 +211,20 @@ begin
   get diagnostics changed_rows = row_count;
   if changed_rows <> 0 then
     raise exception 'linked doctor should still not update patient entries';
+  end if;
+
+  update public.daily_form_details set food_notes = 'doctor attempted edit'
+  where entry_id = '10000000-0000-4000-8000-000000000001';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then
+    raise exception 'linked doctor should not update daily forms';
+  end if;
+
+  update public.meal_details set name = 'doctor attempted edit'
+  where entry_id = '10000000-0000-4000-8000-000000000003';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then
+    raise exception 'linked doctor should not update meals';
   end if;
 end $$;
 

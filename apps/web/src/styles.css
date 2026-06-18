@@ -631,6 +631,10 @@ button:focus-visible {
   gap: 10px;
 }
 
+.choice-row.three-options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .choice-row button {
   min-height: 48px;
   border: 1px solid #eadadd;
@@ -695,6 +699,168 @@ button:focus-visible {
 .form-actions {
   display: grid;
   gap: 10px;
+}
+
+.tracked-day-field {
+  display: grid;
+  gap: 7px;
+  padding-top: 18px;
+  color: #4e3b42;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.tracked-day-field input {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #eadadd;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #34292d;
+  padding: 10px 12px;
+}
+
+.daily-form .choice-field:not(.full-width) {
+  align-content: start;
+}
+
+.daily-status {
+  display: grid;
+  gap: 3px;
+  border: 1px solid #f0dfe1;
+  border-radius: 16px;
+  padding: 13px 14px;
+  font-size: 14px;
+}
+
+.daily-status strong {
+  color: #34292d;
+}
+
+.daily-status span {
+  color: #806c73;
+  line-height: 1.4;
+}
+
+.daily-status.draft {
+  background: #fff9ef;
+}
+
+.daily-status.complete {
+  border-color: #cde7d6;
+  background: #f1fbf5;
+}
+
+.time-field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+
+.time-field-row label {
+  min-width: 0;
+}
+
+.time-field-row input {
+  width: 100%;
+}
+
+.conditional-question {
+  gap: 10px;
+  border-top: 1px solid #f2e5e7;
+  padding-top: 16px;
+}
+
+.conditional-question .conditional-field-bubble {
+  margin-top: 2px;
+}
+
+.scale-field-card {
+  gap: 10px;
+  border: 1px solid #f0dfe1;
+  border-radius: 18px;
+  background: #fffafb;
+  padding: 16px;
+}
+
+.scale-field-card .choice-label {
+  color: #34292d;
+  font-size: 16px;
+  font-weight: 850;
+}
+
+.scale-field-card .choice-row button {
+  display: grid;
+  place-items: center;
+  gap: 2px;
+}
+
+.scale-field-card .choice-row button span {
+  font-size: 17px;
+}
+
+.scale-field-card .choice-row button small {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.meal-section {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid #f0dfe1;
+  border-radius: 18px;
+  background: #fffafb;
+  padding: 16px;
+}
+
+.meal-section legend {
+  padding: 0 6px;
+  color: #34292d;
+  font-size: 17px;
+  font-weight: 850;
+}
+
+.field-help {
+  margin: 0 0 14px;
+  color: #806c73;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.meal-card + .meal-card {
+  margin-top: 12px;
+}
+
+.meal-card > label,
+.meal-details label {
+  display: grid;
+  gap: 7px;
+}
+
+.meal-details {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.add-meal-button {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.text-button {
+  justify-self: start;
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: #e84f70;
+  padding: 4px 0;
+  font-weight: 800;
+}
+
+.text-button.danger {
+  color: #b42318;
 }
 
 @media (max-width: 390px) {

@@ -52,12 +52,15 @@
 - Keep forms schema-driven where possible and validate before persistence.
 
 ## Android Standards
+- Treat the Android app as the primary product and implementation target; the web app is a companion/extra surface.
+- Implement new user-facing workflows on Android first, then add matching web behavior, unless the user explicitly sets a different priority.
 - Build the Android app with React Native and TypeScript, preferably Expo with prebuild support.
 - Match web behavior for roles, forms, workflows, Serbian/English UI, voice language, theme, and backend data.
 - Keep native/mobile-specific concerns isolated from shared domain logic.
 - Validate APK behavior with mobile smoke tests before considering Android work complete.
 
 ## App Preview Workflow
+- Use the Pixel 9-style preview because Android is the primary product; frontend decisions should be reviewed first as Android/mobile interactions, then checked for web parity.
 - During actual app UI implementation, run the app locally and inspect it in the Codex/browser preview when feasible.
 - Use mobile-sized browser views, including Pixel 9-style dimensions, plus at least one additional small/mobile and one wider/desktop viewport for responsive checks.
 - When presenting Android/mobile UI in the Codex browser preview, never show it as a bare web page. Display it inside a realistic original Google Pixel 9-style phone frame with a camera cutout, Android status bar, hardware buttons, and gesture navigation bar.

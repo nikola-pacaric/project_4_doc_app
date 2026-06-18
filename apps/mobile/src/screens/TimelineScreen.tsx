@@ -25,6 +25,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { TimelineEntryCard } from '../components/TimelineEntryCard';
 import { colors, sharedStyles } from '../theme';
 import { BaselineScreen } from './BaselineScreen';
+import { DailyFormScreen } from './DailyFormScreen';
 
 interface TimelineScreenProps {
   client: AppSupabaseClient;
@@ -47,6 +48,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [showBaseline, setShowBaseline] = useState(false);
+  const [showDailyForm, setShowDailyForm] = useState(false);
 
   const loadEntries = useCallback(
     async (isRefresh = false) => {
@@ -147,6 +149,12 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     );
   }
 
+  if (showDailyForm) {
+    return (
+      <DailyFormScreen client={client} onBack={() => setShowDailyForm(false)} profile={profile} />
+    );
+  }
+
   const header = (
     <View style={styles.headerContent}>
       <ScreenHeader
@@ -157,6 +165,13 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
       {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
       {message ? <Text style={sharedStyles.success}>{message}</Text> : null}
       <View style={styles.headerActions}>
+        <View style={styles.headerAction}>
+          <PrimaryButton
+            label={t(locale, 'daily.open')}
+            onPress={() => setShowDailyForm(true)}
+            variant="secondary"
+          />
+        </View>
         <View style={styles.headerAction}>
           <PrimaryButton
             label={t(locale, 'baseline.open')}

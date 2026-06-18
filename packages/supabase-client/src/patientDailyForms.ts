@@ -1,0 +1,157 @@
+import type { DailyFormRecord } from '@project4/contracts';
+import type { DailyFormDraft } from '@project4/forms';
+
+import type { AppSupabaseClient } from './index';
+
+interface DailyFormRow {
+  entry_id: string;
+  wake_time: string | null;
+  food_notes: string | null;
+  appetite: 'low' | 'usual' | 'high' | null;
+  water_ml: number | null;
+  has_other_fluids: boolean | null;
+  other_fluids: string | null;
+  had_physical_activity: boolean | null;
+  activity_notes: string | null;
+  sleep_notes: string | null;
+  stress_level: 1 | 2 | 3 | null;
+  day_description: string | null;
+  took_medication_outside_chronic_therapy: boolean | null;
+  medication_outside_chronic_therapy: string | null;
+  had_menstruation: boolean | null;
+  menstruation_notes: string | null;
+  energy_level: 1 | 2 | 3 | null;
+  had_naps: boolean | null;
+  naps: string | null;
+  has_additional_notes: boolean | null;
+  notes: string | null;
+  completed_at: string | null;
+}
+
+const detailColumns =
+  'entry_id, wake_time, food_notes, appetite, water_ml, has_other_fluids, other_fluids, had_physical_activity, activity_notes, sleep_notes, stress_level, day_description, took_medication_outside_chronic_therapy, medication_outside_chronic_therapy, had_menstruation, menstruation_notes, energy_level, had_naps, naps, has_additional_notes, notes, completed_at';
+
+export function toDailyFormDetails(row: DailyFormRow): DailyFormRecord['details'] {
+  return {
+    entryId: row.entry_id,
+    wakeTime: row.wake_time?.slice(0, 5) ?? null,
+    sleepDuration: row.sleep_notes?.slice(0, 5) ?? null,
+    appetite: row.appetite,
+    waterMl: row.water_ml,
+    hasOtherFluids: row.has_other_fluids,
+    otherFluids: row.other_fluids,
+    hadPhysicalActivity: row.had_physical_activity,
+    activityNotes: row.activity_notes,
+    stressLevel: row.stress_level,
+    dayDescription: row.day_description,
+    tookMedicationOutsideChronicTherapy: row.took_medication_outside_chronic_therapy,
+    medicationOutsideChronicTherapy: row.medication_outside_chronic_therapy,
+    hadMenstruation: row.had_menstruation,
+    menstruationNotes: row.menstruation_notes,
+    energyLevel: row.energy_level,
+    hadNaps: row.had_naps,
+    naps: row.naps,
+    hasAdditionalNotes: row.has_additional_notes,
+    notes: row.notes,
+    completedAt: row.completed_at,
+  };
+}
+
+function toRow(
+  entryId: string,
+  draft: DailyFormDraft,
+  includeMenstruation: boolean,
+  completeDay: boolean,
+) {
+  return {
+    entry_id: entryId,
+    wake_time: draft.wakeTime || null,
+    food_notes: null,
+    appetite: draft.appetite ?? null,
+    water_ml: draft.waterMl ?? null,
+    has_other_fluids: draft.hasOtherFluids ?? null,
+    other_fluids: draft.hasOtherFluids ? draft.otherFluids?.trim() || null : null,
+    had_physical_activity: draft.hadPhysicalActivity ?? null,
+    activity_notes: draft.hadPhysicalActivity ? draft.activityNotes?.trim() || null : null,
+    sleep_notes: draft.sleepDuration || null,
+    stress_level: draft.stressLevel ?? null,
+    day_description: draft.dayDescription?.trim() || null,
+    took_medication_outside_chronic_therapy: draft.tookMedicationOutsideChronicTherapy ?? null,
+    medication_outside_chronic_therapy: draft.tookMedicationOutsideChronicTherapy
+      ? draft.medicationOutsideChronicTherapy?.trim() || null
+      : null,
+    had_menstruation: includeMenstruation ? (draft.hadMenstruation ?? null) : null,
+    menstruation_notes:
+      includeMenstruation && draft.hadMenstruation ? draft.menstruationNotes?.trim() || null : null,
+    energy_level: draft.energyLevel ?? null,
+    had_naps: draft.hadNaps ?? null,
+    naps: draft.hadNaps ? draft.naps?.trim() || null : null,
+    has_additional_notes: draft.hasAdditionalNotes ?? null,
+    notes: draft.hasAdditionalNotes ? draft.notes?.trim() || null : null,
+    completed_at: completeDay ? new Date().toISOString() : null,
+  };
+}
+
+export async function getPatientDailyForm(
+  client: AppSupabaseClient,
+  patientId: string,
+  dayStart: string,
+  dayEnd: string,
+): Promise<DailyFormRecord | null> {
+  const { data: entry, error: entryError } = await client
+    .from('patient_entries')
+    .select('id, occurred_at')
+    .eq('patient_id', patientId)
+    .eq('kind', 'daily')
+    .gte('occurred_at', dayStart)
+    .lt('occurred_at', dayEnd)
+    .order('occurred_at', { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string; occurred_at: string }>();
+
+  if (entryError) throw entryError;
+  if (!entry) return null;
+
+  const { data: details, error: detailsError } = await client
+    .from('daily_form_details')
+    .select(detailColumns)
+    .eq('entry_id', entry.id)
+    .single<DailyFormRow>();
+
+  if (detailsError) throw detailsError;
+  return { entryId: entry.id, occurredAt: entry.occurred_at, details: toDailyFormDetails(details) };
+}
+
+export async function savePatientDailyForm(
+  client: AppSupabaseClient,
+  patientId: string,
+  occurredAt: string,
+  draft: DailyFormDraft,
+  includeMenstruation: boolean,
+  completeDay: boolean,
+  existingEntryId?: string,
+): Promise<void> {
+  if (existingEntryId) {
+    const { error } = await client
+      .from('daily_form_details')
+      .update(toRow(existingEntryId, draft, includeMenstruation, completeDay))
+      .eq('entry_id', existingEntryId);
+    if (error) throw error;
+    return;
+  }
+
+  const { data: entry, error: entryError } = await client
+    .from('patient_entries')
+    .insert({ patient_id: patientId, kind: 'daily', occurred_at: occurredAt, text: null })
+    .select('id')
+    .single<{ id: string }>();
+  if (entryError) throw entryError;
+
+  const { error: detailsError } = await client
+    .from('daily_form_details')
+    .insert(toRow(entry.id, draft, includeMenstruation, completeDay));
+  if (!detailsError) return;
+
+  await client.from('patient_entries').delete().eq('id', entry.id);
+  throw detailsError;
+}

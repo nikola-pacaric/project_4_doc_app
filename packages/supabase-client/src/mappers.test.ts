@@ -2,9 +2,44 @@ import { describe, expect, it } from 'vitest';
 
 import { toPatientEntry } from './patientEntries';
 import { toPatientBaselineProfile } from './patientBaseline';
+import { toDailyFormDetails } from './patientDailyForms';
 import { toUserProfile } from './profiles';
 
 describe('Supabase row mappers', () => {
+  it('maps daily form rows and normalizes database time values', () => {
+    expect(
+      toDailyFormDetails({
+        entry_id: 'entry-daily',
+        wake_time: '07:15:00',
+        food_notes: null,
+        appetite: 'usual',
+        water_ml: 1800,
+        has_other_fluids: true,
+        other_fluids: 'Coffee',
+        had_physical_activity: true,
+        activity_notes: 'Walk',
+        sleep_notes: '07:30:00',
+        stress_level: 2,
+        day_description: 'Normal day',
+        took_medication_outside_chronic_therapy: false,
+        medication_outside_chronic_therapy: 'None',
+        had_menstruation: false,
+        menstruation_notes: null,
+        energy_level: 2,
+        had_naps: false,
+        naps: 'None',
+        has_additional_notes: false,
+        notes: 'None',
+        completed_at: null,
+      }),
+    ).toMatchObject({
+      entryId: 'entry-daily',
+      wakeTime: '07:15',
+      sleepDuration: '07:30',
+      waterMl: 1800,
+    });
+  });
+
   it('maps numeric baseline values and reminder metadata', () => {
     expect(
       toPatientBaselineProfile({
