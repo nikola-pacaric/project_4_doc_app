@@ -3,18 +3,20 @@ import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import { acceptCurrentConsent, getCurrentProfile, type Session } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
 import { StatusBar } from 'expo-status-bar';
+import { registerRootComponent } from 'expo';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, AppState, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from './src/components/PrimaryButton';
 import { isSupabaseConfigured, supabase } from './src/lib/supabase';
+import { SymptomPreview } from './src/preview/SymptomPreview';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { ConsentScreen } from './src/screens/ConsentScreen';
 import { DoctorPendingScreen } from './src/screens/DoctorPendingScreen';
 import { TimelineScreen } from './src/screens/TimelineScreen';
 import { colors, sharedStyles } from './src/theme';
 
-export default function App() {
+function MainApp() {
   const locale = DEFAULT_LOCALE;
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -157,6 +159,14 @@ export default function App() {
   );
 }
 
+export default function App() {
+  if (process.env.EXPO_PUBLIC_PREVIEW_SCREEN === 'symptom') {
+    return <SymptomPreview />;
+  }
+
+  return <MainApp />;
+}
+
 const styles = StyleSheet.create({
   centered: {
     flex: 1,
@@ -165,3 +175,5 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
 });
+
+registerRootComponent(App);

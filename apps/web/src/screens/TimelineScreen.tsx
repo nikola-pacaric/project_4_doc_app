@@ -12,6 +12,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { BaselineScreen } from './BaselineScreen';
 import { DailyFormScreen } from './DailyFormScreen';
+import { SymptomFormScreen } from './SymptomFormScreen';
 
 interface TimelineScreenProps {
   client: AppSupabaseClient;
@@ -43,6 +44,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [message, setMessage] = useState<string | null>(null);
   const [showBaseline, setShowBaseline] = useState(false);
   const [showDailyForm, setShowDailyForm] = useState(false);
+  const [showSymptomForm, setShowSymptomForm] = useState(false);
 
   async function loadEntries() {
     setError(null);
@@ -142,6 +144,16 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     );
   }
 
+  if (showSymptomForm) {
+    return (
+      <SymptomFormScreen
+        client={client}
+        onBack={() => setShowSymptomForm(false)}
+        profile={profile}
+      />
+    );
+  }
+
   return (
     <main className="timeline-layout">
       <div className="timeline-toolbar">
@@ -150,6 +162,13 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
           title={t(locale, 'timeline.title')}
         />
         <div className="button-row compact">
+          <button
+            className="secondary-button"
+            onClick={() => setShowSymptomForm(true)}
+            type="button"
+          >
+            {t(locale, 'symptom.open')}
+          </button>
           <button className="secondary-button" onClick={() => setShowDailyForm(true)} type="button">
             {t(locale, 'daily.open')}
           </button>

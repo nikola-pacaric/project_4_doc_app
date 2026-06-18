@@ -863,6 +863,172 @@ button:focus-visible {
   color: #b42318;
 }
 
+.symptom-form,
+.symptom-list,
+.symptom-item,
+.symptom-detail-card,
+.pain-detail-section {
+  display: grid;
+  gap: 14px;
+}
+
+.symptom-form {
+  padding-top: 18px;
+}
+
+.symptom-section-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.symptom-section-heading strong {
+  color: #34292d;
+  font-size: 18px;
+}
+
+.symptom-section-heading p {
+  margin: 0;
+  color: #806c73;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.symptom-option {
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  border: 1px solid #eadadd;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 4px 8px;
+}
+
+.symptom-option.selected {
+  border-color: #f45b7a;
+  background: #fff0f3;
+}
+
+.symptom-option input[type='checkbox'] {
+  width: 24px;
+  height: 24px;
+  justify-self: center;
+  accent-color: #f45b7a;
+  cursor: pointer;
+}
+
+.symptom-option button {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  color: #34292d;
+  padding: 0 8px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.symptom-option button:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.symptom-option.selected button {
+  color: #e84f70;
+}
+
+.symptom-detail-card {
+  border: 1px solid #f0dfe1;
+  border-radius: 18px;
+  background: #fffafb;
+  padding: 16px;
+  animation: conditional-bubble-open 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.symptom-detail-card.invalid {
+  border-color: #c83f52;
+}
+
+.symptom-detail-heading {
+  display: grid;
+  gap: 3px;
+}
+
+.symptom-detail-heading strong,
+.pain-detail-section > strong {
+  color: #34292d;
+  font-size: 17px;
+}
+
+.symptom-detail-heading span {
+  color: #806c73;
+  font-size: 13px;
+}
+
+.symptom-detail-card label,
+.pain-detail-section label {
+  display: grid;
+  gap: 7px;
+  color: #4e3b42;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.symptom-detail-card input,
+.symptom-detail-card select,
+.symptom-detail-card textarea {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #eadadd;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #34292d;
+  padding: 10px 12px;
+}
+
+.symptom-intensity-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.symptom-intensity-grid button {
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #eadadd;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #59434a;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.symptom-intensity-grid button.selected {
+  border-color: #f45b7a;
+  background: #fff0f3;
+  color: #e84f70;
+}
+
+.symptom-intensity-grid button strong {
+  font-size: 18px;
+  text-align: center;
+}
+
+.symptom-intensity-grid button span {
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.pain-detail-section {
+  border-top: 1px solid #f0dfe1;
+  padding-top: 14px;
+}
+
 @media (max-width: 390px) {
   .baseline-form {
     grid-template-columns: 1fr;

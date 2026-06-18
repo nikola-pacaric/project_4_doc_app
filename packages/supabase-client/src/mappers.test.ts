@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { toPatientEntry } from './patientEntries';
 import { toPatientBaselineProfile } from './patientBaseline';
 import { toDailyFormDetails } from './patientDailyForms';
+import { toSymptomRecord } from './patientSymptoms';
 import { toUserProfile } from './profiles';
 
 describe('Supabase row mappers', () => {
@@ -58,6 +59,36 @@ describe('Supabase row mappers', () => {
         updated_at: '2026-06-18T08:00:00.000Z',
       }),
     ).toMatchObject({ patientId: 'patient-1', weightKg: 68.5, heightCm: 172 });
+  });
+
+  it('maps structured symptom rows', () => {
+    expect(
+      toSymptomRecord(
+        {
+          entry_id: 'entry-symptom',
+          symptom_type: 'pain',
+          custom_type: null,
+          started_at: '2026-06-18T08:30:00.000Z',
+          ended_at: null,
+          intensity: 3,
+          modifying_factors: 'Improved after rest',
+          woke_from_sleep: true,
+          pain_location: 'upper_abdomen',
+          pain_location_custom: null,
+          pain_radiates: false,
+          pain_radiation: null,
+          pain_description: 'burning',
+          pain_description_custom: null,
+        },
+        '2026-06-18T08:30:00.000Z',
+      ),
+    ).toMatchObject({
+      entryId: 'entry-symptom',
+      type: 'pain',
+      intensity: 3,
+      wokeFromSleep: true,
+      painDescription: 'burning',
+    });
   });
 
   it('maps patient entry rows to shared contracts', () => {

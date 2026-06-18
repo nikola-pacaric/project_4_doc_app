@@ -38,13 +38,23 @@ values
   ('10000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000001', 'daily', now(), null),
   ('10000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002', 'daily', now(), null),
   ('10000000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-000000000001', 'meal', now(), null),
-  ('10000000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-000000000002', 'meal', now(), null)
+  ('10000000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-000000000002', 'meal', now(), null),
+  ('10000000-0000-4000-8000-000000000005', '00000000-0000-4000-8000-000000000001', 'symptom', now(), null),
+  ('10000000-0000-4000-8000-000000000006', '00000000-0000-4000-8000-000000000002', 'symptom', now(), null)
 on conflict (id) do nothing;
 
 insert into public.daily_form_details (entry_id, wake_time, food_notes, appetite, water_ml)
 values
   ('10000000-0000-4000-8000-000000000001', '07:00', 'patient a food', 'usual', 1800),
   ('10000000-0000-4000-8000-000000000002', '08:00', 'patient b food', 'usual', 1600)
+on conflict (entry_id) do nothing;
+
+insert into public.symptom_details (
+  entry_id, symptom_type, started_at, intensity, modifying_factors, woke_from_sleep
+)
+values
+  ('10000000-0000-4000-8000-000000000005', 'bloating', now(), 2, 'Improved after walking', false),
+  ('10000000-0000-4000-8000-000000000006', 'nausea', now(), 1, null, false)
 on conflict (entry_id) do nothing;
 
 insert into public.meal_details (entry_id, meal_type, name, description)
@@ -62,11 +72,12 @@ declare
   visible_baselines integer;
   visible_daily_forms integer;
   visible_meals integer;
+  visible_symptoms integer;
   changed_rows integer;
 begin
   select count(*) into visible_entries from public.patient_entries;
-  if visible_entries <> 2 then
-    raise exception 'patient A should see exactly 2 own entries, saw %', visible_entries;
+  if visible_entries <> 3 then
+    raise exception 'patient A should see exactly 3 own entries, saw %', visible_entries;
   end if;
 
   select count(*) into visible_baselines from public.patient_baseline_profiles;
@@ -82,6 +93,11 @@ begin
   select count(*) into visible_meals from public.meal_details;
   if visible_meals <> 1 then
     raise exception 'patient A should see exactly 1 own meal, saw %', visible_meals;
+  end if;
+
+  select count(*) into visible_symptoms from public.symptom_details;
+  if visible_symptoms <> 1 then
+    raise exception 'patient A should see exactly 1 own symptom, saw %', visible_symptoms;
   end if;
 
   update public.patient_baseline_profiles set occupation = 'not allowed'
@@ -113,6 +129,13 @@ begin
   if changed_rows <> 0 then
     raise exception 'patient A should not update patient B meals';
   end if;
+
+  update public.symptom_details set intensity = 3
+  where entry_id = '10000000-0000-4000-8000-000000000006';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then
+    raise exception 'patient A should not update patient B symptoms';
+  end if;
 end $$;
 
 reset role;
@@ -126,6 +149,7 @@ declare
   visible_baselines integer;
   visible_daily_forms integer;
   visible_meals integer;
+  visible_symptoms integer;
   changed_rows integer;
 begin
   select count(*) into visible_entries from public.patient_entries;
@@ -146,6 +170,11 @@ begin
   select count(*) into visible_meals from public.meal_details;
   if visible_meals <> 0 then
     raise exception 'unlinked doctor should see 0 meals, saw %', visible_meals;
+  end if;
+
+  select count(*) into visible_symptoms from public.symptom_details;
+  if visible_symptoms <> 0 then
+    raise exception 'unlinked doctor should see 0 symptoms, saw %', visible_symptoms;
   end if;
 
   update public.patient_entries
@@ -175,11 +204,12 @@ declare
   visible_baselines integer;
   visible_daily_forms integer;
   visible_meals integer;
+  visible_symptoms integer;
   changed_rows integer;
 begin
   select count(*) into visible_entries from public.patient_entries;
-  if visible_entries <> 2 then
-    raise exception 'linked doctor should see exactly 2 linked patient entries, saw %', visible_entries;
+  if visible_entries <> 3 then
+    raise exception 'linked doctor should see exactly 3 linked patient entries, saw %', visible_entries;
   end if;
 
   select count(*) into visible_baselines from public.patient_baseline_profiles;
@@ -195,6 +225,11 @@ begin
   select count(*) into visible_meals from public.meal_details;
   if visible_meals <> 1 then
     raise exception 'linked doctor should see exactly 1 linked meal, saw %', visible_meals;
+  end if;
+
+  select count(*) into visible_symptoms from public.symptom_details;
+  if visible_symptoms <> 1 then
+    raise exception 'linked doctor should see exactly 1 linked symptom, saw %', visible_symptoms;
   end if;
 
   update public.patient_baseline_profiles set occupation = 'doctor attempted edit'
@@ -225,6 +260,13 @@ begin
   get diagnostics changed_rows = row_count;
   if changed_rows <> 0 then
     raise exception 'linked doctor should not update meals';
+  end if;
+
+  update public.symptom_details set intensity = 3
+  where entry_id = '10000000-0000-4000-8000-000000000005';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then
+    raise exception 'linked doctor should not update symptoms';
   end if;
 end $$;
 

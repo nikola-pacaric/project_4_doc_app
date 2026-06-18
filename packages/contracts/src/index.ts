@@ -6,3 +6,4 @@ export * from './exports';
 export * from './meals';
 export * from './profiles';
 export * from './roles';
+export * from './symptoms';

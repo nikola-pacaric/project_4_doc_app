@@ -26,6 +26,7 @@ import { TimelineEntryCard } from '../components/TimelineEntryCard';
 import { colors, sharedStyles } from '../theme';
 import { BaselineScreen } from './BaselineScreen';
 import { DailyFormScreen } from './DailyFormScreen';
+import { PatientSymptomsScreen } from './PatientSymptomsScreen';
 
 interface TimelineScreenProps {
   client: AppSupabaseClient;
@@ -49,6 +50,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [message, setMessage] = useState<string | null>(null);
   const [showBaseline, setShowBaseline] = useState(false);
   const [showDailyForm, setShowDailyForm] = useState(false);
+  const [showSymptomForm, setShowSymptomForm] = useState(false);
 
   const loadEntries = useCallback(
     async (isRefresh = false) => {
@@ -155,6 +157,16 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     );
   }
 
+  if (showSymptomForm) {
+    return (
+      <PatientSymptomsScreen
+        client={client}
+        onBack={() => setShowSymptomForm(false)}
+        profile={profile}
+      />
+    );
+  }
+
   const header = (
     <View style={styles.headerContent}>
       <ScreenHeader
@@ -164,6 +176,11 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
       <EntryComposer busy={saving} onCreate={createEntry} />
       {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
       {message ? <Text style={sharedStyles.success}>{message}</Text> : null}
+      <PrimaryButton
+        label={t(locale, 'symptom.open')}
+        onPress={() => setShowSymptomForm(true)}
+        variant="secondary"
+      />
       <View style={styles.headerActions}>
         <View style={styles.headerAction}>
           <PrimaryButton
