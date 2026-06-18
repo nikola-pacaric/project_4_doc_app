@@ -63,13 +63,27 @@
 
 ## Implementation Workflow
 1. Pick the next incomplete phase.
-2. Restate the immediate goal.
+2. Choose and restate one bounded, testable slice from that phase, including what is out of scope.
 3. Inspect only files relevant to that phase.
 4. Implement the smallest complete vertical behavior.
 5. Add or update focused tests.
 6. Run relevant checks.
 7. Record what passed, failed, and remains.
 8. Do not skip RLS, export, photo, or offline validation.
+9. Stop at the agreed slice boundary unless the user asks to continue.
+
+## Session Efficiency
+- Improve token efficiency by reducing repeated inspection, unnecessary context, and overly broad work; never trade away correctness, maintainability, privacy, security, accessibility, or required validation.
+- Keep each implementation session centered on one cohesive slice that reaches a useful, testable checkpoint.
+- Reuse context already gathered in the current chat and do not reread unchanged files without a concrete need.
+- Inspect adjacent modules only when required for contracts, dependencies, established patterns, or correctness.
+- Avoid unrelated refactoring, redesign, cleanup, and premature work on later slices.
+- Avoid excessively tiny edit cycles that repeat setup and validation without producing a meaningful checkpoint.
+- Run focused tests and checks while developing; reserve full builds, broad integration suites, and end-to-end checks for meaningful integration checkpoints.
+- Run browser previews only for UI-affecting slices, and perform the required representative viewport review once the workflow is stable rather than after every styling edit.
+- Inspect Supabase only when the active slice requires database state, migrations, storage, authentication, RPC, or RLS verification. Never reduce database security testing for efficiency.
+- If correctness or safety requires expanding the agreed scope, explain the reason and keep the expansion as narrow as possible.
+- Keep progress updates brief and decision-oriented, and record any deferred validation with the checkpoint where it must be completed.
 
 ## Testing And Validation
 - Scale tests with risk and blast radius.
