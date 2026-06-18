@@ -24,6 +24,7 @@
 - Never ship Supabase service-role credentials to any web or mobile client.
 
 ## Code Organization
+- Before creating a new architectural pattern, service, folder structure, state system, or dependency, inspect and follow the project's existing pattern. Introduce a new pattern only when the active slice requires it.
 - Do not write an entire codebase, app, feature, or workflow in one file.
 - Each entity, screen, panel, service, schema, hook, utility, and test area should have its own file.
 - Frontend apps must be split by users, panels, routes, components, hooks, state, services, and shared utilities.
@@ -31,6 +32,10 @@
 - Shared behavior belongs in shared packages when it must be reused by web and Android.
 - Prefer small cohesive modules over large generic files.
 - Keep file and folder names clear enough that their purpose is obvious.
+
+## Dependencies And Services
+- Use existing installed dependencies when they fit the requirement.
+- Do not add new npm packages, Expo plugins, Supabase extensions, paid APIs, cloud services, or build tools without explaining why and asking first, unless they are explicitly approved in `PLANNING.md`.
 
 ## Web Standards
 - Build the web app with React, TypeScript, and Vite unless the user changes the stack.
@@ -71,6 +76,7 @@
 7. Record what passed, failed, and remains.
 8. Do not skip RLS, export, photo, or offline validation.
 9. Stop at the agreed slice boundary unless the user asks to continue.
+10. If the same blocker remains after two reasonable, materially different attempts, stop guessing. Summarize what was tried, show the exact error, and propose the smallest next step.
 
 ## Session Efficiency
 - Improve token efficiency by reducing repeated inspection, unnecessary context, and overly broad work; never trade away correctness, maintainability, privacy, security, accessibility, or required validation.
@@ -87,6 +93,7 @@
 
 ## Testing And Validation
 - Scale tests with risk and blast radius.
+- Never claim that tests, builds, previews, migrations, RLS checks, or device checks passed unless they were actually run. State exactly what was not run.
 - Always test RLS/security behavior for exposed app data.
 - Add schema/contract tests for forms, entries, photos, exports, and settings.
 - Add integration tests for patient flows, doctor flows, offline-lite, photos, invites, exports, language, and theme.
