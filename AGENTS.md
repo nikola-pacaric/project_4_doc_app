@@ -37,6 +37,12 @@
 - Use existing installed dependencies when they fit the requirement.
 - Do not add new npm packages, Expo plugins, Supabase extensions, paid APIs, cloud services, or build tools without explaining why and asking first, unless they are explicitly approved in `PLANNING.md`.
 
+## Secrets And Environment
+- Keep secrets only in local `.env` files, `secrets/` folders, or approved secret stores.
+- Do not commit `.env`, service-role keys, access tokens, API keys, database passwords, private keys, certificates, keystores, or generated credentials.
+- Use `.env.example` and `*.example.json` files only for required variable names and safe placeholder values, never real secrets.
+- Before committing, verify that no secret, certificate, key, or credential file is staged.
+
 ## Web Standards
 - Build the web app with React, TypeScript, and Vite unless the user changes the stack.
 - Use shared contracts, schemas, i18n, Supabase wrappers, photo helpers, sync helpers, and UI tokens.
