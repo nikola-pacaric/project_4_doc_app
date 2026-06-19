@@ -124,6 +124,7 @@ Photo storage:
 - Done: guided acceptance can log in, consent, create a text entry, reload, and see it; online text save responds in under 2 seconds.
 
 ### Phase 4 - Full Patient Forms
+- Progress checkpoint (user-verified 2026-06-19): stool and medication entry workflows are complete across shared contracts/validation, Supabase constraints and RLS, Android/mobile, and companion web. Browser smoke testing for create, save, reload, and timeline visibility passed multiple times. Visual polish and structured-detail editing are intentionally deferred.
 - Implement baseline: sex, birth year, occupation, chronic diseases, chronic therapy, menstrual history where relevant, weight, height, recent major weight change, and 3-month weight reminder.
 - Show menstrual history and menstruation tracking only when the patient's recorded sex is female; do not show menstruation fields or tracking to male patients.
 - Implement daily fields: wake time, food, appetite, water, other fluids, activity, sleep, stress, day description, medication outside chronic therapy, menstruation, energy, naps, and notes.

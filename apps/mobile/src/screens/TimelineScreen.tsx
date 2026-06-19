@@ -26,7 +26,9 @@ import { TimelineEntryCard } from '../components/TimelineEntryCard';
 import { colors, sharedStyles } from '../theme';
 import { BaselineScreen } from './BaselineScreen';
 import { DailyFormScreen } from './DailyFormScreen';
+import { PatientMedicationScreen } from './PatientMedicationScreen';
 import { PatientSymptomsScreen } from './PatientSymptomsScreen';
+import { PatientStoolScreen } from './PatientStoolScreen';
 
 interface TimelineScreenProps {
   client: AppSupabaseClient;
@@ -51,6 +53,8 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [showBaseline, setShowBaseline] = useState(false);
   const [showDailyForm, setShowDailyForm] = useState(false);
   const [showSymptomForm, setShowSymptomForm] = useState(false);
+  const [showStoolForm, setShowStoolForm] = useState(false);
+  const [showMedicationForm, setShowMedicationForm] = useState(false);
 
   const loadEntries = useCallback(
     async (isRefresh = false) => {
@@ -167,6 +171,34 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     );
   }
 
+  if (showStoolForm) {
+    return (
+      <PatientStoolScreen
+        client={client}
+        onBack={() => setShowStoolForm(false)}
+        onSaved={() => {
+          setShowStoolForm(false);
+          void loadEntries();
+        }}
+        profile={profile}
+      />
+    );
+  }
+
+  if (showMedicationForm) {
+    return (
+      <PatientMedicationScreen
+        client={client}
+        onBack={() => setShowMedicationForm(false)}
+        onSaved={() => {
+          setShowMedicationForm(false);
+          void loadEntries();
+        }}
+        profile={profile}
+      />
+    );
+  }
+
   const header = (
     <View style={styles.headerContent}>
       <ScreenHeader
@@ -181,6 +213,22 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
         onPress={() => setShowSymptomForm(true)}
         variant="secondary"
       />
+      <View style={styles.headerActions}>
+        <View style={styles.headerAction}>
+          <PrimaryButton
+            label={t(locale, 'stool.open')}
+            onPress={() => setShowStoolForm(true)}
+            variant="secondary"
+          />
+        </View>
+        <View style={styles.headerAction}>
+          <PrimaryButton
+            label={t(locale, 'medication.open')}
+            onPress={() => setShowMedicationForm(true)}
+            variant="secondary"
+          />
+        </View>
+      </View>
       <View style={styles.headerActions}>
         <View style={styles.headerAction}>
           <PrimaryButton

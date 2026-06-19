@@ -1,5 +1,5 @@
 import type { PatientEntry, UserProfile } from '@project4/contracts';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
 import {
   createTextEntry,
   deletePatientEntry,
@@ -12,6 +12,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { BaselineScreen } from './BaselineScreen';
 import { DailyFormScreen } from './DailyFormScreen';
+import { MedicationFormScreen } from './MedicationFormScreen';
+import { StoolFormScreen } from './StoolFormScreen';
 import { SymptomFormScreen } from './SymptomFormScreen';
 
 interface TimelineScreenProps {
@@ -45,6 +47,8 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [showBaseline, setShowBaseline] = useState(false);
   const [showDailyForm, setShowDailyForm] = useState(false);
   const [showSymptomForm, setShowSymptomForm] = useState(false);
+  const [showStoolForm, setShowStoolForm] = useState(false);
+  const [showMedicationForm, setShowMedicationForm] = useState(false);
 
   async function loadEntries() {
     setError(null);
@@ -154,6 +158,34 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     );
   }
 
+  if (showStoolForm) {
+    return (
+      <StoolFormScreen
+        client={client}
+        onBack={() => setShowStoolForm(false)}
+        onSaved={() => {
+          setShowStoolForm(false);
+          void loadEntries();
+        }}
+        profile={profile}
+      />
+    );
+  }
+
+  if (showMedicationForm) {
+    return (
+      <MedicationFormScreen
+        client={client}
+        onBack={() => setShowMedicationForm(false)}
+        onSaved={() => {
+          setShowMedicationForm(false);
+          void loadEntries();
+        }}
+        profile={profile}
+      />
+    );
+  }
+
   return (
     <main className="timeline-layout">
       <div className="timeline-toolbar">
@@ -168,6 +200,16 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
             type="button"
           >
             {t(locale, 'symptom.open')}
+          </button>
+          <button className="secondary-button" onClick={() => setShowStoolForm(true)} type="button">
+            {t(locale, 'stool.open')}
+          </button>
+          <button
+            className="secondary-button"
+            onClick={() => setShowMedicationForm(true)}
+            type="button"
+          >
+            {t(locale, 'medication.open')}
           </button>
           <button className="secondary-button" onClick={() => setShowDailyForm(true)} type="button">
             {t(locale, 'daily.open')}
@@ -241,7 +283,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
                   </button>
                 </div>
               </div>
-              <p>{entry.text}</p>
+              <p>{entry.text ?? t(locale, `entry.kind.${entry.kind}` as TranslationKey)}</p>
               {editingId === entry.id ? (
                 <div className="timestamp-editor">
                   <input

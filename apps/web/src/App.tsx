@@ -3,7 +3,6 @@ import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import { acceptCurrentConsent, getCurrentProfile, type Session } from '@project4/supabase-client';
 import { useEffect, useState } from 'react';
 
-import { PixelDeviceFrame } from './components/PixelDeviceFrame';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { AuthScreen } from './screens/AuthScreen';
 import { ConsentScreen } from './screens/ConsentScreen';
@@ -108,5 +107,23 @@ export function App() {
     content = <TimelineScreen client={supabase} onSignOut={signOut} profile={profile} />;
   }
 
-  return <PixelDeviceFrame>{content}</PixelDeviceFrame>;
+  return (
+    <div className="web-app-shell">
+      <header className="web-topbar">
+        <div className="web-topbar-inner">
+          <div className="web-brand">
+            <span aria-hidden="true" className="web-brand-mark">
+              M
+            </span>
+            <div>
+              <strong>{t(locale, 'web.portalTitle')}</strong>
+              <span>{t(locale, 'web.portalSubtitle')}</span>
+            </div>
+          </div>
+          <span className="web-security-chip">{t(locale, 'web.secureConnection')}</span>
+        </div>
+      </header>
+      <div className="web-app-content">{content}</div>
+    </div>
+  );
 }

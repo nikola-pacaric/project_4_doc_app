@@ -1,5 +1,5 @@
 import type { PatientEntry } from '@project4/contracts';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
 import { Alert, Modal, SafeAreaView, StyleSheet, Text, View } from 'react-native';
@@ -29,6 +29,7 @@ export function TimelineEntryCard({ entry, onDelete, onUpdateTimestamp }: Timeli
   const [time, setTime] = useState(toLocalTimeInput(originalTimestamp));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const entryLabel = entry.text ?? t(locale, `entry.kind.${entry.kind}` as TranslationKey);
 
   async function saveTimestamp() {
     const occurredAt = parseLocalDateTime(date, time);
@@ -68,7 +69,9 @@ export function TimelineEntryCard({ entry, onDelete, onUpdateTimestamp }: Timeli
           <Text style={styles.date}>{formatEntryDate(entry.occurredAt, locale)}</Text>
           <Text style={styles.time}>{formatEntryTime(entry.occurredAt, locale)}</Text>
         </View>
-        <Text style={styles.entryText}>{entry.text}</Text>
+        <Text selectable style={styles.entryText}>
+          {entryLabel}
+        </Text>
         <View style={styles.actions}>
           <View style={styles.action}>
             <PrimaryButton

@@ -40,7 +40,9 @@ values
   ('10000000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-000000000001', 'meal', now(), null),
   ('10000000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-000000000002', 'meal', now(), null),
   ('10000000-0000-4000-8000-000000000005', '00000000-0000-4000-8000-000000000001', 'symptom', now(), null),
-  ('10000000-0000-4000-8000-000000000006', '00000000-0000-4000-8000-000000000002', 'symptom', now(), null)
+  ('10000000-0000-4000-8000-000000000006', '00000000-0000-4000-8000-000000000002', 'symptom', now(), null),
+  ('10000000-0000-4000-8000-000000000007', '00000000-0000-4000-8000-000000000001', 'stool', now(), null),
+  ('10000000-0000-4000-8000-000000000008', '00000000-0000-4000-8000-000000000002', 'stool', now(), null)
 on conflict (id) do nothing;
 
 insert into public.daily_form_details (entry_id, wake_time, food_notes, appetite, water_ml)
@@ -63,6 +65,28 @@ values
   ('10000000-0000-4000-8000-000000000004', 'lunch', 'Soup', 'With bread')
 on conflict (entry_id) do nothing;
 
+insert into public.stool_details (
+  entry_id, bristol_type, urgency, urgency_level, pain, mucus, blood, fatty_stool, black_stool, notes
+)
+values
+  ('10000000-0000-4000-8000-000000000007', 4, false, 'none', false, false, false, false, false, null),
+  ('10000000-0000-4000-8000-000000000008', 6, true, 'moderate', true, false, false, false, false, 'Patient B stool')
+on conflict (entry_id) do nothing;
+
+set local role anon;
+
+do $$
+declare
+  visible_stools integer;
+begin
+  select count(*) into visible_stools from public.stool_details;
+  if visible_stools <> 0 then
+    raise exception 'unauthenticated users should see 0 stool records, saw %', visible_stools;
+  end if;
+end $$;
+
+reset role;
+
 set local role authenticated;
 set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000001';
 
@@ -73,11 +97,12 @@ declare
   visible_daily_forms integer;
   visible_meals integer;
   visible_symptoms integer;
+  visible_stools integer;
   changed_rows integer;
 begin
   select count(*) into visible_entries from public.patient_entries;
-  if visible_entries <> 3 then
-    raise exception 'patient A should see exactly 3 own entries, saw %', visible_entries;
+  if visible_entries <> 4 then
+    raise exception 'patient A should see exactly 4 own entries, saw %', visible_entries;
   end if;
 
   select count(*) into visible_baselines from public.patient_baseline_profiles;
@@ -98,6 +123,11 @@ begin
   select count(*) into visible_symptoms from public.symptom_details;
   if visible_symptoms <> 1 then
     raise exception 'patient A should see exactly 1 own symptom, saw %', visible_symptoms;
+  end if;
+
+  select count(*) into visible_stools from public.stool_details;
+  if visible_stools <> 1 then
+    raise exception 'patient A should see exactly 1 own stool record, saw %', visible_stools;
   end if;
 
   update public.patient_baseline_profiles set occupation = 'not allowed'
@@ -136,6 +166,53 @@ begin
   if changed_rows <> 0 then
     raise exception 'patient A should not update patient B symptoms';
   end if;
+
+  update public.stool_details set bristol_type = 3
+  where entry_id = '10000000-0000-4000-8000-000000000008';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then
+    raise exception 'patient A should not update patient B stool records';
+  end if;
+
+  insert into public.patient_entries (id, patient_id, kind, occurred_at)
+  values (
+    '10000000-0000-4000-8000-000000000009',
+    '00000000-0000-4000-8000-000000000001',
+    'stool',
+    now()
+  );
+
+  begin
+    insert into public.stool_details (entry_id, bristol_type)
+    values ('10000000-0000-4000-8000-000000000009', 4);
+    raise exception 'stool records with missing required answers should be rejected';
+  exception
+    when check_violation then null;
+  end;
+
+  insert into public.stool_details (
+    entry_id, bristol_type, urgency, urgency_level, pain, mucus, blood, fatty_stool, black_stool
+  )
+  values (
+    '10000000-0000-4000-8000-000000000009', 4, false, 'none', false, false, false, false, false
+  );
+
+  update public.stool_details set notes = 'owner update allowed'
+  where entry_id = '10000000-0000-4000-8000-000000000009';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 1 then
+    raise exception 'patient A should update an own stool record';
+  end if;
+
+  delete from public.stool_details
+  where entry_id = '10000000-0000-4000-8000-000000000009';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 1 then
+    raise exception 'patient A should delete an own stool record';
+  end if;
+
+  delete from public.patient_entries
+  where id = '10000000-0000-4000-8000-000000000009';
 end $$;
 
 reset role;
@@ -150,6 +227,7 @@ declare
   visible_daily_forms integer;
   visible_meals integer;
   visible_symptoms integer;
+  visible_stools integer;
   changed_rows integer;
 begin
   select count(*) into visible_entries from public.patient_entries;
@@ -177,6 +255,11 @@ begin
     raise exception 'unlinked doctor should see 0 symptoms, saw %', visible_symptoms;
   end if;
 
+  select count(*) into visible_stools from public.stool_details;
+  if visible_stools <> 0 then
+    raise exception 'unlinked doctor should see 0 stool records, saw %', visible_stools;
+  end if;
+
   update public.patient_entries
   set text = 'doctor attempted edit before link'
   where id = '10000000-0000-4000-8000-000000000001';
@@ -184,6 +267,13 @@ begin
   get diagnostics changed_rows = row_count;
   if changed_rows <> 0 then
     raise exception 'doctor should not update patient entries';
+  end if;
+
+  update public.stool_details set bristol_type = 5
+  where entry_id = '10000000-0000-4000-8000-000000000007';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then
+    raise exception 'unlinked doctor should not update stool records';
   end if;
 end $$;
 
@@ -205,11 +295,12 @@ declare
   visible_daily_forms integer;
   visible_meals integer;
   visible_symptoms integer;
+  visible_stools integer;
   changed_rows integer;
 begin
   select count(*) into visible_entries from public.patient_entries;
-  if visible_entries <> 3 then
-    raise exception 'linked doctor should see exactly 3 linked patient entries, saw %', visible_entries;
+  if visible_entries <> 4 then
+    raise exception 'linked doctor should see exactly 4 linked patient entries, saw %', visible_entries;
   end if;
 
   select count(*) into visible_baselines from public.patient_baseline_profiles;
@@ -230,6 +321,11 @@ begin
   select count(*) into visible_symptoms from public.symptom_details;
   if visible_symptoms <> 1 then
     raise exception 'linked doctor should see exactly 1 linked symptom, saw %', visible_symptoms;
+  end if;
+
+  select count(*) into visible_stools from public.stool_details;
+  if visible_stools <> 1 then
+    raise exception 'linked doctor should see exactly 1 linked stool record, saw %', visible_stools;
   end if;
 
   update public.patient_baseline_profiles set occupation = 'doctor attempted edit'
@@ -267,6 +363,13 @@ begin
   get diagnostics changed_rows = row_count;
   if changed_rows <> 0 then
     raise exception 'linked doctor should not update symptoms';
+  end if;
+
+  update public.stool_details set bristol_type = 5
+  where entry_id = '10000000-0000-4000-8000-000000000007';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then
+    raise exception 'linked doctor should not update stool records';
   end if;
 end $$;
 

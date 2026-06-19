@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { toPatientEntry } from './patientEntries';
 import { toPatientBaselineProfile } from './patientBaseline';
 import { toDailyFormDetails } from './patientDailyForms';
+import { toMedicationRecord } from './patientMedications';
 import { toSymptomRecord } from './patientSymptoms';
+import { toStoolRecord } from './patientStools';
 import { toUserProfile } from './profiles';
 
 describe('Supabase row mappers', () => {
@@ -88,6 +90,52 @@ describe('Supabase row mappers', () => {
       intensity: 3,
       wokeFromSleep: true,
       painDescription: 'burning',
+    });
+  });
+
+  it('maps structured medication rows', () => {
+    expect(
+      toMedicationRecord(
+        {
+          entry_id: 'entry-medication',
+          name: 'Vitamin D',
+          dose: '1000 IU',
+          notes: 'Daily maintenance',
+          is_chronic_therapy: true,
+        },
+        '2026-06-19T10:30:00.000Z',
+      ),
+    ).toEqual({
+      entryId: 'entry-medication',
+      occurredAt: '2026-06-19T10:30:00.000Z',
+      name: 'Vitamin D',
+      dose: '1000 IU',
+      reason: 'Daily maintenance',
+      isChronicTherapy: true,
+    });
+  });
+
+  it('maps structured stool rows', () => {
+    expect(
+      toStoolRecord(
+        {
+          entry_id: 'entry-stool',
+          bristol_type: 4,
+          urgency_level: 'moderate',
+          pain: true,
+          mucus: false,
+          blood: false,
+          fatty_stool: false,
+          black_stool: false,
+          notes: 'Smooth and soft',
+        },
+        '2026-06-19T16:30:00.000Z',
+      ),
+    ).toMatchObject({
+      entryId: 'entry-stool',
+      bristolType: 4,
+      urgencyLevel: 'moderate',
+      pain: true,
     });
   });
 
