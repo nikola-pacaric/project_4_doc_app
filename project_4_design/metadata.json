@@ -1,0 +1,6 @@
+{
+  "name": "Patient Research Tracker & Design System",
+  "description": "Bilingual patient research tracker and clinical monitor with modular logs, timeline view, doctor dashboard, and design system playground.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
