@@ -22,8 +22,10 @@ export type AppSupabaseClient = ReturnType<typeof createAppSupabaseClient>;
 
 export * from './auth';
 export * from './patientEntries';
+export * from './patientExercises';
 export * from './patientMeals';
 export * from './patientMedications';
+export * from './patientMenstruation';
 export * from './patientSymptoms';
 export * from './patientStools';
 export * from './patientBaseline';

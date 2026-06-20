@@ -1,8 +1,13 @@
-import type { PatientEntry, UserProfile } from '@project4/contracts';
+import {
+  filterPatientTimelineEntries,
+  type PatientEntry,
+  type UserProfile,
+} from '@project4/contracts';
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
 import {
   createTextEntry,
   deletePatientEntry,
+  getPatientBaseline,
   listRecentPatientEntries,
   updateEntryTimestamp,
   type AppSupabaseClient,
@@ -12,7 +17,9 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { BaselineScreen } from './BaselineScreen';
 import { DailyFormScreen } from './DailyFormScreen';
+import { ExerciseFormScreen } from './ExerciseFormScreen';
 import { MedicationFormScreen } from './MedicationFormScreen';
+import { MenstruationFormScreen } from './MenstruationFormScreen';
 import { StoolFormScreen } from './StoolFormScreen';
 import { SymptomFormScreen } from './SymptomFormScreen';
 
@@ -49,11 +56,19 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [showSymptomForm, setShowSymptomForm] = useState(false);
   const [showStoolForm, setShowStoolForm] = useState(false);
   const [showMedicationForm, setShowMedicationForm] = useState(false);
+  const [showExerciseForm, setShowExerciseForm] = useState(false);
+  const [showMenstruationForm, setShowMenstruationForm] = useState(false);
+  const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
 
   async function loadEntries() {
     setError(null);
     try {
-      setEntries(await listRecentPatientEntries(client, profile.id));
+      const [nextEntries, baseline] = await Promise.all([
+        listRecentPatientEntries(client, profile.id),
+        getPatientBaseline(client, profile.id),
+      ]);
+      setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
+      setCanTrackMenstruation(baseline?.sex === 'female');
     } catch {
       setError(t(locale, 'entry.loadError'));
     } finally {
@@ -64,9 +79,15 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   useEffect(() => {
     let active = true;
 
-    void listRecentPatientEntries(client, profile.id)
-      .then((nextEntries) => {
-        if (active) setEntries(nextEntries);
+    void Promise.all([
+      listRecentPatientEntries(client, profile.id),
+      getPatientBaseline(client, profile.id),
+    ])
+      .then(([nextEntries, baseline]) => {
+        if (active) {
+          setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
+          setCanTrackMenstruation(baseline?.sex === 'female');
+        }
       })
       .catch(() => {
         if (active) setError(t(locale, 'entry.loadError'));
@@ -138,7 +159,16 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
 
   if (showBaseline) {
     return (
-      <BaselineScreen client={client} onBack={() => setShowBaseline(false)} profile={profile} />
+      <BaselineScreen
+        client={client}
+        onBack={() => {
+          setShowBaseline(false);
+          setCanTrackMenstruation(false);
+          setEntries((current) => filterPatientTimelineEntries(current, null));
+          void loadEntries();
+        }}
+        profile={profile}
+      />
     );
   }
 
@@ -186,6 +216,34 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     );
   }
 
+  if (showExerciseForm) {
+    return (
+      <ExerciseFormScreen
+        client={client}
+        onBack={() => setShowExerciseForm(false)}
+        onSaved={() => {
+          setShowExerciseForm(false);
+          void loadEntries();
+        }}
+        profile={profile}
+      />
+    );
+  }
+
+  if (showMenstruationForm && canTrackMenstruation) {
+    return (
+      <MenstruationFormScreen
+        client={client}
+        onBack={() => setShowMenstruationForm(false)}
+        onSaved={() => {
+          setShowMenstruationForm(false);
+          void loadEntries();
+        }}
+        profile={profile}
+      />
+    );
+  }
+
   return (
     <main className="timeline-layout">
       <div className="timeline-toolbar">
@@ -211,6 +269,22 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
           >
             {t(locale, 'medication.open')}
           </button>
+          <button
+            className="secondary-button"
+            onClick={() => setShowExerciseForm(true)}
+            type="button"
+          >
+            {t(locale, 'exercise.open')}
+          </button>
+          {canTrackMenstruation ? (
+            <button
+              className="secondary-button"
+              onClick={() => setShowMenstruationForm(true)}
+              type="button"
+            >
+              {t(locale, 'menstruation.open')}
+            </button>
+          ) : null}
           <button className="secondary-button" onClick={() => setShowDailyForm(true)} type="button">
             {t(locale, 'daily.open')}
           </button>

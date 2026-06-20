@@ -4,6 +4,7 @@ build/
 coverage/
 .expo/
 .expo-shared/
+apps/supabase/.temp/
 .env
 .env.*
 !.env.example

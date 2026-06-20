@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { toPatientEntry } from './patientEntries';
 import { toPatientBaselineProfile } from './patientBaseline';
 import { toDailyFormDetails } from './patientDailyForms';
+import { toExerciseRecord } from './patientExercises';
 import { toMedicationRecord } from './patientMedications';
+import { toMenstruationRecord } from './patientMenstruation';
 import { toSymptomRecord } from './patientSymptoms';
 import { toStoolRecord } from './patientStools';
 import { toUserProfile } from './profiles';
@@ -112,6 +114,48 @@ describe('Supabase row mappers', () => {
       dose: '1000 IU',
       reason: 'Daily maintenance',
       isChronicTherapy: true,
+    });
+  });
+
+  it('maps structured exercise rows', () => {
+    expect(
+      toExerciseRecord(
+        {
+          entry_id: 'entry-exercise',
+          activity: 'Walking',
+          duration_minutes: 30,
+          intensity: 'light',
+          notes: 'Evening walk',
+        },
+        '2026-06-20T16:30:00.000Z',
+      ),
+    ).toEqual({
+      entryId: 'entry-exercise',
+      occurredAt: '2026-06-20T16:30:00.000Z',
+      activity: 'Walking',
+      durationMinutes: 30,
+      intensity: 'light',
+      notes: 'Evening walk',
+    });
+  });
+
+  it('maps structured menstruation rows', () => {
+    expect(
+      toMenstruationRecord(
+        {
+          entry_id: 'entry-menstruation',
+          flow: 'moderate',
+          pain_level: 2,
+          notes: 'Mild cramps',
+        },
+        '2026-06-20T07:00:00.000Z',
+      ),
+    ).toEqual({
+      entryId: 'entry-menstruation',
+      occurredAt: '2026-06-20T07:00:00.000Z',
+      flow: 'moderate',
+      painLevel: 2,
+      notes: 'Mild cramps',
     });
   });
 

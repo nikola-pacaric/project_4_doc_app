@@ -1039,6 +1039,16 @@ button:focus-visible {
   padding-top: 18px;
 }
 
+.exercise-field-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr);
+  gap: 16px;
+}
+
+.exercise-field-grid label {
+  min-width: 0;
+}
+
 .structured-fieldset {
   min-width: 0;
   display: grid;
@@ -1442,6 +1452,10 @@ button:focus-visible {
   }
 
   .web-app-content .baseline-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .exercise-field-grid {
     grid-template-columns: 1fr;
   }
 
