@@ -4,6 +4,7 @@ import { toPatientEntry } from './patientEntries';
 import { toPatientBaselineProfile } from './patientBaseline';
 import { toDailyFormDetails } from './patientDailyForms';
 import { toExerciseRecord } from './patientExercises';
+import { toFoodFormDetails } from './patientFoodForms';
 import { toMedicationRecord } from './patientMedications';
 import { toMenstruationRecord } from './patientMenstruation';
 import { toSymptomRecord } from './patientSymptoms';
@@ -16,11 +17,7 @@ describe('Supabase row mappers', () => {
       toDailyFormDetails({
         entry_id: 'entry-daily',
         wake_time: '07:15:00',
-        food_notes: null,
         appetite: 'usual',
-        water_ml: 1800,
-        has_other_fluids: true,
-        other_fluids: 'Coffee',
         had_physical_activity: true,
         activity_notes: 'Walk',
         sleep_notes: '07:30:00',
@@ -33,15 +30,28 @@ describe('Supabase row mappers', () => {
         energy_level: 2,
         had_naps: false,
         naps: 'None',
-        has_additional_notes: false,
-        notes: 'None',
         completed_at: null,
       }),
     ).toMatchObject({
       entryId: 'entry-daily',
       wakeTime: '07:15',
       sleepDuration: '07:30',
-      waterMl: 1800,
+    });
+  });
+
+  it('maps food hydration independently from daily details', () => {
+    expect(
+      toFoodFormDetails({
+        entry_id: 'entry-daily',
+        water_liters: 1.75,
+        has_other_fluids: true,
+        other_fluids: 'Coffee',
+      }),
+    ).toEqual({
+      entryId: 'entry-daily',
+      waterLiters: 1.75,
+      hasOtherFluids: true,
+      otherFluids: 'Coffee',
     });
   });
 

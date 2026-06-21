@@ -1,28 +1,21 @@
 import type { DailyFormDetails, UserProfile } from '@project4/contracts';
 import {
   dailyFormDefaults,
-  getStartedMeals,
   hasDailyFormProgress,
   isCompleteDailyForm,
-  validateMealProgress,
-  validateMeals,
   type DailyFormDraft,
-  type MealDraft,
 } from '@project4/forms';
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
 import {
   getPatientBaseline,
   getPatientDailyForm,
-  listPatientMeals,
   savePatientDailyForm,
-  savePatientMeals,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
 import { useEffect, useState } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
 import { ConditionalTextField } from '../components/ConditionalTextField';
-import { MealFields } from '../components/MealFields';
 
 interface DailyFormScreenProps {
   client: AppSupabaseClient;
@@ -55,9 +48,6 @@ function toDraft(details: DailyFormDetails | null): DailyFormDraft {
     wakeTime: details.wakeTime ?? undefined,
     sleepDuration: details.sleepDuration ?? undefined,
     appetite: details.appetite ?? undefined,
-    waterMl: details.waterMl ?? undefined,
-    hasOtherFluids: details.hasOtherFluids ?? Boolean(details.otherFluids?.trim()),
-    otherFluids: details.otherFluids ?? '',
     hadPhysicalActivity: details.hadPhysicalActivity ?? Boolean(details.activityNotes?.trim()),
     activityNotes: details.activityNotes ?? '',
     stressLevel: details.stressLevel ?? undefined,
@@ -71,13 +61,7 @@ function toDraft(details: DailyFormDetails | null): DailyFormDraft {
     energyLevel: details.energyLevel ?? undefined,
     hadNaps: details.hadNaps ?? Boolean(details.naps?.trim()),
     naps: details.naps ?? '',
-    hasAdditionalNotes: details.hasAdditionalNotes ?? Boolean(details.notes?.trim()),
-    notes: details.notes ?? '',
   };
-}
-
-function numberValue(value: string): number | undefined {
-  return value === '' ? undefined : Number(value);
 }
 
 export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProps) {
@@ -86,8 +70,6 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
   const [draft, setDraft] = useState<DailyFormDraft>({ ...dailyFormDefaults });
   const [existingEntryId, setExistingEntryId] = useState<string>();
   const [completedAt, setCompletedAt] = useState<string>();
-  const [meals, setMeals] = useState<MealDraft[]>([{ description: '' }]);
-  const [previousMealEntryIds, setPreviousMealEntryIds] = useState<string[]>([]);
   const [includeMenstruation, setIncludeMenstruation] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -101,25 +83,13 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
     void Promise.all([
       getPatientBaseline(client, profile.id),
       getPatientDailyForm(client, profile.id, range.start, range.end),
-      listPatientMeals(client, profile.id, range.start, range.end),
     ])
-      .then(([baseline, record, loadedMeals]) => {
+      .then(([baseline, record]) => {
         if (!active) return;
         setIncludeMenstruation(baseline?.sex === 'female');
         setExistingEntryId(record?.entryId);
         setCompletedAt(record?.details.completedAt ?? undefined);
         setDraft(toDraft(record?.details ?? null));
-        setPreviousMealEntryIds(loadedMeals.map((meal) => meal.entryId));
-        setMeals(
-          loadedMeals.length > 0
-            ? loadedMeals.map((meal) => ({
-                entryId: meal.entryId,
-                type: meal.type ?? undefined,
-                name: meal.name ?? '',
-                description: meal.description ?? '',
-              }))
-            : [{ description: '' }],
-        );
       })
       .catch(() => {
         if (active) setError(t(locale, 'daily.loadError'));
@@ -134,19 +104,11 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
   }, [client, day, locale, profile.id]);
 
   async function save(mode: 'progress' | 'complete') {
-    const startedMeals = getStartedMeals(meals);
-    if (!validateMealProgress(meals)) {
-      setError(t(locale, 'daily.mealProgressError'));
-      return;
-    }
-    if (mode === 'progress' && !hasDailyFormProgress(draft) && startedMeals.length === 0) {
+    if (mode === 'progress' && !hasDailyFormProgress(draft)) {
       setError(t(locale, 'daily.progressEmpty'));
       return;
     }
-    if (
-      mode === 'complete' &&
-      (!isCompleteDailyForm(draft, includeMenstruation) || !validateMeals(startedMeals))
-    ) {
+    if (mode === 'complete' && !isCompleteDailyForm(draft, includeMenstruation)) {
       setError(t(locale, 'daily.requiredError'));
       return;
     }
@@ -164,32 +126,11 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
         mode === 'complete',
         existingEntryId,
       );
-      await savePatientMeals(
-        client,
-        profile.id,
-        dayRange(day).occurredAt,
-        startedMeals,
-        previousMealEntryIds,
-      );
       const range = dayRange(day);
-      const [saved, savedMeals] = await Promise.all([
-        getPatientDailyForm(client, profile.id, range.start, range.end),
-        listPatientMeals(client, profile.id, range.start, range.end),
-      ]);
+      const saved = await getPatientDailyForm(client, profile.id, range.start, range.end);
       setExistingEntryId(saved?.entryId);
       setCompletedAt(saved?.details.completedAt ?? undefined);
       setDraft(toDraft(saved?.details ?? null));
-      setPreviousMealEntryIds(savedMeals.map((meal) => meal.entryId));
-      setMeals(
-        savedMeals.length > 0
-          ? savedMeals.map((meal) => ({
-              entryId: meal.entryId,
-              type: meal.type ?? undefined,
-              name: meal.name ?? '',
-              description: meal.description ?? '',
-            }))
-          : [{ description: '' }],
-      );
       setMessage(t(locale, mode === 'complete' ? 'daily.completed' : 'daily.progressSaved'));
     } catch {
       setError(t(locale, 'daily.saveError'));
@@ -331,36 +272,6 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
               ))}
             </select>
           </label>
-          <label>
-            <span>{t(locale, 'daily.waterMl')}</span>
-            <input
-              max="20000"
-              min="0"
-              onChange={(event) =>
-                setDraft((value) => ({ ...value, waterMl: numberValue(event.target.value) }))
-              }
-              required
-              step="1"
-              type="number"
-              value={draft.waterMl ?? ''}
-            />
-          </label>
-          <MealFields meals={meals} onChange={setMeals} />
-          <ConditionalTextField
-            answer={draft.hasOtherFluids}
-            detailKey="daily.otherFluidsDetails"
-            id="other-fluids"
-            onAnswerChange={(answer) =>
-              setDraft((value) => ({
-                ...value,
-                hasOtherFluids: answer,
-                otherFluids: answer ? value.otherFluids : '',
-              }))
-            }
-            onTextChange={(text) => setDraft((value) => ({ ...value, otherFluids: text }))}
-            questionKey="daily.otherFluids"
-            text={draft.otherFluids ?? ''}
-          />
           <ConditionalTextField
             answer={draft.hadPhysicalActivity}
             detailKey="daily.activityDetails"
@@ -430,21 +341,6 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
             text={draft.naps ?? ''}
           />
           {textField('dayDescription', 'daily.dayDescription')}
-          <ConditionalTextField
-            answer={draft.hasAdditionalNotes}
-            detailKey="daily.notesDetails"
-            id="additional-notes"
-            onAnswerChange={(answer) =>
-              setDraft((value) => ({
-                ...value,
-                hasAdditionalNotes: answer,
-                notes: answer ? value.notes : '',
-              }))
-            }
-            onTextChange={(text) => setDraft((value) => ({ ...value, notes: text }))}
-            questionKey="daily.notes"
-            text={draft.notes ?? ''}
-          />
           <div className="full-width form-actions">
             {error ? <p className="notice error">{error}</p> : null}
             {message ? <p className="notice success">{message}</p> : null}

@@ -45,10 +45,10 @@ values
   ('10000000-0000-4000-8000-000000000008', '00000000-0000-4000-8000-000000000002', 'stool', now(), null)
 on conflict (id) do nothing;
 
-insert into public.daily_form_details (entry_id, wake_time, food_notes, appetite, water_ml)
+insert into public.daily_form_details (entry_id, wake_time, appetite)
 values
-  ('10000000-0000-4000-8000-000000000001', '07:00', 'patient a food', 'usual', 1800),
-  ('10000000-0000-4000-8000-000000000002', '08:00', 'patient b food', 'usual', 1600)
+  ('10000000-0000-4000-8000-000000000001', '07:00', 'usual'),
+  ('10000000-0000-4000-8000-000000000002', '08:00', 'usual')
 on conflict (entry_id) do nothing;
 
 insert into public.symptom_details (
@@ -146,7 +146,7 @@ begin
     raise exception 'patient A should not update patient B entries';
   end if;
 
-  update public.daily_form_details set food_notes = 'not allowed'
+  update public.daily_form_details set wake_time = '09:00'
   where entry_id = '10000000-0000-4000-8000-000000000002';
   get diagnostics changed_rows = row_count;
   if changed_rows <> 0 then
@@ -344,7 +344,7 @@ begin
     raise exception 'linked doctor should still not update patient entries';
   end if;
 
-  update public.daily_form_details set food_notes = 'doctor attempted edit'
+  update public.daily_form_details set wake_time = '09:00'
   where entry_id = '10000000-0000-4000-8000-000000000001';
   get diagnostics changed_rows = row_count;
   if changed_rows <> 0 then

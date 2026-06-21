@@ -2,9 +2,6 @@ export interface DailyFormDraft {
   wakeTime?: string;
   sleepDuration?: string;
   appetite?: 'low' | 'usual' | 'high';
-  waterMl?: number;
-  hasOtherFluids?: boolean;
-  otherFluids?: string;
   hadPhysicalActivity?: boolean;
   activityNotes?: string;
   stressLevel?: 1 | 2 | 3;
@@ -16,8 +13,6 @@ export interface DailyFormDraft {
   energyLevel?: 1 | 2 | 3;
   hadNaps?: boolean;
   naps?: string;
-  hasAdditionalNotes?: boolean;
-  notes?: string;
 }
 
 export type DailyFormField = keyof DailyFormDraft;
@@ -35,8 +30,6 @@ export const dailyFormDefaults: DailyFormDraft = {
   medicationOutsideChronicTherapy: '',
   menstruationNotes: '',
   naps: '',
-  notes: '',
-  otherFluids: '',
 };
 
 export function hasDailyFormProgress(draft: DailyFormDraft): boolean {
@@ -49,25 +42,16 @@ export function hasDailyFormProgress(draft: DailyFormDraft): boolean {
 const conditionalFields: Array<{
   answer: keyof Pick<
     DailyFormDraft,
-    | 'hasOtherFluids'
-    | 'hadPhysicalActivity'
-    | 'tookMedicationOutsideChronicTherapy'
-    | 'hadNaps'
-    | 'hasAdditionalNotes'
+    'hadPhysicalActivity' | 'tookMedicationOutsideChronicTherapy' | 'hadNaps'
   >;
-  detail: keyof Pick<
-    DailyFormDraft,
-    'otherFluids' | 'activityNotes' | 'medicationOutsideChronicTherapy' | 'naps' | 'notes'
-  >;
+  detail: keyof Pick<DailyFormDraft, 'activityNotes' | 'medicationOutsideChronicTherapy' | 'naps'>;
 }> = [
-  { answer: 'hasOtherFluids', detail: 'otherFluids' },
   { answer: 'hadPhysicalActivity', detail: 'activityNotes' },
   {
     answer: 'tookMedicationOutsideChronicTherapy',
     detail: 'medicationOutsideChronicTherapy',
   },
   { answer: 'hadNaps', detail: 'naps' },
-  { answer: 'hasAdditionalNotes', detail: 'notes' },
 ];
 
 export function validateDailyForm(
@@ -99,11 +83,6 @@ export function validateDailyForm(
   if (!draft.dayDescription?.trim()) errors.dayDescription = 'required';
 
   if (!draft.appetite) errors.appetite = 'required';
-  if (draft.waterMl === undefined) {
-    errors.waterMl = 'required';
-  } else if (!Number.isInteger(draft.waterMl) || draft.waterMl < 0 || draft.waterMl > 20_000) {
-    errors.waterMl = 'invalid';
-  }
   if (![1, 2, 3].includes(draft.stressLevel ?? 0)) errors.stressLevel = 'required';
   if (![1, 2, 3].includes(draft.energyLevel ?? 0)) errors.energyLevel = 'required';
   if (includeMenstruation) {

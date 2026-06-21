@@ -6,11 +6,7 @@ import type { AppSupabaseClient } from './index';
 interface DailyFormRow {
   entry_id: string;
   wake_time: string | null;
-  food_notes: string | null;
   appetite: 'low' | 'usual' | 'high' | null;
-  water_ml: number | null;
-  has_other_fluids: boolean | null;
-  other_fluids: string | null;
   had_physical_activity: boolean | null;
   activity_notes: string | null;
   sleep_notes: string | null;
@@ -23,13 +19,11 @@ interface DailyFormRow {
   energy_level: 1 | 2 | 3 | null;
   had_naps: boolean | null;
   naps: string | null;
-  has_additional_notes: boolean | null;
-  notes: string | null;
   completed_at: string | null;
 }
 
 const detailColumns =
-  'entry_id, wake_time, food_notes, appetite, water_ml, has_other_fluids, other_fluids, had_physical_activity, activity_notes, sleep_notes, stress_level, day_description, took_medication_outside_chronic_therapy, medication_outside_chronic_therapy, had_menstruation, menstruation_notes, energy_level, had_naps, naps, has_additional_notes, notes, completed_at';
+  'entry_id, wake_time, appetite, had_physical_activity, activity_notes, sleep_notes, stress_level, day_description, took_medication_outside_chronic_therapy, medication_outside_chronic_therapy, had_menstruation, menstruation_notes, energy_level, had_naps, naps, completed_at';
 
 export function toDailyFormDetails(row: DailyFormRow): DailyFormRecord['details'] {
   return {
@@ -37,9 +31,6 @@ export function toDailyFormDetails(row: DailyFormRow): DailyFormRecord['details'
     wakeTime: row.wake_time?.slice(0, 5) ?? null,
     sleepDuration: row.sleep_notes?.slice(0, 5) ?? null,
     appetite: row.appetite,
-    waterMl: row.water_ml,
-    hasOtherFluids: row.has_other_fluids,
-    otherFluids: row.other_fluids,
     hadPhysicalActivity: row.had_physical_activity,
     activityNotes: row.activity_notes,
     stressLevel: row.stress_level,
@@ -51,8 +42,6 @@ export function toDailyFormDetails(row: DailyFormRow): DailyFormRecord['details'
     energyLevel: row.energy_level,
     hadNaps: row.had_naps,
     naps: row.naps,
-    hasAdditionalNotes: row.has_additional_notes,
-    notes: row.notes,
     completedAt: row.completed_at,
   };
 }
@@ -66,11 +55,7 @@ function toRow(
   return {
     entry_id: entryId,
     wake_time: draft.wakeTime || null,
-    food_notes: null,
     appetite: draft.appetite ?? null,
-    water_ml: draft.waterMl ?? null,
-    has_other_fluids: draft.hasOtherFluids ?? null,
-    other_fluids: draft.hasOtherFluids ? draft.otherFluids?.trim() || null : null,
     had_physical_activity: draft.hadPhysicalActivity ?? null,
     activity_notes: draft.hadPhysicalActivity ? draft.activityNotes?.trim() || null : null,
     sleep_notes: draft.sleepDuration || null,
@@ -86,8 +71,6 @@ function toRow(
     energy_level: draft.energyLevel ?? null,
     had_naps: draft.hadNaps ?? null,
     naps: draft.hadNaps ? draft.naps?.trim() || null : null,
-    has_additional_notes: draft.hasAdditionalNotes ?? null,
-    notes: draft.hasAdditionalNotes ? draft.notes?.trim() || null : null,
     completed_at: completeDay ? new Date().toISOString() : null,
   };
 }

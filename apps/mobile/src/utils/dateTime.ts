@@ -12,6 +12,30 @@ export function toLocalTimeInput(value: Date): string {
   return `${pad(value.getHours())}:${pad(value.getMinutes())}`;
 }
 
+export function isValidTrackedDay(day: string, today = toLocalDateInput(new Date())): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day > today) return false;
+  const [yearText = '', monthText = '', dateText = ''] = day.split('-');
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const date = Number(dateText);
+  const parsed = new Date(year, month - 1, date);
+  return (
+    parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === date
+  );
+}
+
+export function localDayRange(day: string): { start: string; end: string; occurredAt: string } {
+  const [yearText = '', monthText = '', dateText = ''] = day.split('-');
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const date = Number(dateText);
+  return {
+    start: new Date(year, month - 1, date).toISOString(),
+    end: new Date(year, month - 1, date + 1).toISOString(),
+    occurredAt: new Date(year, month - 1, date, 12).toISOString(),
+  };
+}
+
 export function parseLocalDateTime(dateValue: string, timeValue: string): string | null {
   const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue.trim());
   const timeMatch = /^(\d{2}):(\d{2})$/.exec(timeValue.trim());

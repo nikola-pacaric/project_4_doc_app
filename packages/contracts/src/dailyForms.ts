@@ -3,9 +3,6 @@ export interface DailyFormDetails {
   wakeTime: string | null;
   sleepDuration: string | null;
   appetite: 'low' | 'usual' | 'high' | null;
-  waterMl: number | null;
-  hasOtherFluids: boolean | null;
-  otherFluids: string | null;
   hadPhysicalActivity: boolean | null;
   activityNotes: string | null;
   stressLevel: 1 | 2 | 3 | null;
@@ -17,8 +14,6 @@ export interface DailyFormDetails {
   energyLevel: 1 | 2 | 3 | null;
   hadNaps: boolean | null;
   naps: string | null;
-  hasAdditionalNotes: boolean | null;
-  notes: string | null;
   completedAt: string | null;
 }
 

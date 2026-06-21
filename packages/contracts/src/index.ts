@@ -5,6 +5,7 @@ export * from './entries';
 export * from './entryVisibility';
 export * from './exercises';
 export * from './exports';
+export * from './foodForms';
 export * from './meals';
 export * from './medications';
 export * from './menstruation';

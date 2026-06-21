@@ -30,7 +30,9 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { TimelineEntryCard } from '../components/TimelineEntryCard';
 import { colors, sharedStyles } from '../theme';
 import { BaselineScreen } from './BaselineScreen';
+import { DailyProgressHomeScreen } from './DailyProgressHomeScreen';
 import { DailyFormScreen } from './DailyFormScreen';
+import { FoodFormScreen } from './FoodFormScreen';
 import { PatientExerciseScreen } from './PatientExerciseScreen';
 import { PatientMedicationScreen } from './PatientMedicationScreen';
 import { PatientMenstruationScreen } from './PatientMenstruationScreen';
@@ -58,8 +60,11 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [showDailyProgressHome, setShowDailyProgressHome] = useState(false);
   const [showBaseline, setShowBaseline] = useState(false);
   const [showDailyForm, setShowDailyForm] = useState(false);
+  const [dailyFormOpenedFromHome, setDailyFormOpenedFromHome] = useState(false);
+  const [showFoodForm, setShowFoodForm] = useState(false);
   const [showSymptomForm, setShowSymptomForm] = useState(false);
   const [showStoolForm, setShowStoolForm] = useState(false);
   const [showMedicationForm, setShowMedicationForm] = useState(false);
@@ -170,6 +175,24 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     }
   }
 
+  if (showDailyProgressHome) {
+    return (
+      <DailyProgressHomeScreen
+        onBack={() => setShowDailyProgressHome(false)}
+        onOpenDaily={() => {
+          setDailyFormOpenedFromHome(true);
+          setShowDailyProgressHome(false);
+          setShowDailyForm(true);
+        }}
+        onOpenFood={() => {
+          setShowDailyProgressHome(false);
+          setShowFoodForm(true);
+        }}
+        profile={profile}
+      />
+    );
+  }
+
   if (showBaseline) {
     return (
       <BaselineScreen
@@ -187,7 +210,30 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
 
   if (showDailyForm) {
     return (
-      <DailyFormScreen client={client} onBack={() => setShowDailyForm(false)} profile={profile} />
+      <DailyFormScreen
+        client={client}
+        onBack={() => {
+          setShowDailyForm(false);
+          if (dailyFormOpenedFromHome) {
+            setShowDailyProgressHome(true);
+            setDailyFormOpenedFromHome(false);
+          }
+        }}
+        profile={profile}
+      />
+    );
+  }
+
+  if (showFoodForm) {
+    return (
+      <FoodFormScreen
+        client={client}
+        onBack={() => {
+          setShowFoodForm(false);
+          setShowDailyProgressHome(true);
+        }}
+        profile={profile}
+      />
     );
   }
 
@@ -278,6 +324,10 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
         eyebrow={profile.displayName ?? t(locale, 'role.patient')}
         title={t(locale, 'timeline.title')}
       />
+      <PrimaryButton
+        label={t(locale, 'home.open')}
+        onPress={() => setShowDailyProgressHome(true)}
+      />
       <EntryComposer busy={saving} onCreate={createEntry} />
       {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
       {message ? <Text style={sharedStyles.success}>{message}</Text> : null}
@@ -323,7 +373,10 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
         <View style={styles.headerAction}>
           <PrimaryButton
             label={t(locale, 'daily.open')}
-            onPress={() => setShowDailyForm(true)}
+            onPress={() => {
+              setDailyFormOpenedFromHome(false);
+              setShowDailyForm(true);
+            }}
             variant="secondary"
           />
         </View>

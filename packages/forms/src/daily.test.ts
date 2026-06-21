@@ -11,9 +11,6 @@ const completeDraft: DailyFormDraft = {
   wakeTime: '07:15',
   sleepDuration: '07:30',
   appetite: 'usual',
-  waterMl: 1800,
-  hasOtherFluids: true,
-  otherFluids: 'One coffee',
   hadPhysicalActivity: true,
   activityNotes: '30 minute walk',
   stressLevel: 2,
@@ -25,13 +22,11 @@ const completeDraft: DailyFormDraft = {
   energyLevel: 2,
   hadNaps: false,
   naps: 'No naps',
-  hasAdditionalNotes: true,
-  notes: 'Nothing else to add',
 };
 
 describe('daily form validation', () => {
   it('detects partial progress without treating empty defaults as data', () => {
-    expect(hasDailyFormProgress({ notes: '', activityNotes: '' })).toBe(false);
+    expect(hasDailyFormProgress({ activityNotes: '' })).toBe(false);
     expect(hasDailyFormProgress({ wakeTime: '07:00' })).toBe(true);
     expect(hasDailyFormProgress({ hadNaps: false })).toBe(true);
   });
@@ -41,15 +36,11 @@ describe('daily form validation', () => {
   });
 
   it('requires every common daily response', () => {
-    const result = validateDailyForm(
-      { ...completeDraft, hasAdditionalNotes: undefined, waterMl: undefined },
-      false,
-    );
+    const result = validateDailyForm({ ...completeDraft, appetite: undefined }, false);
 
     expect(result.valid).toBe(false);
     expect(result.errors).toMatchObject({
-      hasAdditionalNotes: 'required',
-      waterMl: 'required',
+      appetite: 'required',
     });
   });
 
@@ -62,22 +53,16 @@ describe('daily form validation', () => {
 
   it('requires conditional details only after a yes response', () => {
     expect(
-      validateDailyForm({ ...completeDraft, hasOtherFluids: true, otherFluids: '' }, false).errors
-        .otherFluids,
+      validateDailyForm({ ...completeDraft, hadNaps: true, naps: '' }, false).errors.naps,
     ).toBe('required');
-    expect(
-      validateDailyForm({ ...completeDraft, hasOtherFluids: false, otherFluids: '' }, false).errors
-        .otherFluids,
-    ).toBeUndefined();
   });
 
-  it('rejects invalid time, water, and scale values', () => {
+  it('rejects invalid time and scale values', () => {
     const result = validateDailyForm(
       {
         ...completeDraft,
         wakeTime: '25:10',
         sleepDuration: '07:15',
-        waterMl: -1,
         stressLevel: 4 as 3,
       },
       false,
@@ -86,7 +71,6 @@ describe('daily form validation', () => {
     expect(result.errors).toMatchObject({
       wakeTime: 'invalid',
       sleepDuration: 'invalid',
-      waterMl: 'invalid',
       stressLevel: 'required',
     });
   });

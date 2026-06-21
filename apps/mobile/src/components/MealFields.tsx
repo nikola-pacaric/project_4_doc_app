@@ -1,4 +1,4 @@
-import type { MealDraft, MealType } from '@project4/forms';
+import { isMealDraftStarted, type MealDraft, type MealType } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
@@ -20,6 +20,11 @@ export function MealFields({ meals, onChange }: MealFieldsProps) {
 
   function updateMeal(index: number, update: Partial<MealDraft>) {
     onChange(meals.map((meal, mealIndex) => (mealIndex === index ? { ...meal, ...update } : meal)));
+  }
+
+  function removeMeal(index: number) {
+    const remainingMeals = meals.filter((_, mealIndex) => mealIndex !== index);
+    onChange(remainingMeals.length ? remainingMeals : [{ description: '' }]);
   }
 
   return (
@@ -51,14 +56,14 @@ export function MealFields({ meals, onChange }: MealFieldsProps) {
                 onChangeText={(value) => updateMeal(index, { description: value })}
                 value={meal.description ?? ''}
               />
-              {meals.length > 1 ? (
-                <PrimaryButton
-                  label={t(locale, 'meal.remove')}
-                  onPress={() => onChange(meals.filter((_, mealIndex) => mealIndex !== index))}
-                  variant="danger"
-                />
-              ) : null}
             </View>
+          ) : null}
+          {meals.length > 1 || isMealDraftStarted(meal) ? (
+            <PrimaryButton
+              label={t(locale, 'meal.remove')}
+              onPress={() => removeMeal(index)}
+              variant="danger"
+            />
           ) : null}
         </View>
       ))}
