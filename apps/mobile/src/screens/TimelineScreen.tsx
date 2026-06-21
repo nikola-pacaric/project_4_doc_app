@@ -34,6 +34,7 @@ import { DailyFormScreen } from './DailyFormScreen';
 import { PatientExerciseScreen } from './PatientExerciseScreen';
 import { PatientMedicationScreen } from './PatientMedicationScreen';
 import { PatientMenstruationScreen } from './PatientMenstruationScreen';
+import { PatientNoteScreen } from './PatientNoteScreen';
 import { PatientSymptomsScreen } from './PatientSymptomsScreen';
 import { PatientStoolScreen } from './PatientStoolScreen';
 
@@ -64,6 +65,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [showMedicationForm, setShowMedicationForm] = useState(false);
   const [showExerciseForm, setShowExerciseForm] = useState(false);
   const [showMenstruationForm, setShowMenstruationForm] = useState(false);
+  const [showNoteForm, setShowNoteForm] = useState(false);
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
 
   const loadEntries = useCallback(
@@ -255,6 +257,21 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     );
   }
 
+  if (showNoteForm) {
+    return (
+      <PatientNoteScreen
+        client={client}
+        onBack={() => setShowNoteForm(false)}
+        onSaved={() => {
+          setShowNoteForm(false);
+          setMessage(t(locale, 'note.saved'));
+          void loadEntries();
+        }}
+        profile={profile}
+      />
+    );
+  }
+
   const header = (
     <View style={styles.headerContent}>
       <ScreenHeader
@@ -264,6 +281,11 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
       <EntryComposer busy={saving} onCreate={createEntry} />
       {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
       {message ? <Text style={sharedStyles.success}>{message}</Text> : null}
+      <PrimaryButton
+        label={t(locale, 'note.open')}
+        onPress={() => setShowNoteForm(true)}
+        variant="secondary"
+      />
       <PrimaryButton
         label={t(locale, 'symptom.open')}
         onPress={() => setShowSymptomForm(true)}

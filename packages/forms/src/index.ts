@@ -4,5 +4,6 @@ export * from './exercises';
 export * from './meals';
 export * from './medications';
 export * from './menstruation';
+export * from './notes';
 export * from './stools';
 export * from './symptoms';

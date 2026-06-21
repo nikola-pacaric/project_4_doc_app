@@ -29,7 +29,8 @@ export function TimelineEntryCard({ entry, onDelete, onUpdateTimestamp }: Timeli
   const [time, setTime] = useState(toLocalTimeInput(originalTimestamp));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const entryLabel = entry.text ?? t(locale, `entry.kind.${entry.kind}` as TranslationKey);
+  const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
+  const entryLabel = entry.text ?? kindLabel;
 
   async function saveTimestamp() {
     const occurredAt = parseLocalDateTime(date, time);
@@ -72,6 +73,11 @@ export function TimelineEntryCard({ entry, onDelete, onUpdateTimestamp }: Timeli
         <Text selectable style={styles.entryText}>
           {entryLabel}
         </Text>
+        {entry.text && entry.kind !== 'text' ? (
+          <Text selectable style={styles.entryKind}>
+            {kindLabel}
+          </Text>
+        ) : null}
         <View style={styles.actions}>
           <View style={styles.action}>
             <PrimaryButton
@@ -154,6 +160,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 17,
     lineHeight: 25,
+  },
+  entryKind: {
+    color: colors.mutedText,
+    fontSize: 13,
+    fontWeight: '700',
   },
   actions: {
     flexDirection: 'row',

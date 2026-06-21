@@ -20,6 +20,7 @@ import { DailyFormScreen } from './DailyFormScreen';
 import { ExerciseFormScreen } from './ExerciseFormScreen';
 import { MedicationFormScreen } from './MedicationFormScreen';
 import { MenstruationFormScreen } from './MenstruationFormScreen';
+import { NoteFormScreen } from './NoteFormScreen';
 import { StoolFormScreen } from './StoolFormScreen';
 import { SymptomFormScreen } from './SymptomFormScreen';
 
@@ -58,6 +59,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [showMedicationForm, setShowMedicationForm] = useState(false);
   const [showExerciseForm, setShowExerciseForm] = useState(false);
   const [showMenstruationForm, setShowMenstruationForm] = useState(false);
+  const [showNoteForm, setShowNoteForm] = useState(false);
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
 
   async function loadEntries() {
@@ -244,6 +246,21 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     );
   }
 
+  if (showNoteForm) {
+    return (
+      <NoteFormScreen
+        client={client}
+        onBack={() => setShowNoteForm(false)}
+        onSaved={() => {
+          setShowNoteForm(false);
+          setMessage(t(locale, 'note.saved'));
+          void loadEntries();
+        }}
+        profile={profile}
+      />
+    );
+  }
+
   return (
     <main className="timeline-layout">
       <div className="timeline-toolbar">
@@ -252,6 +269,9 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
           title={t(locale, 'timeline.title')}
         />
         <div className="button-row compact">
+          <button className="secondary-button" onClick={() => setShowNoteForm(true)} type="button">
+            {t(locale, 'note.open')}
+          </button>
           <button
             className="secondary-button"
             onClick={() => setShowSymptomForm(true)}
@@ -358,6 +378,11 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
                 </div>
               </div>
               <p>{entry.text ?? t(locale, `entry.kind.${entry.kind}` as TranslationKey)}</p>
+              {entry.text && entry.kind !== 'text' ? (
+                <span className="entry-kind-label">
+                  {t(locale, `entry.kind.${entry.kind}` as TranslationKey)}
+                </span>
+              ) : null}
               {editingId === entry.id ? (
                 <div className="timestamp-editor">
                   <input

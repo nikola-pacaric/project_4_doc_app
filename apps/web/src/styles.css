@@ -525,6 +525,14 @@ button:focus-visible {
   line-height: 1.5;
 }
 
+.entry-kind-label {
+  display: inline-block;
+  margin-top: 8px;
+  color: #7d6970;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .entry-card-header,
 .timestamp-editor {
   display: flex;
