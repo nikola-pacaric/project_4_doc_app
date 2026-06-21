@@ -728,6 +728,49 @@ button:focus-visible {
   padding: 10px 12px;
 }
 
+.tracked-day-field input[readonly] {
+  background: #f7f2f3;
+  color: #806c73;
+  cursor: default;
+}
+
+.activity-choice {
+  display: grid;
+  gap: 10px;
+}
+
+.exercise-requirement {
+  margin: 0;
+  border: 1px solid #e7bd76;
+  border-radius: 12px;
+  background: #fff4e5;
+  color: #4e3b42;
+  padding: 12px 14px;
+  font-size: 14px;
+}
+
+.exercise-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.exercise-action small {
+  color: #806c73;
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.exercise-action.required {
+  border-color: #d97706;
+  background: #fff4e5;
+}
+
+.exercise-action.required small {
+  color: #b45309;
+}
+
 .daily-form .choice-field:not(.full-width) {
   align-content: start;
 }

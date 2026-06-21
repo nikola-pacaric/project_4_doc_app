@@ -25,7 +25,7 @@ import { MealFields } from '../components/MealFields';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { colors, sharedStyles } from '../theme';
-import { isValidTrackedDay, localDayRange, toLocalDateInput } from '../utils/dateTime';
+import { localDayRange, toLocalDateInput } from '../utils/dateTime';
 
 interface FoodFormScreenProps {
   client: AppSupabaseClient;
@@ -56,8 +56,7 @@ function toMealDrafts(records: Awaited<ReturnType<typeof listPatientMeals>>): Me
 export function FoodFormScreen({ client, onBack, profile }: FoodFormScreenProps) {
   const locale = DEFAULT_LOCALE;
   const today = toLocalDateInput(new Date());
-  const [dayInput, setDayInput] = useState(today);
-  const [day, setDay] = useState(today);
+  const day = today;
   const [hydration, setHydration] = useState<FoodHydrationDraft>({ ...foodHydrationDefaults });
   const [meals, setMeals] = useState<MealDraft[]>([{ description: '' }]);
   const [dayEntryId, setDayEntryId] = useState<string>();
@@ -92,22 +91,7 @@ export function FoodFormScreen({ client, onBack, profile }: FoodFormScreenProps)
     };
   }, [client, day, locale, profile.id]);
 
-  function updateTrackedDay(value: string) {
-    setDayInput(value);
-    if (isValidTrackedDay(value) && value !== day) {
-      setLoading(true);
-      setError(null);
-      setMessage(null);
-      setDay(value);
-    }
-  }
-
   async function save() {
-    if (!isValidTrackedDay(dayInput)) {
-      setError(t(locale, 'daily.dayInvalid'));
-      return;
-    }
-
     const startedMeals = getStartedMeals(meals);
     if (!validateFoodHydration(hydration).valid || !validateMealProgress(meals)) {
       setError(t(locale, 'food.requiredError'));
@@ -165,11 +149,9 @@ export function FoodFormScreen({ client, onBack, profile }: FoodFormScreenProps)
       <PrimaryButton label={t(locale, 'common.back')} onPress={onBack} variant="secondary" />
       <FormField
         autoCapitalize="none"
+        editable={false}
         label={t(locale, 'daily.trackedDay')}
-        maxLength={10}
-        onChangeText={updateTrackedDay}
-        placeholder="YYYY-MM-DD"
-        value={dayInput}
+        value={day}
       />
 
       {loading ? <ActivityIndicator color={colors.accent} size="large" /> : null}

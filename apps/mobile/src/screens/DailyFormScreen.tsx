@@ -22,10 +22,11 @@ import { OptionButtons } from '../components/OptionButtons';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { colors, sharedStyles } from '../theme';
-import { isValidTrackedDay, localDayRange, toLocalDateInput } from '../utils/dateTime';
+import { formatTimeInput, localDayRange, toLocalDateInput } from '../utils/dateTime';
 
 interface DailyFormScreenProps {
   client: AppSupabaseClient;
+  onActivityAnswerChange: (answer: boolean | undefined) => void;
   profile: UserProfile;
   onBack: () => void;
 }
@@ -52,11 +53,15 @@ function toDraft(details: DailyFormDetails | null): DailyFormDraft {
   };
 }
 
-export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProps) {
+export function DailyFormScreen({
+  client,
+  onActivityAnswerChange,
+  profile,
+  onBack,
+}: DailyFormScreenProps) {
   const locale = DEFAULT_LOCALE;
   const today = toLocalDateInput(new Date());
-  const [dayInput, setDayInput] = useState(today);
-  const [day, setDay] = useState(today);
+  const day = today;
   const [draft, setDraft] = useState<DailyFormDraft>({ ...dailyFormDefaults });
   const [existingEntryId, setExistingEntryId] = useState<string>();
   const [completedAt, setCompletedAt] = useState<string>();
@@ -79,7 +84,9 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
         setIncludeMenstruation(baseline?.sex === 'female');
         setExistingEntryId(record?.entryId);
         setCompletedAt(record?.details.completedAt ?? undefined);
-        setDraft(toDraft(record?.details ?? null));
+        const nextDraft = toDraft(record?.details ?? null);
+        setDraft(nextDraft);
+        onActivityAnswerChange(nextDraft.hadPhysicalActivity);
       })
       .catch(() => active && setError(t(locale, 'daily.loadError')))
       .finally(() => active && setLoading(false));
@@ -87,17 +94,7 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
     return () => {
       active = false;
     };
-  }, [client, day, locale, profile.id]);
-
-  function updateTrackedDay(value: string) {
-    setDayInput(value);
-    if (isValidTrackedDay(value) && value !== day) {
-      setLoading(true);
-      setError(null);
-      setMessage(null);
-      setDay(value);
-    }
-  }
+  }, [client, day, locale, onActivityAnswerChange, profile.id]);
 
   function updateConditional(
     answerField: keyof DailyFormDraft,
@@ -112,10 +109,6 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
   }
 
   async function save(mode: 'progress' | 'complete') {
-    if (!isValidTrackedDay(dayInput)) {
-      setError(t(locale, 'daily.dayInvalid'));
-      return;
-    }
     if (mode === 'progress' && !hasDailyFormProgress(draft)) {
       setError(t(locale, 'daily.progressEmpty'));
       return;
@@ -186,11 +179,9 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
         <PrimaryButton label={t(locale, 'common.cancel')} onPress={onBack} variant="secondary" />
         <FormField
           autoCapitalize="none"
+          editable={false}
           label={t(locale, 'daily.trackedDay')}
-          maxLength={10}
-          onChangeText={updateTrackedDay}
-          placeholder="YYYY-MM-DD"
-          value={dayInput}
+          value={day}
         />
         {loading ? <ActivityIndicator color={colors.accent} size="large" /> : null}
         {!loading ? (
@@ -204,17 +195,27 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
               </Text>
             </View>
             <FormField
+              keyboardType="number-pad"
               label={t(locale, 'daily.wakeTime')}
               maxLength={5}
-              onChangeText={(wakeTime) => setDraft((current) => ({ ...current, wakeTime }))}
+              onChangeText={(value) =>
+                setDraft((current) => ({
+                  ...current,
+                  wakeTime: formatTimeInput(value, current.wakeTime),
+                }))
+              }
               placeholder="07:30"
               value={draft.wakeTime ?? ''}
             />
             <FormField
+              keyboardType="number-pad"
               label={t(locale, 'daily.sleepDuration')}
               maxLength={5}
-              onChangeText={(sleepDuration) =>
-                setDraft((current) => ({ ...current, sleepDuration }))
+              onChangeText={(value) =>
+                setDraft((current) => ({
+                  ...current,
+                  sleepDuration: formatTimeInput(value, current.sleepDuration),
+                }))
               }
               placeholder="08:00"
               value={draft.sleepDuration ?? ''}
@@ -233,18 +234,34 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
               }))}
               value={draft.appetite}
             />
-            <ConditionalTextField
-              answer={draft.hadPhysicalActivity}
-              detailKey="daily.activityDetails"
-              onAnswerChange={(answer) =>
-                updateConditional('hadPhysicalActivity', 'activityNotes', answer)
+            <OptionButtons
+              label={t(locale, 'daily.activityNotes')}
+              onChange={(value) => {
+                const answer = value === 'yes';
+                setDraft((current) => ({
+                  ...current,
+                  hadPhysicalActivity: answer,
+                  activityNotes: '',
+                }));
+                onActivityAnswerChange(answer);
+              }}
+              options={[
+                { value: 'yes', label: t(locale, 'common.yes') },
+                { value: 'no', label: t(locale, 'common.no') },
+              ]}
+              value={
+                draft.hadPhysicalActivity === undefined
+                  ? undefined
+                  : draft.hadPhysicalActivity
+                    ? 'yes'
+                    : 'no'
               }
-              onTextChange={(activityNotes) =>
-                setDraft((current) => ({ ...current, activityNotes }))
-              }
-              questionKey="daily.activityNotes"
-              text={draft.activityNotes ?? ''}
             />
+            {draft.hadPhysicalActivity ? (
+              <Text selectable style={styles.exerciseRequirement}>
+                {t(locale, 'daily.exerciseRequiredHelp')}
+              </Text>
+            ) : null}
             {scaleField('stressLevel', 'daily.stressLevel')}
             {scaleField('energyLevel', 'daily.energyLevel')}
             <ConditionalTextField
@@ -302,23 +319,12 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
                 onPress={() => void save('complete')}
               />
             ) : (
-              <View style={styles.actions}>
-                <View style={styles.action}>
-                  <PrimaryButton
-                    busy={saving}
-                    label={t(locale, 'daily.saveProgress')}
-                    onPress={() => void save('progress')}
-                    variant="secondary"
-                  />
-                </View>
-                <View style={styles.action}>
-                  <PrimaryButton
-                    busy={saving}
-                    label={t(locale, 'daily.completeDay')}
-                    onPress={() => void save('complete')}
-                  />
-                </View>
-              </View>
+              <PrimaryButton
+                busy={saving}
+                label={t(locale, 'daily.saveProgress')}
+                onPress={() => void save('progress')}
+                variant="secondary"
+              />
             )}
           </View>
         ) : null}
@@ -334,6 +340,14 @@ const styles = StyleSheet.create({
   completeStatus: { backgroundColor: '#edf8f2', borderColor: '#b9dfc9' },
   statusTitle: { color: colors.text, fontSize: 17, fontWeight: '800' },
   statusHelp: { color: colors.mutedText, fontSize: 14, lineHeight: 21 },
-  actions: { flexDirection: 'row', gap: spacing.sm },
-  action: { flex: 1 },
+  exerciseRequirement: {
+    backgroundColor: '#fff4e5',
+    borderColor: '#e7bd76',
+    borderRadius: 12,
+    borderWidth: 1,
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 21,
+    padding: spacing.md,
+  },
 });

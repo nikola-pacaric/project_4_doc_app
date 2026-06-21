@@ -136,10 +136,8 @@ export function MenstruationFormScreen({
 
         <FormField
           autoCapitalize="none"
-          keyboardType="numbers-and-punctuation"
+          editable={false}
           label={t(locale, 'menstruation.date')}
-          onChangeText={(value) => updateDateTime(value, time)}
-          placeholder={t(locale, 'menstruation.datePlaceholder')}
           value={date}
         />
         <FormField

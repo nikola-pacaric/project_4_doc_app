@@ -8,7 +8,6 @@ interface DailyFormRow {
   wake_time: string | null;
   appetite: 'low' | 'usual' | 'high' | null;
   had_physical_activity: boolean | null;
-  activity_notes: string | null;
   sleep_notes: string | null;
   stress_level: 1 | 2 | 3 | null;
   day_description: string | null;
@@ -23,7 +22,7 @@ interface DailyFormRow {
 }
 
 const detailColumns =
-  'entry_id, wake_time, appetite, had_physical_activity, activity_notes, sleep_notes, stress_level, day_description, took_medication_outside_chronic_therapy, medication_outside_chronic_therapy, had_menstruation, menstruation_notes, energy_level, had_naps, naps, completed_at';
+  'entry_id, wake_time, appetite, had_physical_activity, sleep_notes, stress_level, day_description, took_medication_outside_chronic_therapy, medication_outside_chronic_therapy, had_menstruation, menstruation_notes, energy_level, had_naps, naps, completed_at';
 
 export function toDailyFormDetails(row: DailyFormRow): DailyFormRecord['details'] {
   return {
@@ -32,7 +31,7 @@ export function toDailyFormDetails(row: DailyFormRow): DailyFormRecord['details'
     sleepDuration: row.sleep_notes?.slice(0, 5) ?? null,
     appetite: row.appetite,
     hadPhysicalActivity: row.had_physical_activity,
-    activityNotes: row.activity_notes,
+    activityNotes: null,
     stressLevel: row.stress_level,
     dayDescription: row.day_description,
     tookMedicationOutsideChronicTherapy: row.took_medication_outside_chronic_therapy,
@@ -57,7 +56,6 @@ function toRow(
     wake_time: draft.wakeTime || null,
     appetite: draft.appetite ?? null,
     had_physical_activity: draft.hadPhysicalActivity ?? null,
-    activity_notes: draft.hadPhysicalActivity ? draft.activityNotes?.trim() || null : null,
     sleep_notes: draft.sleepDuration || null,
     stress_level: draft.stressLevel ?? null,
     day_description: draft.dayDescription?.trim() || null,
@@ -73,6 +71,18 @@ function toRow(
     naps: draft.hadNaps ? draft.naps?.trim() || null : null,
     completed_at: completeDay ? new Date().toISOString() : null,
   };
+}
+
+export async function completePatientDailyForm(
+  client: AppSupabaseClient,
+  entryId: string,
+): Promise<string> {
+  const { data, error } = await client.rpc('complete_patient_daily_form', {
+    p_entry_id: entryId,
+  });
+  if (error) throw error;
+  if (typeof data !== 'string') throw new Error('Daily completion returned an invalid timestamp.');
+  return data;
 }
 
 export async function getPatientDailyForm(

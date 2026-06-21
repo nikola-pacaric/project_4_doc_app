@@ -10,6 +10,7 @@
   "scripts": {
     "dev:web": "npm run dev -w @project4/web",
     "dev:mobile": "npm run start -w @project4/mobile",
+    "dev:android": "npm run android:native -w @project4/mobile",
     "build:web": "npm run build -w @project4/web",
     "typecheck": "tsc -p tsconfig.check.json --noEmit",
     "lint": "eslint .",

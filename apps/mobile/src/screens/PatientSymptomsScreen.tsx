@@ -17,6 +17,7 @@ import { SymptomFormScreen } from './SymptomFormScreen';
 interface PatientSymptomsScreenProps {
   client: AppSupabaseClient;
   onBack: () => void;
+  onSaved: () => void;
   profile: UserProfile;
 }
 
@@ -53,7 +54,12 @@ function toDraft(record: SymptomRecord): SymptomDraft {
   };
 }
 
-export function PatientSymptomsScreen({ client, onBack, profile }: PatientSymptomsScreenProps) {
+export function PatientSymptomsScreen({
+  client,
+  onBack,
+  onSaved,
+  profile,
+}: PatientSymptomsScreenProps) {
   const locale = DEFAULT_LOCALE;
   const [drafts, setDrafts] = useState<SymptomDraft[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,6 +107,7 @@ export function PatientSymptomsScreen({ client, onBack, profile }: PatientSympto
       setDrafts(saved.map(toDraft));
       setFormVersion((current) => current + 1);
       setMessage(t(locale, 'symptom.saved'));
+      onSaved();
     } catch {
       setError(t(locale, 'symptom.saveError'));
     } finally {

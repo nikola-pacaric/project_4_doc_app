@@ -124,6 +124,7 @@ Photo storage:
 - Done: guided acceptance can log in, consent, create a text entry, reload, and see it; online text save responds in under 2 seconds.
 
 ### Phase 4 - Full Patient Forms
+- Progress checkpoint (Codex-verified 2026-06-21): Daily completion is enforced in Supabase. Drafts remain saveable, final completion requires all applicable Daily fields, and a same-day Exercise entry is required only when physical activity is marked yes. Owner/other-patient/doctor/anonymous SQL coverage passed against the live project.
 - Progress checkpoint (user-verified 2026-06-19): stool and medication entry workflows are complete across shared contracts/validation, Supabase constraints and RLS, Android/mobile, and companion web. Browser smoke testing for create, save, reload, and timeline visibility passed multiple times. Visual polish and structured-detail editing are intentionally deferred.
 - Implement baseline: sex, birth year, occupation, chronic diseases, chronic therapy, menstrual history where relevant, weight, height, recent major weight change, and 3-month weight reminder.
 - Show menstrual history and menstruation tracking only when the patient's recorded sex is female; do not show menstruation fields or tracking to male patients.

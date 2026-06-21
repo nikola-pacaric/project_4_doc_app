@@ -57,12 +57,19 @@ describe('daily form validation', () => {
     ).toBe('required');
   });
 
+  it('uses the exercise panel instead of requiring activity notes', () => {
+    const result = validateDailyForm({ ...completeDraft, activityNotes: '' }, false);
+
+    expect(result.errors.activityNotes).toBeUndefined();
+    expect(result.valid).toBe(true);
+  });
+
   it('rejects invalid time and scale values', () => {
     const result = validateDailyForm(
       {
         ...completeDraft,
         wakeTime: '25:10',
-        sleepDuration: '07:15',
+        sleepDuration: '25:15',
         stressLevel: 4 as 3,
       },
       false,
@@ -73,5 +80,12 @@ describe('daily form validation', () => {
       sleepDuration: 'invalid',
       stressLevel: 'required',
     });
+  });
+
+  it('accepts the configured maximum hour and minute values', () => {
+    expect(
+      validateDailyForm({ ...completeDraft, wakeTime: '24:59', sleepDuration: '24:59' }, false)
+        .valid,
+    ).toBe(true);
   });
 });

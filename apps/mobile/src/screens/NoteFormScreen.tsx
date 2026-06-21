@@ -85,10 +85,8 @@ export function NoteFormScreen({ busy = false, error, onBack, onSave }: NoteForm
         />
         <FormField
           autoCapitalize="none"
-          keyboardType="numbers-and-punctuation"
+          editable={false}
           label={t(locale, 'note.date')}
-          onChangeText={(value) => updateDateTime(value, time)}
-          placeholder={t(locale, 'note.datePlaceholder')}
           value={date}
         />
         <FormField

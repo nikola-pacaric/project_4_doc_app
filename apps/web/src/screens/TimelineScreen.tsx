@@ -12,7 +12,7 @@ import {
   updateEntryTimestamp,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
 import { BaselineScreen } from './BaselineScreen';
@@ -58,9 +58,15 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [showStoolForm, setShowStoolForm] = useState(false);
   const [showMedicationForm, setShowMedicationForm] = useState(false);
   const [showExerciseForm, setShowExerciseForm] = useState(false);
+  const [exerciseRequired, setExerciseRequired] = useState(false);
+  const [exerciseCompleted, setExerciseCompleted] = useState(false);
   const [showMenstruationForm, setShowMenstruationForm] = useState(false);
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
+
+  const handleActivityAnswerChange = useCallback((answer: boolean | undefined) => {
+    setExerciseRequired(answer === true);
+  }, []);
 
   async function loadEntries() {
     setError(null);
@@ -176,7 +182,12 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
 
   if (showDailyForm) {
     return (
-      <DailyFormScreen client={client} onBack={() => setShowDailyForm(false)} profile={profile} />
+      <DailyFormScreen
+        client={client}
+        onActivityAnswerChange={handleActivityAnswerChange}
+        onBack={() => setShowDailyForm(false)}
+        profile={profile}
+      />
     );
   }
 
@@ -224,6 +235,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
         client={client}
         onBack={() => setShowExerciseForm(false)}
         onSaved={() => {
+          setExerciseCompleted(true);
           setShowExerciseForm(false);
           void loadEntries();
         }}
@@ -290,11 +302,21 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
             {t(locale, 'medication.open')}
           </button>
           <button
-            className="secondary-button"
+            className={`secondary-button exercise-action ${exerciseRequired && !exerciseCompleted ? 'required' : ''}`}
             onClick={() => setShowExerciseForm(true)}
             type="button"
           >
-            {t(locale, 'exercise.open')}
+            <span>{t(locale, 'exercise.open')}</span>
+            <small>
+              {t(
+                locale,
+                exerciseCompleted
+                  ? 'home.action.completed'
+                  : exerciseRequired
+                    ? 'home.action.required'
+                    : 'home.action.optional',
+              )}
+            </small>
           </button>
           {canTrackMenstruation ? (
             <button

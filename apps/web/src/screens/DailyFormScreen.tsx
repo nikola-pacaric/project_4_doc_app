@@ -16,9 +16,11 @@ import { useEffect, useState } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
 import { ConditionalTextField } from '../components/ConditionalTextField';
+import { formatTimeInput } from '../utils/timeInput';
 
 interface DailyFormScreenProps {
   client: AppSupabaseClient;
+  onActivityAnswerChange: (answer: boolean | undefined) => void;
   profile: UserProfile;
   onBack: () => void;
 }
@@ -64,9 +66,14 @@ function toDraft(details: DailyFormDetails | null): DailyFormDraft {
   };
 }
 
-export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProps) {
+export function DailyFormScreen({
+  client,
+  onActivityAnswerChange,
+  profile,
+  onBack,
+}: DailyFormScreenProps) {
   const locale = DEFAULT_LOCALE;
-  const [day, setDay] = useState(localDateValue(new Date()));
+  const day = localDateValue(new Date());
   const [draft, setDraft] = useState<DailyFormDraft>({ ...dailyFormDefaults });
   const [existingEntryId, setExistingEntryId] = useState<string>();
   const [completedAt, setCompletedAt] = useState<string>();
@@ -89,7 +96,9 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
         setIncludeMenstruation(baseline?.sex === 'female');
         setExistingEntryId(record?.entryId);
         setCompletedAt(record?.details.completedAt ?? undefined);
-        setDraft(toDraft(record?.details ?? null));
+        const nextDraft = toDraft(record?.details ?? null);
+        setDraft(nextDraft);
+        onActivityAnswerChange(nextDraft.hadPhysicalActivity);
       })
       .catch(() => {
         if (active) setError(t(locale, 'daily.loadError'));
@@ -101,7 +110,7 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
     return () => {
       active = false;
     };
-  }, [client, day, locale, profile.id]);
+  }, [client, day, locale, onActivityAnswerChange, profile.id]);
 
   async function save(mode: 'progress' | 'complete') {
     if (mode === 'progress' && !hasDailyFormProgress(draft)) {
@@ -203,17 +212,7 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
 
       <label className="tracked-day-field">
         <span>{t(locale, 'daily.trackedDay')}</span>
-        <input
-          max={localDateValue(new Date())}
-          onChange={(event) => {
-            setLoading(true);
-            setError(null);
-            setMessage(null);
-            setDay(event.target.value);
-          }}
-          type="date"
-          value={day}
-        />
+        <input readOnly type="text" value={day} />
       </label>
 
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
@@ -230,10 +229,15 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
               <span>{t(locale, 'daily.wakeTime')}</span>
               <input
                 onChange={(event) =>
-                  setDraft((value) => ({ ...value, wakeTime: event.target.value }))
+                  setDraft((value) => ({
+                    ...value,
+                    wakeTime: formatTimeInput(event.target.value, value.wakeTime),
+                  }))
                 }
+                inputMode="numeric"
+                maxLength={5}
                 required
-                type="time"
+                type="text"
                 value={draft.wakeTime ?? ''}
               />
             </label>
@@ -241,11 +245,15 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
               <span>{t(locale, 'daily.sleepDuration')}</span>
               <input
                 onChange={(event) =>
-                  setDraft((value) => ({ ...value, sleepDuration: event.target.value }))
+                  setDraft((value) => ({
+                    ...value,
+                    sleepDuration: formatTimeInput(event.target.value, value.sleepDuration),
+                  }))
                 }
+                inputMode="numeric"
+                maxLength={5}
                 required
-                step="1800"
-                type="time"
+                type="text"
                 value={draft.sleepDuration ?? ''}
               />
             </label>
@@ -272,21 +280,35 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
               ))}
             </select>
           </label>
-          <ConditionalTextField
-            answer={draft.hadPhysicalActivity}
-            detailKey="daily.activityDetails"
-            id="physical-activity"
-            onAnswerChange={(answer) =>
-              setDraft((value) => ({
-                ...value,
-                hadPhysicalActivity: answer,
-                activityNotes: answer ? value.activityNotes : '',
-              }))
-            }
-            onTextChange={(text) => setDraft((value) => ({ ...value, activityNotes: text }))}
-            questionKey="daily.activityNotes"
-            text={draft.activityNotes ?? ''}
-          />
+          <div className="full-width choice-field activity-choice">
+            <span className="choice-label" id="physical-activity-label">
+              {t(locale, 'daily.activityNotes')}
+            </span>
+            <div aria-labelledby="physical-activity-label" className="choice-row" role="radiogroup">
+              {([false, true] as const).map((answer) => (
+                <button
+                  aria-checked={draft.hadPhysicalActivity === answer}
+                  className={draft.hadPhysicalActivity === answer ? 'selected' : ''}
+                  key={String(answer)}
+                  onClick={() => {
+                    setDraft((value) => ({
+                      ...value,
+                      hadPhysicalActivity: answer,
+                      activityNotes: '',
+                    }));
+                    onActivityAnswerChange(answer);
+                  }}
+                  role="radio"
+                  type="button"
+                >
+                  {t(locale, answer ? 'common.yes' : 'common.no')}
+                </button>
+              ))}
+            </div>
+            {draft.hadPhysicalActivity ? (
+              <p className="exercise-requirement">{t(locale, 'daily.exerciseRequiredHelp')}</p>
+            ) : null}
+          </div>
           {scaleField('stressLevel', 'daily.stressLevel')}
           {scaleField('energyLevel', 'daily.energyLevel')}
           <ConditionalTextField
@@ -354,24 +376,14 @@ export function DailyFormScreen({ client, profile, onBack }: DailyFormScreenProp
                 {t(locale, 'daily.saveChanges')}
               </button>
             ) : (
-              <div className="button-row">
-                <button
-                  className="secondary-button"
-                  disabled={saving}
-                  onClick={() => void save('progress')}
-                  type="button"
-                >
-                  {t(locale, 'daily.saveProgress')}
-                </button>
-                <button
-                  className="primary-button"
-                  disabled={saving}
-                  onClick={() => void save('complete')}
-                  type="button"
-                >
-                  {t(locale, 'daily.completeDay')}
-                </button>
-              </div>
+              <button
+                className="secondary-button"
+                disabled={saving}
+                onClick={() => void save('progress')}
+                type="button"
+              >
+                {t(locale, 'daily.saveProgress')}
+              </button>
             )}
           </div>
         </form>

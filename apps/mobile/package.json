@@ -5,7 +5,8 @@
   "main": "App.tsx",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
+    "android": "expo run:android",
+    "android:native": "expo run:android",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -16,6 +17,7 @@
     "@project4/supabase-client": "*",
     "@project4/ui-tokens": "*",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "9.1.0",
     "expo": "latest",
     "expo-status-bar": "latest",
     "react": "19.2.3",

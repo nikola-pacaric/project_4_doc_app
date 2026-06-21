@@ -25,7 +25,7 @@ export function TimelineEntryCard({ entry, onDelete, onUpdateTimestamp }: Timeli
   const locale = DEFAULT_LOCALE;
   const originalTimestamp = new Date(entry.occurredAt);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [date, setDate] = useState(toLocalDateInput(originalTimestamp));
+  const date = toLocalDateInput(originalTimestamp);
   const [time, setTime] = useState(toLocalTimeInput(originalTimestamp));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,8 +102,8 @@ export function TimelineEntryCard({ entry, onDelete, onUpdateTimestamp }: Timeli
             <Text style={sharedStyles.heading}>{t(locale, 'common.edit')}</Text>
             <FormField
               autoCapitalize="none"
+              editable={false}
               label={t(locale, 'entry.date')}
-              onChangeText={setDate}
               value={date}
             />
             <FormField

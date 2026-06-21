@@ -123,10 +123,8 @@ export function ExerciseFormScreen({
 
         <FormField
           autoCapitalize="none"
-          keyboardType="numbers-and-punctuation"
+          editable={false}
           label={t(locale, 'exercise.date')}
-          onChangeText={(value) => updateDateTime(value, time)}
-          placeholder={t(locale, 'exercise.datePlaceholder')}
           value={date}
         />
         <FormField

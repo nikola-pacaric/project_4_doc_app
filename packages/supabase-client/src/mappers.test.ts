@@ -19,7 +19,6 @@ describe('Supabase row mappers', () => {
         wake_time: '07:15:00',
         appetite: 'usual',
         had_physical_activity: true,
-        activity_notes: 'Walk',
         sleep_notes: '07:30:00',
         stress_level: 2,
         day_description: 'Normal day',

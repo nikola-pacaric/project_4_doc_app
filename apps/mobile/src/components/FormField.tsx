@@ -1,7 +1,7 @@
 import { spacing } from '@project4/ui-tokens';
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
-import { sharedStyles } from '../theme';
+import { colors, sharedStyles } from '../theme';
 
 interface FormFieldProps extends TextInputProps {
   label: string;
@@ -14,7 +14,12 @@ export function FormField({ label, ...props }: FormFieldProps) {
       <TextInput
         accessibilityLabel={label}
         placeholderTextColor="#a28d94"
-        style={[sharedStyles.input, props.multiline && styles.multiline, props.style]}
+        style={[
+          sharedStyles.input,
+          props.multiline && styles.multiline,
+          props.editable === false && styles.readOnly,
+          props.style,
+        ]}
         {...props}
       />
     </View>
@@ -28,5 +33,9 @@ const styles = StyleSheet.create({
   multiline: {
     minHeight: 112,
     textAlignVertical: 'top',
+  },
+  readOnly: {
+    backgroundColor: colors.background,
+    color: colors.mutedText,
   },
 });

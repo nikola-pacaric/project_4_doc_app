@@ -40,13 +40,9 @@ export function hasDailyFormProgress(draft: DailyFormDraft): boolean {
 }
 
 const conditionalFields: Array<{
-  answer: keyof Pick<
-    DailyFormDraft,
-    'hadPhysicalActivity' | 'tookMedicationOutsideChronicTherapy' | 'hadNaps'
-  >;
-  detail: keyof Pick<DailyFormDraft, 'activityNotes' | 'medicationOutsideChronicTherapy' | 'naps'>;
+  answer: keyof Pick<DailyFormDraft, 'tookMedicationOutsideChronicTherapy' | 'hadNaps'>;
+  detail: keyof Pick<DailyFormDraft, 'medicationOutsideChronicTherapy' | 'naps'>;
 }> = [
-  { answer: 'hadPhysicalActivity', detail: 'activityNotes' },
   {
     answer: 'tookMedicationOutsideChronicTherapy',
     detail: 'medicationOutsideChronicTherapy',
@@ -62,14 +58,18 @@ export function validateDailyForm(
 
   if (!draft.wakeTime) {
     errors.wakeTime = 'required';
-  } else if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.wakeTime)) {
+  } else if (!/^([01]\d|2[0-4]):[0-5]\d$/.test(draft.wakeTime)) {
     errors.wakeTime = 'invalid';
   }
 
   if (!draft.sleepDuration) {
     errors.sleepDuration = 'required';
-  } else if (!/^([01]\d|2[0-3]):(00|30)$/.test(draft.sleepDuration)) {
+  } else if (!/^([01]\d|2[0-4]):[0-5]\d$/.test(draft.sleepDuration)) {
     errors.sleepDuration = 'invalid';
+  }
+
+  if (draft.hadPhysicalActivity === undefined) {
+    errors.hadPhysicalActivity = 'required';
   }
 
   for (const { answer, detail } of conditionalFields) {

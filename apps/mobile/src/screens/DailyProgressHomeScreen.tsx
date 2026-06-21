@@ -9,7 +9,12 @@ import { colors, sharedStyles } from '../theme';
 interface DailyProgressHomeScreenProps {
   onBack: () => void;
   onOpenDaily: () => void;
+  onOpenExercise: () => void;
   onOpenFood: () => void;
+  onOpenSymptoms: () => void;
+  exerciseCompleted: boolean;
+  exerciseRequired: boolean;
+  symptomsCompleted: boolean;
   profile: UserProfile;
 }
 
@@ -39,7 +44,12 @@ function greetingKey(hour: number): TranslationKey {
 export function DailyProgressHomeScreen({
   onBack,
   onOpenDaily,
+  onOpenExercise,
   onOpenFood,
+  onOpenSymptoms,
+  exerciseCompleted,
+  exerciseRequired,
+  symptomsCompleted,
   profile,
 }: DailyProgressHomeScreenProps) {
   const locale = DEFAULT_LOCALE;
@@ -101,8 +111,26 @@ export function DailyProgressHomeScreen({
         <Text style={styles.sectionTitle}>{t(locale, 'home.quickActions')}</Text>
         <View style={styles.actionGrid}>
           {quickActions.map((action) => {
-            const enabled = action.id === 'daily' || action.id === 'food';
-            const onPress = action.id === 'daily' ? onOpenDaily : onOpenFood;
+            const enabled =
+              action.id === 'daily' ||
+              action.id === 'food' ||
+              action.id === 'symptoms' ||
+              action.id === 'exercise';
+            const onPress =
+              action.id === 'daily'
+                ? onOpenDaily
+                : action.id === 'symptoms'
+                  ? onOpenSymptoms
+                  : action.id === 'exercise'
+                    ? onOpenExercise
+                    : onOpenFood;
+            const showExerciseStatus = action.id === 'exercise';
+            const showSymptomsCompleted = action.id === 'symptoms' && symptomsCompleted;
+            const exerciseStatusKey = exerciseCompleted
+              ? 'home.action.completed'
+              : exerciseRequired
+                ? 'home.action.required'
+                : 'home.action.optional';
 
             return (
               <Pressable
@@ -116,6 +144,10 @@ export function DailyProgressHomeScreen({
                 style={({ pressed }) => [
                   styles.actionCard,
                   enabled && styles.actionCardEnabled,
+                  showExerciseStatus &&
+                    exerciseRequired &&
+                    !exerciseCompleted &&
+                    styles.actionCardRequired,
                   pressed && styles.actionCardPressed,
                   { flexBasis: actionWidth },
                 ]}
@@ -126,6 +158,22 @@ export function DailyProgressHomeScreen({
                 <Text numberOfLines={2} style={styles.actionLabel}>
                   {t(locale, action.labelKey)}
                 </Text>
+                {showExerciseStatus ? (
+                  <Text
+                    style={[
+                      styles.actionStatus,
+                      exerciseRequired && !exerciseCompleted && styles.actionStatusRequired,
+                      exerciseCompleted && styles.actionStatusCompleted,
+                    ]}
+                  >
+                    {t(locale, exerciseStatusKey)}
+                  </Text>
+                ) : null}
+                {showSymptomsCompleted ? (
+                  <Text style={[styles.actionStatus, styles.actionStatusCompleted]}>
+                    {t(locale, 'home.action.completed')}
+                  </Text>
+                ) : null}
               </Pressable>
             );
           })}
@@ -237,6 +285,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   actionCardEnabled: { borderColor: colors.accent },
+  actionCardRequired: { backgroundColor: '#fff4e5', borderColor: '#d97706' },
   actionCardPressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
   actionIconContainer: {
     alignItems: 'center',
@@ -254,6 +303,14 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     textAlign: 'center',
   },
+  actionStatus: {
+    color: colors.mutedText,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  actionStatusRequired: { color: '#b42318' },
+  actionStatusCompleted: { color: '#16794b' },
   submitBlock: { gap: spacing.sm, marginTop: 'auto' },
   submitHelp: {
     color: colors.mutedText,

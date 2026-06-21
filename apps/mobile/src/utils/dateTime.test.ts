@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  formatTimeInput,
   isValidTrackedDay,
   localDayRange,
   parseLocalDateTime,
@@ -14,6 +15,20 @@ describe('mobile date and time helpers', () => {
 
     expect(toLocalDateInput(value)).toBe('2026-06-18');
     expect(toLocalTimeInput(value)).toBe('09:07');
+  });
+
+  it('keeps time input numeric and inserts the separator after two digits', () => {
+    expect(formatTimeInput('1a2b3')).toBe('12:3');
+    expect(formatTimeInput('12:34')).toBe('12:34');
+    expect(formatTimeInput('123456')).toBe('12:34');
+  });
+
+  it('rejects hours above 24 and minutes above 59 while typing', () => {
+    expect(formatTimeInput('80:80')).toBe('');
+    expect(formatTimeInput('25', '2')).toBe('2');
+    expect(formatTimeInput('24:6', '24')).toBe('24');
+    expect(formatTimeInput('24:59', '24:5')).toBe('24:59');
+    expect(formatTimeInput('24', '2', 23)).toBe('2');
   });
 
   it('rejects invalid calendar and time values', () => {

@@ -58,8 +58,8 @@ export function EntryComposer({ busy, onCreate }: EntryComposerProps) {
         <View style={styles.timestampField}>
           <FormField
             autoCapitalize="none"
+            editable={false}
             label={t(locale, 'entry.date')}
-            onChangeText={setDate}
             value={date}
           />
         </View>

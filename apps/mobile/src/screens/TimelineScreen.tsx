@@ -29,6 +29,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { TimelineEntryCard } from '../components/TimelineEntryCard';
 import { colors, sharedStyles } from '../theme';
+import { toLocalDateInput } from '../utils/dateTime';
 import { BaselineScreen } from './BaselineScreen';
 import { DailyProgressHomeScreen } from './DailyProgressHomeScreen';
 import { DailyFormScreen } from './DailyFormScreen';
@@ -52,6 +53,13 @@ function sortEntries(entries: PatientEntry[]): PatientEntry[] {
   );
 }
 
+function hasTodayEntry(entries: PatientEntry[], kind: PatientEntry['kind']): boolean {
+  const today = toLocalDateInput(new Date());
+  return entries.some(
+    (entry) => entry.kind === kind && toLocalDateInput(new Date(entry.occurredAt)) === today,
+  );
+}
+
 export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenProps) {
   const locale = DEFAULT_LOCALE;
   const [entries, setEntries] = useState<PatientEntry[]>([]);
@@ -66,12 +74,21 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [dailyFormOpenedFromHome, setDailyFormOpenedFromHome] = useState(false);
   const [showFoodForm, setShowFoodForm] = useState(false);
   const [showSymptomForm, setShowSymptomForm] = useState(false);
+  const [symptomFormOpenedFromHome, setSymptomFormOpenedFromHome] = useState(false);
+  const [symptomsCompleted, setSymptomsCompleted] = useState(false);
   const [showStoolForm, setShowStoolForm] = useState(false);
   const [showMedicationForm, setShowMedicationForm] = useState(false);
   const [showExerciseForm, setShowExerciseForm] = useState(false);
+  const [exerciseFormOpenedFromHome, setExerciseFormOpenedFromHome] = useState(false);
+  const [exerciseRequired, setExerciseRequired] = useState(false);
+  const [exerciseCompleted, setExerciseCompleted] = useState(false);
   const [showMenstruationForm, setShowMenstruationForm] = useState(false);
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
+
+  const handleActivityAnswerChange = useCallback((answer: boolean | undefined) => {
+    setExerciseRequired(answer === true);
+  }, []);
 
   const loadEntries = useCallback(
     async (isRefresh = false) => {
@@ -88,6 +105,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
           getPatientBaseline(client, profile.id),
         ]);
         setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
+        setSymptomsCompleted(hasTodayEntry(nextEntries, 'symptom'));
         setCanTrackMenstruation(baseline?.sex === 'female');
       } catch {
         setError(t(locale, 'entry.loadError'));
@@ -109,6 +127,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
       .then(([nextEntries, baseline]) => {
         if (active) {
           setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
+          setSymptomsCompleted(hasTodayEntry(nextEntries, 'symptom'));
           setCanTrackMenstruation(baseline?.sex === 'female');
         }
       })
@@ -184,11 +203,24 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
           setShowDailyProgressHome(false);
           setShowDailyForm(true);
         }}
+        onOpenExercise={() => {
+          setExerciseFormOpenedFromHome(true);
+          setShowDailyProgressHome(false);
+          setShowExerciseForm(true);
+        }}
         onOpenFood={() => {
           setShowDailyProgressHome(false);
           setShowFoodForm(true);
         }}
+        onOpenSymptoms={() => {
+          setSymptomFormOpenedFromHome(true);
+          setShowDailyProgressHome(false);
+          setShowSymptomForm(true);
+        }}
+        exerciseCompleted={exerciseCompleted}
+        exerciseRequired={exerciseRequired}
         profile={profile}
+        symptomsCompleted={symptomsCompleted}
       />
     );
   }
@@ -212,6 +244,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     return (
       <DailyFormScreen
         client={client}
+        onActivityAnswerChange={handleActivityAnswerChange}
         onBack={() => {
           setShowDailyForm(false);
           if (dailyFormOpenedFromHome) {
@@ -241,7 +274,22 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     return (
       <PatientSymptomsScreen
         client={client}
-        onBack={() => setShowSymptomForm(false)}
+        onBack={() => {
+          setShowSymptomForm(false);
+          if (symptomFormOpenedFromHome) {
+            setShowDailyProgressHome(true);
+            setSymptomFormOpenedFromHome(false);
+          }
+        }}
+        onSaved={() => {
+          setSymptomsCompleted(true);
+          setShowSymptomForm(false);
+          if (symptomFormOpenedFromHome) {
+            setShowDailyProgressHome(true);
+            setSymptomFormOpenedFromHome(false);
+          }
+          void loadEntries();
+        }}
         profile={profile}
       />
     );
@@ -279,9 +327,20 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     return (
       <PatientExerciseScreen
         client={client}
-        onBack={() => setShowExerciseForm(false)}
-        onSaved={() => {
+        onBack={() => {
           setShowExerciseForm(false);
+          if (exerciseFormOpenedFromHome) {
+            setShowDailyProgressHome(true);
+            setExerciseFormOpenedFromHome(false);
+          }
+        }}
+        onSaved={() => {
+          setExerciseCompleted(true);
+          setShowExerciseForm(false);
+          if (exerciseFormOpenedFromHome) {
+            setShowDailyProgressHome(true);
+            setExerciseFormOpenedFromHome(false);
+          }
           void loadEntries();
         }}
         profile={profile}
