@@ -124,8 +124,18 @@ export function SymptomFormScreen({
         ) : null}
         {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
         {message ? <Text style={sharedStyles.success}>{message}</Text> : null}
-        <PrimaryButton busy={busy} label={t(locale, 'symptom.save')} onPress={save} />
-        <PrimaryButton label={t(locale, 'common.cancel')} onPress={onBack} variant="secondary" />
+        <View style={styles.actions}>
+          <View style={styles.action}>
+            <PrimaryButton
+              label={t(locale, 'common.cancel')}
+              onPress={onBack}
+              variant="secondary"
+            />
+          </View>
+          <View style={styles.action}>
+            <PrimaryButton busy={busy} label={t(locale, 'symptom.save')} onPress={save} />
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -145,4 +155,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
+  actions: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: 'auto',
+    paddingTop: spacing.md,
+  },
+  action: { flex: 1 },
 });

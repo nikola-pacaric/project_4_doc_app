@@ -146,7 +146,6 @@ export function FoodFormScreen({ client, onBack, profile }: FoodFormScreenProps)
     >
       <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'food.title')} />
       <Text style={sharedStyles.body}>{t(locale, 'food.subtitle')}</Text>
-      <PrimaryButton label={t(locale, 'common.back')} onPress={onBack} variant="secondary" />
       <FormField
         autoCapitalize="none"
         editable={false}
@@ -192,12 +191,23 @@ export function FoodFormScreen({ client, onBack, profile }: FoodFormScreenProps)
 
           {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
           {message ? <Text style={sharedStyles.success}>{message}</Text> : null}
-          <PrimaryButton
-            accessibilityLabel={t(locale, 'common.save')}
-            busy={saving}
-            label={t(locale, 'common.save')}
-            onPress={() => void save()}
-          />
+          <View style={styles.actions}>
+            <View style={styles.action}>
+              <PrimaryButton
+                label={t(locale, 'common.cancel')}
+                onPress={onBack}
+                variant="secondary"
+              />
+            </View>
+            <View style={styles.action}>
+              <PrimaryButton
+                accessibilityLabel={t(locale, 'common.save')}
+                busy={saving}
+                label={t(locale, 'common.save')}
+                onPress={() => void save()}
+              />
+            </View>
+          </View>
         </View>
       ) : null}
     </ScrollView>
@@ -215,4 +225,13 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   sectionTitle: { color: colors.text, fontSize: 19, fontWeight: '800' },
+  actions: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: 'auto',
+    paddingTop: spacing.md,
+  },
+  action: { flex: 1 },
 });

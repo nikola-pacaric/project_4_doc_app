@@ -10,6 +10,7 @@ interface Option {
 }
 
 interface OptionButtonsProps {
+  disabled?: boolean;
   label: string;
   onChange: (value: string) => void;
   options: Option[];
@@ -18,6 +19,7 @@ interface OptionButtonsProps {
 }
 
 export function OptionButtons({
+  disabled = false,
   label,
   onChange,
   options,
@@ -34,10 +36,11 @@ export function OptionButtons({
             <Pressable
               accessibilityLabel={`${label}: ${option.label}`}
               accessibilityRole="radio"
-              accessibilityState={{ checked: selected }}
+              accessibilityState={{ checked: selected, disabled }}
+              disabled={disabled}
               key={option.value}
               onPress={() => onChange(option.value)}
-              style={[styles.option, selected && styles.selected]}
+              style={[styles.option, selected && styles.selected, disabled && styles.disabled]}
             >
               <Text style={[styles.optionLabel, selected && styles.selectedText]}>
                 {option.label}
@@ -73,6 +76,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   selected: { borderColor: colors.accent, backgroundColor: '#fff0f3' },
+  disabled: { opacity: 0.55 },
   optionLabel: { color: colors.text, fontSize: 16, fontWeight: '800', textAlign: 'center' },
   optionDetail: { color: colors.mutedText, fontSize: 11, fontWeight: '700' },
   selectedText: { color: colors.accent },

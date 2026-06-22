@@ -2,12 +2,12 @@ import { medicationDraftDefaults, validateMedication, type MedicationDraft } fro
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { colors, sharedStyles } from '../theme';
-import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
+import { formatTimeInput, toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
 interface MedicationFormScreenProps {
   busy?: boolean;
@@ -42,7 +42,8 @@ export function MedicationFormScreen({
 
   function updateTime(value: string) {
     const date = draft.takenAt?.slice(0, 10) ?? toLocalDateInput(new Date());
-    update('takenAt', `${date} ${value}`);
+    const currentTime = draft.takenAt?.slice(11, 16) ?? '';
+    update('takenAt', `${date} ${formatTimeInput(value, currentTime, 23)}`);
   }
 
   function save() {
@@ -95,6 +96,7 @@ export function MedicationFormScreen({
           autoCapitalize="none"
           keyboardType="numbers-and-punctuation"
           label={t(locale, 'medication.timeTaken')}
+          maxLength={5}
           onChangeText={updateTime}
           placeholder={t(locale, 'medication.timePlaceholder')}
           value={draft.takenAt?.slice(11, 16) ?? ''}
@@ -106,22 +108,6 @@ export function MedicationFormScreen({
           placeholder={t(locale, 'medication.reasonPlaceholder')}
           value={draft.reason ?? ''}
         />
-
-        <View style={styles.switchCard}>
-          <View style={styles.switchCopy}>
-            <Text style={styles.switchLabel}>{t(locale, 'medication.chronicTherapy')}</Text>
-            <Text selectable style={styles.switchHelp}>
-              {t(locale, 'medication.chronicTherapyHelp')}
-            </Text>
-          </View>
-          <Switch
-            accessibilityLabel={t(locale, 'medication.chronicTherapy')}
-            onValueChange={(value) => update('isChronicTherapy', value)}
-            thumbColor="#ffffff"
-            trackColor={{ false: colors.border, true: colors.accent }}
-            value={draft.isChronicTherapy ?? false}
-          />
-        </View>
 
         {showErrors ? (
           <Text selectable style={sharedStyles.error}>
@@ -165,19 +151,6 @@ const styles = StyleSheet.create({
   closeButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44, minWidth: 44 },
   closeLabel: { color: colors.accent, fontSize: 32, fontWeight: '500', lineHeight: 34 },
   subtitle: { color: colors.mutedText, fontSize: 14, lineHeight: 20 },
-  switchCard: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.md,
-    padding: spacing.md,
-  },
-  switchCopy: { flex: 1, gap: spacing.xs },
-  switchLabel: { color: colors.text, fontSize: 15, fontWeight: '800' },
-  switchHelp: { color: colors.mutedText, fontSize: 12, lineHeight: 18 },
   actions: {
     borderTopColor: colors.border,
     borderTopWidth: 1,

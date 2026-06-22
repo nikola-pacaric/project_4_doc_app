@@ -7,7 +7,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { colors, sharedStyles } from '../theme';
-import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
+import { formatTimeInput, toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
 interface NoteFormScreenProps {
   busy?: boolean;
@@ -93,7 +93,8 @@ export function NoteFormScreen({ busy = false, error, onBack, onSave }: NoteForm
           autoCapitalize="none"
           keyboardType="numbers-and-punctuation"
           label={t(locale, 'note.time')}
-          onChangeText={(value) => updateDateTime(date, value)}
+          maxLength={5}
+          onChangeText={(value) => updateDateTime(date, formatTimeInput(value, time, 23))}
           placeholder={t(locale, 'note.timePlaceholder')}
           value={time}
         />

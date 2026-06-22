@@ -82,12 +82,21 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [exerciseFormOpenedFromHome, setExerciseFormOpenedFromHome] = useState(false);
   const [exerciseRequired, setExerciseRequired] = useState(false);
   const [exerciseCompleted, setExerciseCompleted] = useState(false);
+  const [medicationRequired, setMedicationRequired] = useState(false);
+  const [medicationCompleted, setMedicationCompleted] = useState(false);
   const [showMenstruationForm, setShowMenstruationForm] = useState(false);
   const [showNoteForm, setShowNoteForm] = useState(false);
+  const [homeForm, setHomeForm] = useState<'stool' | 'medication' | 'period' | 'notes' | null>(
+    null,
+  );
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
 
   const handleActivityAnswerChange = useCallback((answer: boolean | undefined) => {
     setExerciseRequired(answer === true);
+  }, []);
+
+  const handleMedicationAnswerChange = useCallback((answer: boolean | undefined) => {
+    setMedicationRequired(answer === true);
   }, []);
 
   const loadEntries = useCallback(
@@ -106,6 +115,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
         ]);
         setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
         setSymptomsCompleted(hasTodayEntry(nextEntries, 'symptom'));
+        setMedicationCompleted(hasTodayEntry(nextEntries, 'medication'));
         setCanTrackMenstruation(baseline?.sex === 'female');
       } catch {
         setError(t(locale, 'entry.loadError'));
@@ -128,6 +138,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
         if (active) {
           setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
           setSymptomsCompleted(hasTodayEntry(nextEntries, 'symptom'));
+          setMedicationCompleted(hasTodayEntry(nextEntries, 'medication'));
           setCanTrackMenstruation(baseline?.sex === 'female');
         }
       })
@@ -197,6 +208,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   if (showDailyProgressHome) {
     return (
       <DailyProgressHomeScreen
+        canTrackMenstruation={canTrackMenstruation}
         onBack={() => setShowDailyProgressHome(false)}
         onOpenDaily={() => {
           setDailyFormOpenedFromHome(true);
@@ -212,6 +224,26 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
           setShowDailyProgressHome(false);
           setShowFoodForm(true);
         }}
+        onOpenMedication={() => {
+          setHomeForm('medication');
+          setShowDailyProgressHome(false);
+          setShowMedicationForm(true);
+        }}
+        onOpenNotes={() => {
+          setHomeForm('notes');
+          setShowDailyProgressHome(false);
+          setShowNoteForm(true);
+        }}
+        onOpenPeriod={() => {
+          setHomeForm('period');
+          setShowDailyProgressHome(false);
+          setShowMenstruationForm(true);
+        }}
+        onOpenStool={() => {
+          setHomeForm('stool');
+          setShowDailyProgressHome(false);
+          setShowStoolForm(true);
+        }}
         onOpenSymptoms={() => {
           setSymptomFormOpenedFromHome(true);
           setShowDailyProgressHome(false);
@@ -219,7 +251,12 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
         }}
         exerciseCompleted={exerciseCompleted}
         exerciseRequired={exerciseRequired}
+        medicationCompleted={medicationCompleted}
+        medicationRequired={medicationRequired}
+        onSignOut={onSignOut}
+        onViewAllEntries={() => setShowDailyProgressHome(false)}
         profile={profile}
+        recentEntries={entries}
         symptomsCompleted={symptomsCompleted}
       />
     );
@@ -245,6 +282,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
       <DailyFormScreen
         client={client}
         onActivityAnswerChange={handleActivityAnswerChange}
+        onMedicationAnswerChange={handleMedicationAnswerChange}
         onBack={() => {
           setShowDailyForm(false);
           if (dailyFormOpenedFromHome) {
@@ -299,9 +337,19 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     return (
       <PatientStoolScreen
         client={client}
-        onBack={() => setShowStoolForm(false)}
+        onBack={() => {
+          setShowStoolForm(false);
+          if (homeForm === 'stool') {
+            setHomeForm(null);
+            setShowDailyProgressHome(true);
+          }
+        }}
         onSaved={() => {
           setShowStoolForm(false);
+          if (homeForm === 'stool') {
+            setHomeForm(null);
+            setShowDailyProgressHome(true);
+          }
           void loadEntries();
         }}
         profile={profile}
@@ -313,9 +361,20 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     return (
       <PatientMedicationScreen
         client={client}
-        onBack={() => setShowMedicationForm(false)}
-        onSaved={() => {
+        onBack={() => {
           setShowMedicationForm(false);
+          if (homeForm === 'medication') {
+            setHomeForm(null);
+            setShowDailyProgressHome(true);
+          }
+        }}
+        onSaved={() => {
+          setMedicationCompleted(true);
+          setShowMedicationForm(false);
+          if (homeForm === 'medication') {
+            setHomeForm(null);
+            setShowDailyProgressHome(true);
+          }
           void loadEntries();
         }}
         profile={profile}
@@ -352,9 +411,19 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     return (
       <PatientMenstruationScreen
         client={client}
-        onBack={() => setShowMenstruationForm(false)}
+        onBack={() => {
+          setShowMenstruationForm(false);
+          if (homeForm === 'period') {
+            setHomeForm(null);
+            setShowDailyProgressHome(true);
+          }
+        }}
         onSaved={() => {
           setShowMenstruationForm(false);
+          if (homeForm === 'period') {
+            setHomeForm(null);
+            setShowDailyProgressHome(true);
+          }
           void loadEntries();
         }}
         profile={profile}
@@ -366,9 +435,19 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     return (
       <PatientNoteScreen
         client={client}
-        onBack={() => setShowNoteForm(false)}
+        onBack={() => {
+          setShowNoteForm(false);
+          if (homeForm === 'notes') {
+            setHomeForm(null);
+            setShowDailyProgressHome(true);
+          }
+        }}
         onSaved={() => {
           setShowNoteForm(false);
+          if (homeForm === 'notes') {
+            setHomeForm(null);
+            setShowDailyProgressHome(true);
+          }
           setMessage(t(locale, 'note.saved'));
           void loadEntries();
         }}

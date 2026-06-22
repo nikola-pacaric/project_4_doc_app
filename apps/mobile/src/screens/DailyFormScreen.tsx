@@ -27,6 +27,7 @@ import { formatTimeInput, localDayRange, toLocalDateInput } from '../utils/dateT
 interface DailyFormScreenProps {
   client: AppSupabaseClient;
   onActivityAnswerChange: (answer: boolean | undefined) => void;
+  onMedicationAnswerChange: (answer: boolean | undefined) => void;
   profile: UserProfile;
   onBack: () => void;
 }
@@ -56,6 +57,7 @@ function toDraft(details: DailyFormDetails | null): DailyFormDraft {
 export function DailyFormScreen({
   client,
   onActivityAnswerChange,
+  onMedicationAnswerChange,
   profile,
   onBack,
 }: DailyFormScreenProps) {
@@ -66,6 +68,8 @@ export function DailyFormScreen({
   const [existingEntryId, setExistingEntryId] = useState<string>();
   const [completedAt, setCompletedAt] = useState<string>();
   const [includeMenstruation, setIncludeMenstruation] = useState(false);
+  const [hasChronicTherapy, setHasChronicTherapy] = useState(false);
+  const [tookChronicTherapyToday, setTookChronicTherapyToday] = useState<boolean>();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,11 +86,15 @@ export function DailyFormScreen({
       .then(([baseline, record]) => {
         if (!active) return;
         setIncludeMenstruation(baseline?.sex === 'female');
+        const nextHasChronicTherapy = Boolean(baseline?.chronicTherapy?.trim());
+        setHasChronicTherapy(nextHasChronicTherapy);
+        setTookChronicTherapyToday(nextHasChronicTherapy ? undefined : false);
         setExistingEntryId(record?.entryId);
         setCompletedAt(record?.details.completedAt ?? undefined);
         const nextDraft = toDraft(record?.details ?? null);
         setDraft(nextDraft);
         onActivityAnswerChange(nextDraft.hadPhysicalActivity);
+        onMedicationAnswerChange(nextDraft.tookMedicationOutsideChronicTherapy);
       })
       .catch(() => active && setError(t(locale, 'daily.loadError')))
       .finally(() => active && setLoading(false));
@@ -94,7 +102,7 @@ export function DailyFormScreen({
     return () => {
       active = false;
     };
-  }, [client, day, locale, onActivityAnswerChange, profile.id]);
+  }, [client, day, locale, onActivityAnswerChange, onMedicationAnswerChange, profile.id]);
 
   function updateConditional(
     answerField: keyof DailyFormDraft,
@@ -176,7 +184,6 @@ export function DailyFormScreen({
       >
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'daily.title')} />
         <Text style={sharedStyles.body}>{t(locale, 'daily.subtitle')}</Text>
-        <PrimaryButton label={t(locale, 'common.cancel')} onPress={onBack} variant="secondary" />
         <FormField
           autoCapitalize="none"
           editable={false}
@@ -264,22 +271,49 @@ export function DailyFormScreen({
             ) : null}
             {scaleField('stressLevel', 'daily.stressLevel')}
             {scaleField('energyLevel', 'daily.energyLevel')}
+            <OptionButtons
+              disabled={!hasChronicTherapy}
+              label={t(locale, 'daily.chronicTherapyTaken')}
+              onChange={(value) => setTookChronicTherapyToday(value === 'yes')}
+              options={[
+                { value: 'yes', label: t(locale, 'common.yes') },
+                { value: 'no', label: t(locale, 'common.no') },
+              ]}
+              value={
+                tookChronicTherapyToday === undefined
+                  ? undefined
+                  : tookChronicTherapyToday
+                    ? 'yes'
+                    : 'no'
+              }
+            />
+            {!hasChronicTherapy ? (
+              <Text selectable style={styles.dependencyHelp}>
+                {t(locale, 'daily.noChronicTherapyHelp')}
+              </Text>
+            ) : null}
             <ConditionalTextField
               answer={draft.tookMedicationOutsideChronicTherapy}
               detailKey="daily.medicationDetails"
-              onAnswerChange={(answer) =>
+              onAnswerChange={(answer) => {
                 updateConditional(
                   'tookMedicationOutsideChronicTherapy',
                   'medicationOutsideChronicTherapy',
                   answer,
-                )
-              }
+                );
+                onMedicationAnswerChange(answer);
+              }}
               onTextChange={(medicationOutsideChronicTherapy) =>
                 setDraft((current) => ({ ...current, medicationOutsideChronicTherapy }))
               }
               questionKey="daily.medication"
               text={draft.medicationOutsideChronicTherapy ?? ''}
             />
+            {draft.tookMedicationOutsideChronicTherapy ? (
+              <Text selectable style={styles.medicationRequirement}>
+                {t(locale, 'daily.medicationRequiredHelp')}
+              </Text>
+            ) : null}
             {includeMenstruation ? (
               <ConditionalTextField
                 answer={draft.hadMenstruation}
@@ -312,20 +346,24 @@ export function DailyFormScreen({
             />
             {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
             {message ? <Text style={sharedStyles.success}>{message}</Text> : null}
-            {completedAt ? (
-              <PrimaryButton
-                busy={saving}
-                label={t(locale, 'daily.saveChanges')}
-                onPress={() => void save('complete')}
-              />
-            ) : (
-              <PrimaryButton
-                busy={saving}
-                label={t(locale, 'daily.saveProgress')}
-                onPress={() => void save('progress')}
-                variant="secondary"
-              />
-            )}
+            <View style={styles.actions}>
+              <View style={styles.action}>
+                <PrimaryButton
+                  label={t(locale, 'common.cancel')}
+                  onPress={onBack}
+                  variant="secondary"
+                />
+              </View>
+              <View style={styles.action}>
+                <PrimaryButton
+                  busy={saving}
+                  label={
+                    completedAt ? t(locale, 'daily.saveChanges') : t(locale, 'daily.saveProgress')
+                  }
+                  onPress={() => void save(completedAt ? 'complete' : 'progress')}
+                />
+              </View>
+            </View>
           </View>
         ) : null}
       </ScrollView>
@@ -350,4 +388,29 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     padding: spacing.md,
   },
+  medicationRequirement: {
+    backgroundColor: '#fff4e5',
+    borderColor: '#e7bd76',
+    borderRadius: 12,
+    borderWidth: 1,
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 21,
+    padding: spacing.md,
+  },
+  dependencyHelp: {
+    color: colors.mutedText,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: -spacing.sm,
+  },
+  actions: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: 'auto',
+    paddingTop: spacing.md,
+  },
+  action: { flex: 1 },
 });
