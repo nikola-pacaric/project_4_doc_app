@@ -7,6 +7,7 @@ export interface DailyFormDetails {
   activityNotes: string | null;
   stressLevel: 1 | 2 | 3 | null;
   dayDescription: string | null;
+  tookChronicTherapy: boolean | null;
   tookMedicationOutsideChronicTherapy: boolean | null;
   medicationOutsideChronicTherapy: string | null;
   hadMenstruation: boolean | null;

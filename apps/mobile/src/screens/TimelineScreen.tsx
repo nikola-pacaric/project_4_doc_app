@@ -8,6 +8,7 @@ import {
   createTextEntry,
   deletePatientEntry,
   getPatientBaseline,
+  getPatientDailyForm,
   listRecentPatientEntries,
   updateEntryTimestamp,
   type AppSupabaseClient,
@@ -29,7 +30,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { TimelineEntryCard } from '../components/TimelineEntryCard';
 import { colors, sharedStyles } from '../theme';
-import { toLocalDateInput } from '../utils/dateTime';
+import { localDayRange, toLocalDateInput } from '../utils/dateTime';
 import { BaselineScreen } from './BaselineScreen';
 import { DailyProgressHomeScreen } from './DailyProgressHomeScreen';
 import { DailyFormScreen } from './DailyFormScreen';
@@ -72,6 +73,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [showBaseline, setShowBaseline] = useState(false);
   const [showDailyForm, setShowDailyForm] = useState(false);
   const [dailyFormOpenedFromHome, setDailyFormOpenedFromHome] = useState(false);
+  const [dailyCompleted, setDailyCompleted] = useState(false);
   const [showFoodForm, setShowFoodForm] = useState(false);
   const [showSymptomForm, setShowSymptomForm] = useState(false);
   const [symptomFormOpenedFromHome, setSymptomFormOpenedFromHome] = useState(false);
@@ -109,11 +111,16 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
       setError(null);
 
       try {
-        const [nextEntries, baseline] = await Promise.all([
+        const range = localDayRange(toLocalDateInput(new Date()));
+        const [nextEntries, baseline, dailyForm] = await Promise.all([
           listRecentPatientEntries(client, profile.id),
           getPatientBaseline(client, profile.id),
+          getPatientDailyForm(client, profile.id, range.start, range.end),
         ]);
         setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
+        setDailyCompleted(Boolean(dailyForm?.details.completedAt));
+        setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
+        setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
         setSymptomsCompleted(hasTodayEntry(nextEntries, 'symptom'));
         setMedicationCompleted(hasTodayEntry(nextEntries, 'medication'));
         setCanTrackMenstruation(baseline?.sex === 'female');
@@ -129,14 +136,19 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
 
   useEffect(() => {
     let active = true;
+    const range = localDayRange(toLocalDateInput(new Date()));
 
     void Promise.all([
       listRecentPatientEntries(client, profile.id),
       getPatientBaseline(client, profile.id),
+      getPatientDailyForm(client, profile.id, range.start, range.end),
     ])
-      .then(([nextEntries, baseline]) => {
+      .then(([nextEntries, baseline, dailyForm]) => {
         if (active) {
           setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
+          setDailyCompleted(Boolean(dailyForm?.details.completedAt));
+          setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
+          setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
           setSymptomsCompleted(hasTodayEntry(nextEntries, 'symptom'));
           setMedicationCompleted(hasTodayEntry(nextEntries, 'medication'));
           setCanTrackMenstruation(baseline?.sex === 'female');
@@ -249,6 +261,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
           setShowDailyProgressHome(false);
           setShowSymptomForm(true);
         }}
+        dailyCompleted={dailyCompleted}
         exerciseCompleted={exerciseCompleted}
         exerciseRequired={exerciseRequired}
         medicationCompleted={medicationCompleted}
@@ -285,6 +298,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
         onMedicationAnswerChange={handleMedicationAnswerChange}
         onBack={() => {
           setShowDailyForm(false);
+          void loadEntries();
           if (dailyFormOpenedFromHome) {
             setShowDailyProgressHome(true);
             setDailyFormOpenedFromHome(false);

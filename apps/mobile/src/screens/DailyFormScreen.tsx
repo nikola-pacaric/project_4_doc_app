@@ -42,6 +42,7 @@ function toDraft(details: DailyFormDetails | null): DailyFormDraft {
     activityNotes: details.activityNotes ?? '',
     stressLevel: details.stressLevel ?? undefined,
     dayDescription: details.dayDescription ?? '',
+    tookChronicTherapy: details.tookChronicTherapy ?? undefined,
     tookMedicationOutsideChronicTherapy:
       details.tookMedicationOutsideChronicTherapy ??
       Boolean(details.medicationOutsideChronicTherapy?.trim()),
@@ -69,7 +70,6 @@ export function DailyFormScreen({
   const [completedAt, setCompletedAt] = useState<string>();
   const [includeMenstruation, setIncludeMenstruation] = useState(false);
   const [hasChronicTherapy, setHasChronicTherapy] = useState(false);
-  const [tookChronicTherapyToday, setTookChronicTherapyToday] = useState<boolean>();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,10 +88,10 @@ export function DailyFormScreen({
         setIncludeMenstruation(baseline?.sex === 'female');
         const nextHasChronicTherapy = Boolean(baseline?.chronicTherapy?.trim());
         setHasChronicTherapy(nextHasChronicTherapy);
-        setTookChronicTherapyToday(nextHasChronicTherapy ? undefined : false);
         setExistingEntryId(record?.entryId);
         setCompletedAt(record?.details.completedAt ?? undefined);
         const nextDraft = toDraft(record?.details ?? null);
+        if (!nextHasChronicTherapy) nextDraft.tookChronicTherapy = false;
         setDraft(nextDraft);
         onActivityAnswerChange(nextDraft.hadPhysicalActivity);
         onMedicationAnswerChange(nextDraft.tookMedicationOutsideChronicTherapy);
@@ -121,7 +121,10 @@ export function DailyFormScreen({
       setError(t(locale, 'daily.progressEmpty'));
       return;
     }
-    if (mode === 'complete' && !isCompleteDailyForm(draft, includeMenstruation)) {
+    if (
+      mode === 'complete' &&
+      !isCompleteDailyForm(draft, includeMenstruation, hasChronicTherapy)
+    ) {
       setError(t(locale, 'daily.requiredError'));
       return;
     }
@@ -176,6 +179,8 @@ export function DailyFormScreen({
     );
   }
 
+  const dailyFormValid = isCompleteDailyForm(draft, includeMenstruation, hasChronicTherapy);
+
   return (
     <SafeAreaView style={sharedStyles.screen}>
       <ScrollView
@@ -208,7 +213,7 @@ export function DailyFormScreen({
               onChangeText={(value) =>
                 setDraft((current) => ({
                   ...current,
-                  wakeTime: formatTimeInput(value, current.wakeTime),
+                  wakeTime: formatTimeInput(value, current.wakeTime, 23),
                 }))
               }
               placeholder="07:30"
@@ -274,15 +279,17 @@ export function DailyFormScreen({
             <OptionButtons
               disabled={!hasChronicTherapy}
               label={t(locale, 'daily.chronicTherapyTaken')}
-              onChange={(value) => setTookChronicTherapyToday(value === 'yes')}
+              onChange={(value) =>
+                setDraft((current) => ({ ...current, tookChronicTherapy: value === 'yes' }))
+              }
               options={[
                 { value: 'yes', label: t(locale, 'common.yes') },
                 { value: 'no', label: t(locale, 'common.no') },
               ]}
               value={
-                tookChronicTherapyToday === undefined
+                draft.tookChronicTherapy === undefined
                   ? undefined
-                  : tookChronicTherapyToday
+                  : draft.tookChronicTherapy
                     ? 'yes'
                     : 'no'
               }
@@ -292,22 +299,28 @@ export function DailyFormScreen({
                 {t(locale, 'daily.noChronicTherapyHelp')}
               </Text>
             ) : null}
-            <ConditionalTextField
-              answer={draft.tookMedicationOutsideChronicTherapy}
-              detailKey="daily.medicationDetails"
-              onAnswerChange={(answer) => {
-                updateConditional(
-                  'tookMedicationOutsideChronicTherapy',
-                  'medicationOutsideChronicTherapy',
-                  answer,
-                );
+            <OptionButtons
+              label={t(locale, 'daily.medication')}
+              onChange={(value) => {
+                const answer = value === 'yes';
+                setDraft((current) => ({
+                  ...current,
+                  tookMedicationOutsideChronicTherapy: answer,
+                  medicationOutsideChronicTherapy: '',
+                }));
                 onMedicationAnswerChange(answer);
               }}
-              onTextChange={(medicationOutsideChronicTherapy) =>
-                setDraft((current) => ({ ...current, medicationOutsideChronicTherapy }))
+              options={[
+                { value: 'yes', label: t(locale, 'common.yes') },
+                { value: 'no', label: t(locale, 'common.no') },
+              ]}
+              value={
+                draft.tookMedicationOutsideChronicTherapy === undefined
+                  ? undefined
+                  : draft.tookMedicationOutsideChronicTherapy
+                    ? 'yes'
+                    : 'no'
               }
-              questionKey="daily.medication"
-              text={draft.medicationOutsideChronicTherapy ?? ''}
             />
             {draft.tookMedicationOutsideChronicTherapy ? (
               <Text selectable style={styles.medicationRequirement}>
@@ -358,9 +371,13 @@ export function DailyFormScreen({
                 <PrimaryButton
                   busy={saving}
                   label={
-                    completedAt ? t(locale, 'daily.saveChanges') : t(locale, 'daily.saveProgress')
+                    completedAt
+                      ? t(locale, 'daily.saveChanges')
+                      : dailyFormValid
+                        ? t(locale, 'daily.completeDay')
+                        : t(locale, 'daily.saveProgress')
                   }
-                  onPress={() => void save(completedAt ? 'complete' : 'progress')}
+                  onPress={() => void save(completedAt || dailyFormValid ? 'complete' : 'progress')}
                 />
               </View>
             </View>

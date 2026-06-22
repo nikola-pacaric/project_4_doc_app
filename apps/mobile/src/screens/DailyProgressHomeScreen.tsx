@@ -20,6 +20,7 @@ interface DailyProgressHomeScreenProps {
   onSignOut: () => void | Promise<void>;
   onViewAllEntries: () => void;
   canTrackMenstruation: boolean;
+  dailyCompleted: boolean;
   exerciseCompleted: boolean;
   exerciseRequired: boolean;
   medicationCompleted: boolean;
@@ -89,6 +90,7 @@ export function DailyProgressHomeScreen({
   onSignOut,
   onViewAllEntries,
   canTrackMenstruation,
+  dailyCompleted,
   exerciseCompleted,
   exerciseRequired,
   medicationCompleted,
@@ -109,7 +111,7 @@ export function DailyProgressHomeScreen({
     .slice(0, 8);
   const completedKinds = new Set(todayEntries.map((entry) => entry.kind));
   const completedItems = visibleQuickActions.filter((action) =>
-    completedKinds.has(actionEntryKinds[action.id]),
+    action.id === 'daily' ? dailyCompleted : completedKinds.has(actionEntryKinds[action.id]),
   ).length;
   const progress = Math.round((completedItems / visibleQuickActions.length) * 100);
   const actionWidth = width < 360 ? '47%' : '22%';
@@ -276,13 +278,17 @@ export function DailyProgressHomeScreen({
           <View style={styles.entryList}>
             {todayEntries.map((entry) => {
               const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
+              const entryCompleted = entry.kind !== 'daily' || dailyCompleted;
               return (
                 <Pressable
-                  accessibilityHint={t(locale, 'home.entryOpenHint')}
+                  accessibilityHint={t(
+                    locale,
+                    entry.kind === 'daily' ? 'home.dailyEntryOpenHint' : 'home.entryOpenHint',
+                  )}
                   accessibilityLabel={entry.text?.trim() || kindLabel}
                   accessibilityRole="button"
                   key={entry.id}
-                  onPress={onViewAllEntries}
+                  onPress={entry.kind === 'daily' ? onOpenDaily : onViewAllEntries}
                   style={({ pressed }) => [styles.entryCard, pressed && styles.entryCardPressed]}
                 >
                   <View style={styles.entryIconContainer}>
@@ -297,7 +303,9 @@ export function DailyProgressHomeScreen({
                     </Text>
                   </View>
                   <View style={styles.entryTrailing}>
-                    <Text style={styles.entryStatus}>{t(locale, 'home.action.completed')}</Text>
+                    <Text style={[styles.entryStatus, !entryCompleted && styles.entryStatusDraft]}>
+                      {t(locale, entryCompleted ? 'home.action.completed' : 'daily.statusDraft')}
+                    </Text>
                     <Text style={styles.entryChevron}>›</Text>
                   </View>
                 </Pressable>
@@ -484,6 +492,7 @@ const styles = StyleSheet.create({
   entryTime: { color: colors.mutedText, fontSize: 13, fontWeight: '600' },
   entryTrailing: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   entryStatus: { color: '#16794b', fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+  entryStatusDraft: { color: '#a15c00' },
   entryChevron: { color: colors.accent, fontSize: 25, fontWeight: '700', lineHeight: 25 },
   emptyEntries: { color: colors.mutedText, fontSize: 14, lineHeight: 20 },
   submitBlock: { gap: spacing.sm, marginTop: 'auto' },

@@ -6,6 +6,7 @@ export interface DailyFormDraft {
   activityNotes?: string;
   stressLevel?: 1 | 2 | 3;
   dayDescription?: string;
+  tookChronicTherapy?: boolean;
   tookMedicationOutsideChronicTherapy?: boolean;
   medicationOutsideChronicTherapy?: string;
   hadMenstruation?: boolean;
@@ -40,25 +41,20 @@ export function hasDailyFormProgress(draft: DailyFormDraft): boolean {
 }
 
 const conditionalFields: Array<{
-  answer: keyof Pick<DailyFormDraft, 'tookMedicationOutsideChronicTherapy' | 'hadNaps'>;
-  detail: keyof Pick<DailyFormDraft, 'medicationOutsideChronicTherapy' | 'naps'>;
-}> = [
-  {
-    answer: 'tookMedicationOutsideChronicTherapy',
-    detail: 'medicationOutsideChronicTherapy',
-  },
-  { answer: 'hadNaps', detail: 'naps' },
-];
+  answer: keyof Pick<DailyFormDraft, 'hadNaps'>;
+  detail: keyof Pick<DailyFormDraft, 'naps'>;
+}> = [{ answer: 'hadNaps', detail: 'naps' }];
 
 export function validateDailyForm(
   draft: DailyFormDraft,
   includeMenstruation: boolean,
+  hasChronicTherapy = false,
 ): DailyFormValidationResult {
   const errors: DailyFormValidationResult['errors'] = {};
 
   if (!draft.wakeTime) {
     errors.wakeTime = 'required';
-  } else if (!/^([01]\d|2[0-4]):[0-5]\d$/.test(draft.wakeTime)) {
+  } else if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.wakeTime)) {
     errors.wakeTime = 'invalid';
   }
 
@@ -70,6 +66,16 @@ export function validateDailyForm(
 
   if (draft.hadPhysicalActivity === undefined) {
     errors.hadPhysicalActivity = 'required';
+  }
+
+  if (hasChronicTherapy && draft.tookChronicTherapy === undefined) {
+    errors.tookChronicTherapy = 'required';
+  } else if (!hasChronicTherapy && draft.tookChronicTherapy === true) {
+    errors.tookChronicTherapy = 'invalid';
+  }
+
+  if (draft.tookMedicationOutsideChronicTherapy === undefined) {
+    errors.tookMedicationOutsideChronicTherapy = 'required';
   }
 
   for (const { answer, detail } of conditionalFields) {
@@ -99,6 +105,7 @@ export function validateDailyForm(
 export function isCompleteDailyForm(
   draft: DailyFormDraft,
   includeMenstruation: boolean,
+  hasChronicTherapy = false,
 ): draft is CompleteDailyFormDraft {
-  return validateDailyForm(draft, includeMenstruation).valid;
+  return validateDailyForm(draft, includeMenstruation, hasChronicTherapy).valid;
 }

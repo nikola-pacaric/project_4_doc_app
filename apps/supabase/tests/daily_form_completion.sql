@@ -31,13 +31,14 @@ insert into public.daily_form_details (
   had_physical_activity,
   stress_level,
   day_description,
+  took_chronic_therapy,
   took_medication_outside_chronic_therapy,
   energy_level,
   had_naps
 )
 values
-  ('10000000-0000-4000-8000-000000000501', '07:30', '08:00', 'usual', false, 2, 'Normal day', false, 2, false),
-  ('10000000-0000-4000-8000-000000000502', '07:30', '08:00', 'usual', false, 2, 'Normal day', false, 2, false)
+  ('10000000-0000-4000-8000-000000000501', '07:30', '08:00', 'usual', false, 2, 'Normal day', false, false, 2, false),
+  ('10000000-0000-4000-8000-000000000502', '07:30', '08:00', 'usual', false, 2, 'Normal day', false, false, 2, false)
 on conflict (entry_id) do nothing;
 
 set local role authenticated;
@@ -58,7 +59,24 @@ set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000501';
 do $$
 declare
   completion_time timestamptz;
+  affected_rows integer;
 begin
+  if exists (
+    select 1
+    from public.daily_form_details
+    where entry_id = '10000000-0000-4000-8000-000000000502'
+  ) then
+    raise exception 'a patient should not read another patient daily details';
+  end if;
+
+  update public.daily_form_details
+  set day_description = 'Unauthorized change'
+  where entry_id = '10000000-0000-4000-8000-000000000502';
+  get diagnostics affected_rows = row_count;
+  if affected_rows <> 0 then
+    raise exception 'a patient should not update another patient daily details';
+  end if;
+
   begin
     update public.daily_form_details
     set sleep_notes = '25:00'
@@ -99,6 +117,27 @@ begin
 
   insert into public.exercise_details (entry_id, activity, duration_minutes, intensity)
   values ('10000000-0000-4000-8000-000000000509', 'Walking', 30, 'light');
+
+  update public.daily_form_details
+  set took_medication_outside_chronic_therapy = true
+  where entry_id = '10000000-0000-4000-8000-000000000501';
+
+  begin
+    perform public.complete_patient_daily_form('10000000-0000-4000-8000-000000000501');
+    raise exception 'outside-therapy medication should require a same-day medication entry';
+  exception when check_violation then null;
+  end;
+
+  insert into public.patient_entries (id, patient_id, kind, occurred_at)
+  values (
+    '10000000-0000-4000-8000-000000000510',
+    '00000000-0000-4000-8000-000000000501',
+    'medication',
+    '2026-06-21 19:00:00+02'
+  );
+
+  insert into public.medication_details (entry_id, name, dose, is_chronic_therapy)
+  values ('10000000-0000-4000-8000-000000000510', 'Vitamin D', '1000 IU', false);
 
   completion_time := public.complete_patient_daily_form('10000000-0000-4000-8000-000000000501');
   if completion_time is null then

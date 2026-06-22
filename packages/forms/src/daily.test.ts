@@ -15,6 +15,7 @@ const completeDraft: DailyFormDraft = {
   activityNotes: '30 minute walk',
   stressLevel: 2,
   dayDescription: 'A normal work day',
+  tookChronicTherapy: false,
   tookMedicationOutsideChronicTherapy: false,
   medicationOutsideChronicTherapy: 'None',
   hadMenstruation: false,
@@ -57,6 +58,30 @@ describe('daily form validation', () => {
     ).toBe('required');
   });
 
+  it('requires a chronic-therapy answer only when therapy exists in baseline', () => {
+    const unanswered = { ...completeDraft, tookChronicTherapy: undefined };
+
+    expect(validateDailyForm(unanswered, false, true).errors.tookChronicTherapy).toBe('required');
+    expect(validateDailyForm(unanswered, false, false).errors.tookChronicTherapy).toBeUndefined();
+    expect(
+      validateDailyForm({ ...completeDraft, tookChronicTherapy: true }, false, false).errors,
+    ).toHaveProperty('tookChronicTherapy', 'invalid');
+  });
+
+  it('does not require inline medication text because the Medication form is separate', () => {
+    const result = validateDailyForm(
+      {
+        ...completeDraft,
+        tookMedicationOutsideChronicTherapy: true,
+        medicationOutsideChronicTherapy: '',
+      },
+      false,
+      true,
+    );
+
+    expect(result.errors.medicationOutsideChronicTherapy).toBeUndefined();
+  });
+
   it('uses the exercise panel instead of requiring activity notes', () => {
     const result = validateDailyForm({ ...completeDraft, activityNotes: '' }, false);
 
@@ -83,9 +108,10 @@ describe('daily form validation', () => {
   });
 
   it('accepts the configured maximum hour and minute values', () => {
-    expect(
-      validateDailyForm({ ...completeDraft, wakeTime: '24:59', sleepDuration: '24:59' }, false)
-        .valid,
-    ).toBe(true);
+    expect(validateDailyForm({ ...completeDraft, wakeTime: '23:59' }, false).valid).toBe(true);
+    expect(validateDailyForm({ ...completeDraft, wakeTime: '24:00' }, false).errors.wakeTime).toBe(
+      'invalid',
+    );
+    expect(validateDailyForm({ ...completeDraft, sleepDuration: '24:59' }, false).valid).toBe(true);
   });
 });

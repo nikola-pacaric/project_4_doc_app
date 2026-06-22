@@ -54,6 +54,7 @@ function toDraft(details: DailyFormDetails | null): DailyFormDraft {
     activityNotes: details.activityNotes ?? '',
     stressLevel: details.stressLevel ?? undefined,
     dayDescription: details.dayDescription ?? '',
+    tookChronicTherapy: details.tookChronicTherapy ?? undefined,
     tookMedicationOutsideChronicTherapy:
       details.tookMedicationOutsideChronicTherapy ??
       Boolean(details.medicationOutsideChronicTherapy?.trim()),
@@ -78,6 +79,7 @@ export function DailyFormScreen({
   const [existingEntryId, setExistingEntryId] = useState<string>();
   const [completedAt, setCompletedAt] = useState<string>();
   const [includeMenstruation, setIncludeMenstruation] = useState(false);
+  const [hasChronicTherapy, setHasChronicTherapy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,9 +96,12 @@ export function DailyFormScreen({
       .then(([baseline, record]) => {
         if (!active) return;
         setIncludeMenstruation(baseline?.sex === 'female');
+        const nextHasChronicTherapy = Boolean(baseline?.chronicTherapy?.trim());
+        setHasChronicTherapy(nextHasChronicTherapy);
         setExistingEntryId(record?.entryId);
         setCompletedAt(record?.details.completedAt ?? undefined);
         const nextDraft = toDraft(record?.details ?? null);
+        if (!nextHasChronicTherapy) nextDraft.tookChronicTherapy = false;
         setDraft(nextDraft);
         onActivityAnswerChange(nextDraft.hadPhysicalActivity);
       })
@@ -117,7 +122,10 @@ export function DailyFormScreen({
       setError(t(locale, 'daily.progressEmpty'));
       return;
     }
-    if (mode === 'complete' && !isCompleteDailyForm(draft, includeMenstruation)) {
+    if (
+      mode === 'complete' &&
+      !isCompleteDailyForm(draft, includeMenstruation, hasChronicTherapy)
+    ) {
       setError(t(locale, 'daily.requiredError'));
       return;
     }
@@ -200,6 +208,8 @@ export function DailyFormScreen({
     );
   }
 
+  const dailyFormValid = isCompleteDailyForm(draft, includeMenstruation, hasChronicTherapy);
+
   return (
     <main className="baseline-layout">
       <div className="baseline-toolbar">
@@ -231,7 +241,7 @@ export function DailyFormScreen({
                 onChange={(event) =>
                   setDraft((value) => ({
                     ...value,
-                    wakeTime: formatTimeInput(event.target.value, value.wakeTime),
+                    wakeTime: formatTimeInput(event.target.value, value.wakeTime, 23),
                   }))
                 }
                 inputMode="numeric"
@@ -311,25 +321,55 @@ export function DailyFormScreen({
           </div>
           {scaleField('stressLevel', 'daily.stressLevel')}
           {scaleField('energyLevel', 'daily.energyLevel')}
-          <ConditionalTextField
-            answer={draft.tookMedicationOutsideChronicTherapy}
-            detailKey="daily.medicationDetails"
-            id="medication"
-            onAnswerChange={(answer) =>
-              setDraft((value) => ({
-                ...value,
-                tookMedicationOutsideChronicTherapy: answer,
-                medicationOutsideChronicTherapy: answer
-                  ? value.medicationOutsideChronicTherapy
-                  : '',
-              }))
-            }
-            onTextChange={(text) =>
-              setDraft((value) => ({ ...value, medicationOutsideChronicTherapy: text }))
-            }
-            questionKey="daily.medication"
-            text={draft.medicationOutsideChronicTherapy ?? ''}
-          />
+          <div className="full-width choice-field conditional-question">
+            <span className="choice-label" id="chronic-therapy-label">
+              {t(locale, 'daily.chronicTherapyTaken')}
+            </span>
+            <div aria-labelledby="chronic-therapy-label" className="choice-row" role="radiogroup">
+              {([true, false] as const).map((answer) => (
+                <button
+                  aria-checked={draft.tookChronicTherapy === answer}
+                  className={draft.tookChronicTherapy === answer ? 'selected' : ''}
+                  disabled={!hasChronicTherapy}
+                  key={String(answer)}
+                  onClick={() => setDraft((value) => ({ ...value, tookChronicTherapy: answer }))}
+                  role="radio"
+                  type="button"
+                >
+                  {t(locale, answer ? 'common.yes' : 'common.no')}
+                </button>
+              ))}
+            </div>
+            {!hasChronicTherapy ? <p>{t(locale, 'daily.noChronicTherapyHelp')}</p> : null}
+          </div>
+          <div className="full-width choice-field conditional-question">
+            <span className="choice-label" id="medication-label">
+              {t(locale, 'daily.medication')}
+            </span>
+            <div aria-labelledby="medication-label" className="choice-row" role="radiogroup">
+              {([true, false] as const).map((answer) => (
+                <button
+                  aria-checked={draft.tookMedicationOutsideChronicTherapy === answer}
+                  className={draft.tookMedicationOutsideChronicTherapy === answer ? 'selected' : ''}
+                  key={String(answer)}
+                  onClick={() =>
+                    setDraft((value) => ({
+                      ...value,
+                      tookMedicationOutsideChronicTherapy: answer,
+                      medicationOutsideChronicTherapy: '',
+                    }))
+                  }
+                  role="radio"
+                  type="button"
+                >
+                  {t(locale, answer ? 'common.yes' : 'common.no')}
+                </button>
+              ))}
+            </div>
+            {draft.tookMedicationOutsideChronicTherapy ? (
+              <p className="exercise-requirement">{t(locale, 'daily.medicationRequiredHelp')}</p>
+            ) : null}
+          </div>
           {includeMenstruation ? (
             <ConditionalTextField
               answer={draft.hadMenstruation}
@@ -366,25 +406,21 @@ export function DailyFormScreen({
           <div className="full-width form-actions">
             {error ? <p className="notice error">{error}</p> : null}
             {message ? <p className="notice success">{message}</p> : null}
-            {completedAt ? (
-              <button
-                className="primary-button"
-                disabled={saving}
-                onClick={() => void save('complete')}
-                type="button"
-              >
-                {t(locale, 'daily.saveChanges')}
-              </button>
-            ) : (
-              <button
-                className="secondary-button"
-                disabled={saving}
-                onClick={() => void save('progress')}
-                type="button"
-              >
-                {t(locale, 'daily.saveProgress')}
-              </button>
-            )}
+            <button
+              className={completedAt || dailyFormValid ? 'primary-button' : 'secondary-button'}
+              disabled={saving}
+              onClick={() => void save(completedAt || dailyFormValid ? 'complete' : 'progress')}
+              type="button"
+            >
+              {t(
+                locale,
+                completedAt
+                  ? 'daily.saveChanges'
+                  : dailyFormValid
+                    ? 'daily.completeDay'
+                    : 'daily.saveProgress',
+              )}
+            </button>
           </div>
         </form>
       ) : null}

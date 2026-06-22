@@ -12,5 +12,6 @@ describe('web time input', () => {
     expect(formatTimeInput('80:80')).toBe('');
     expect(formatTimeInput('25', '2')).toBe('2');
     expect(formatTimeInput('24:6', '24')).toBe('24');
+    expect(formatTimeInput('24', '2', 23)).toBe('2');
   });
 });

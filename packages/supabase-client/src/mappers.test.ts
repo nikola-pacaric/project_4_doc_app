@@ -22,6 +22,7 @@ describe('Supabase row mappers', () => {
         sleep_notes: '07:30:00',
         stress_level: 2,
         day_description: 'Normal day',
+        took_chronic_therapy: true,
         took_medication_outside_chronic_therapy: false,
         medication_outside_chronic_therapy: 'None',
         had_menstruation: false,
@@ -35,6 +36,7 @@ describe('Supabase row mappers', () => {
       entryId: 'entry-daily',
       wakeTime: '07:15',
       sleepDuration: '07:30',
+      tookChronicTherapy: true,
     });
   });
 
