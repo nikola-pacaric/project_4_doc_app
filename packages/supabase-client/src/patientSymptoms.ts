@@ -5,7 +5,7 @@ import type {
   SymptomRecord,
   SymptomType,
 } from '@project4/contracts';
-import { normalizeSymptomDateTime, type SymptomDraft } from '@project4/forms';
+import { normalizeSymptomDateTime, validateSymptoms, type SymptomDraft } from '@project4/forms';
 
 import type { AppSupabaseClient } from './index';
 
@@ -114,52 +114,43 @@ function toDetailRow(entryId: string, draft: SymptomDraft) {
   };
 }
 
+export interface SymptomSaveRange {
+  start: string;
+  end: string;
+}
+
+function toSymptomSaveItem(draft: SymptomDraft) {
+  const row = toDetailRow(draft.entryId ?? '', draft);
+  return {
+    entry_id: draft.entryId ?? null,
+    symptom_type: row.symptom_type,
+    custom_type: row.custom_type,
+    started_at: row.started_at,
+    ended_at: row.ended_at,
+    intensity: row.intensity,
+    modifying_factors: row.modifying_factors,
+    woke_from_sleep: row.woke_from_sleep,
+    pain_location: row.pain_location,
+    pain_location_custom: row.pain_location_custom,
+    pain_radiates: row.pain_radiates,
+    pain_radiation: row.pain_radiation,
+    pain_description: row.pain_description,
+    pain_description_custom: row.pain_description_custom,
+  };
+}
+
 export async function savePatientSymptoms(
   client: AppSupabaseClient,
-  patientId: string,
+  range: SymptomSaveRange,
   drafts: SymptomDraft[],
-  previousEntryIds: string[],
 ): Promise<void> {
-  const retainedIds = drafts.flatMap((draft) => (draft.entryId ? [draft.entryId] : []));
-  const removedIds = previousEntryIds.filter((entryId) => !retainedIds.includes(entryId));
+  if (!validateSymptoms(drafts)) throw new Error('Cannot persist incomplete symptom data.');
 
-  for (const entryId of removedIds) {
-    const { error } = await client.from('patient_entries').delete().eq('id', entryId);
-    if (error) throw error;
-  }
-
-  for (const draft of drafts) {
-    const startedAt = normalizeSymptomDateTime(draft.startedAt);
-    if (!startedAt) throw new Error('Cannot persist a symptom without a valid start time.');
-
-    if (draft.entryId) {
-      const { error: entryError } = await client
-        .from('patient_entries')
-        .update({ occurred_at: startedAt })
-        .eq('id', draft.entryId);
-      if (entryError) throw entryError;
-
-      const { error: detailError } = await client
-        .from('symptom_details')
-        .update(toDetailRow(draft.entryId, draft))
-        .eq('entry_id', draft.entryId);
-      if (detailError) throw detailError;
-      continue;
-    }
-
-    const { data: entry, error: entryError } = await client
-      .from('patient_entries')
-      .insert({ patient_id: patientId, kind: 'symptom', occurred_at: startedAt, text: null })
-      .select('id')
-      .single<{ id: string }>();
-    if (entryError) throw entryError;
-
-    const { error: detailError } = await client
-      .from('symptom_details')
-      .insert(toDetailRow(entry.id, draft));
-    if (!detailError) continue;
-
-    await client.from('patient_entries').delete().eq('id', entry.id);
-    throw detailError;
-  }
+  const { data, error } = await client.rpc('save_patient_symptoms', {
+    p_day_start: range.start,
+    p_day_end: range.end,
+    p_symptoms: drafts.map(toSymptomSaveItem),
+  });
+  if (error) throw error;
+  if (data !== drafts.length) throw new Error('Symptom save returned an invalid item count.');
 }

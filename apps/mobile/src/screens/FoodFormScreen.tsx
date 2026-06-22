@@ -12,7 +12,6 @@ import {
   getPatientFoodForm,
   listPatientMeals,
   savePatientFoodForm,
-  savePatientMeals,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
@@ -59,9 +58,6 @@ export function FoodFormScreen({ client, onBack, profile }: FoodFormScreenProps)
   const day = today;
   const [hydration, setHydration] = useState<FoodHydrationDraft>({ ...foodHydrationDefaults });
   const [meals, setMeals] = useState<MealDraft[]>([{ description: '' }]);
-  const [dayEntryId, setDayEntryId] = useState<string>();
-  const [hasFoodDetails, setHasFoodDetails] = useState(false);
-  const [previousMealEntryIds, setPreviousMealEntryIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,10 +73,7 @@ export function FoodFormScreen({ client, onBack, profile }: FoodFormScreenProps)
     ])
       .then(([foodRecord, mealRecords]) => {
         if (!active) return;
-        setDayEntryId(foodRecord?.entryId);
-        setHasFoodDetails(Boolean(foodRecord?.details));
         setHydration(toHydrationDraft(foodRecord?.details ?? null));
-        setPreviousMealEntryIds(mealRecords.map((meal) => meal.entryId));
         setMeals(toMealDrafts(mealRecords));
       })
       .catch(() => active && setError(t(locale, 'food.loadError')))
@@ -104,30 +97,13 @@ export function FoodFormScreen({ client, onBack, profile }: FoodFormScreenProps)
 
     try {
       const range = localDayRange(day);
-      const savedDayEntryId = await savePatientFoodForm(
-        client,
-        profile.id,
-        range.occurredAt,
-        hydration,
-        dayEntryId,
-        hasFoodDetails,
-      );
-      await savePatientMeals(
-        client,
-        profile.id,
-        range.occurredAt,
-        startedMeals,
-        previousMealEntryIds,
-      );
+      await savePatientFoodForm(client, range, hydration, startedMeals);
 
       const [foodRecord, mealRecords] = await Promise.all([
         getPatientFoodForm(client, profile.id, range.start, range.end),
         listPatientMeals(client, profile.id, range.start, range.end),
       ]);
-      setDayEntryId(foodRecord?.entryId ?? savedDayEntryId);
-      setHasFoodDetails(Boolean(foodRecord?.details));
       setHydration(toHydrationDraft(foodRecord?.details ?? null));
-      setPreviousMealEntryIds(mealRecords.map((meal) => meal.entryId));
       setMeals(toMealDrafts(mealRecords));
       setMessage(t(locale, 'food.saved'));
     } catch {

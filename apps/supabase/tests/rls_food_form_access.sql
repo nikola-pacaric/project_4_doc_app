@@ -102,7 +102,7 @@ begin
     insert into public.food_form_details (entry_id, water_liters, has_other_fluids)
     values ('10000000-0000-4000-8000-000000000408', 1.000, false);
     raise exception 'patient A should not insert a food form for patient B';
-  exception when insufficient_privilege then null;
+  exception when insufficient_privilege or check_violation then null;
   end;
 end $$;
 

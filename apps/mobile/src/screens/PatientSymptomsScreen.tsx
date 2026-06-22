@@ -96,13 +96,8 @@ export function PatientSymptomsScreen({
     setError(null);
     setMessage(null);
     try {
-      await savePatientSymptoms(
-        client,
-        profile.id,
-        nextDrafts,
-        drafts.flatMap((draft) => (draft.entryId ? [draft.entryId] : [])),
-      );
       const range = todayRange();
+      await savePatientSymptoms(client, range, nextDrafts);
       const saved = await listPatientSymptoms(client, profile.id, range.start, range.end);
       setDrafts(saved.map(toDraft));
       setFormVersion((current) => current + 1);

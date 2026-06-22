@@ -1,5 +1,10 @@
 import type { FoodFormDetails, FoodFormRecord } from '@project4/contracts';
-import { isCompleteFoodHydrationDraft, type FoodHydrationDraft } from '@project4/forms';
+import {
+  isCompleteFoodHydrationDraft,
+  validateMeal,
+  type FoodHydrationDraft,
+  type MealDraft,
+} from '@project4/forms';
 
 import type { AppSupabaseClient } from './index';
 
@@ -55,57 +60,52 @@ export async function getPatientFoodForm(
   };
 }
 
-function toFoodFormRow(entryId: string, draft: FoodHydrationDraft): FoodFormRow {
+export interface FoodFormSaveRange {
+  start: string;
+  end: string;
+  occurredAt: string;
+}
+
+function toFoodFormSaveParams(
+  range: FoodFormSaveRange,
+  draft: FoodHydrationDraft,
+  meals: MealDraft[],
+) {
   if (!isCompleteFoodHydrationDraft(draft)) {
     throw new Error('Cannot persist incomplete food hydration data.');
   }
 
+  if (!meals.every((meal) => validateMeal(meal).valid)) {
+    throw new Error('Cannot persist incomplete meal data.');
+  }
+
   return {
-    entry_id: entryId,
-    water_liters: draft.waterLiters,
-    has_other_fluids: draft.hasOtherFluids,
-    other_fluids: draft.hasOtherFluids ? draft.otherFluids.trim() : null,
+    p_day_start: range.start,
+    p_day_end: range.end,
+    p_occurred_at: range.occurredAt,
+    p_water_liters: draft.waterLiters,
+    p_has_other_fluids: draft.hasOtherFluids,
+    p_other_fluids: draft.hasOtherFluids ? draft.otherFluids.trim() : null,
+    p_meals: meals.map((meal) => ({
+      entry_id: meal.entryId ?? null,
+      meal_type: meal.type,
+      name: meal.name?.trim(),
+      description: meal.description?.trim() || null,
+    })),
   };
 }
 
 export async function savePatientFoodForm(
   client: AppSupabaseClient,
-  patientId: string,
-  occurredAt: string,
+  range: FoodFormSaveRange,
   draft: FoodHydrationDraft,
-  existingEntryId?: string,
-  existingDetails = false,
+  meals: MealDraft[],
 ): Promise<string> {
-  if (existingEntryId) {
-    const row = toFoodFormRow(existingEntryId, draft);
-    const query = existingDetails
-      ? client.from('food_form_details').update(row).eq('entry_id', existingEntryId)
-      : client.from('food_form_details').insert(row);
-    const { error } = await query;
-    if (error) throw error;
-    return existingEntryId;
-  }
-
-  const { data: entry, error: entryError } = await client
-    .from('patient_entries')
-    .insert({ patient_id: patientId, kind: 'daily', occurred_at: occurredAt, text: null })
-    .select('id')
-    .single<{ id: string }>();
-  if (entryError) throw entryError;
-
-  const { error: dailyDetailsError } = await client
-    .from('daily_form_details')
-    .insert({ entry_id: entry.id });
-  if (dailyDetailsError) {
-    await client.from('patient_entries').delete().eq('id', entry.id);
-    throw dailyDetailsError;
-  }
-
-  const { error: foodDetailsError } = await client
-    .from('food_form_details')
-    .insert(toFoodFormRow(entry.id, draft));
-  if (!foodDetailsError) return entry.id;
-
-  await client.from('patient_entries').delete().eq('id', entry.id);
-  throw foodDetailsError;
+  const { data, error } = await client.rpc(
+    'save_patient_food_form',
+    toFoodFormSaveParams(range, draft, meals),
+  );
+  if (error) throw error;
+  if (typeof data !== 'string') throw new Error('Food form save returned an invalid entry ID.');
+  return data;
 }

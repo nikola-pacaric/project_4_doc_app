@@ -63,7 +63,6 @@ function toDraft(record: SymptomRecord): SymptomDraft {
 export function SymptomFormScreen({ client, onBack, profile }: SymptomFormScreenProps) {
   const locale = DEFAULT_LOCALE;
   const [drafts, setDrafts] = useState<SymptomDraft[]>([]);
-  const [previousEntryIds, setPreviousEntryIds] = useState<string[]>([]);
   const [expanded, setExpanded] = useState<SymptomType[]>([]);
   const [invalid, setInvalid] = useState<SymptomType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +78,6 @@ export function SymptomFormScreen({ client, onBack, profile }: SymptomFormScreen
         if (!active) return;
         const loaded = records.map(toDraft);
         setDrafts(loaded);
-        setPreviousEntryIds(records.map((record) => record.entryId));
         setExpanded(loaded.flatMap((draft) => (draft.type ? [draft.type] : [])));
       })
       .catch(() => active && setError(t(locale, 'symptom.loadError')))
@@ -128,13 +126,12 @@ export function SymptomFormScreen({ client, onBack, profile }: SymptomFormScreen
     setError(null);
     setMessage(null);
     try {
-      await savePatientSymptoms(client, profile.id, drafts, previousEntryIds);
       const range = todayRange();
+      await savePatientSymptoms(client, range, drafts);
       const saved = (await listPatientSymptoms(client, profile.id, range.start, range.end)).map(
         toDraft,
       );
       setDrafts(saved);
-      setPreviousEntryIds(saved.flatMap((draft) => (draft.entryId ? [draft.entryId] : [])));
       setInvalid([]);
       setMessage(t(locale, 'symptom.saved'));
     } catch {
