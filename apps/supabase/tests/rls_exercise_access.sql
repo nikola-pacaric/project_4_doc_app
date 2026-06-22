@@ -20,7 +20,8 @@ on conflict (id) do nothing;
 insert into public.patient_entries (id, patient_id, kind, occurred_at)
 values
   ('10000000-0000-4000-8000-000000000201', '00000000-0000-4000-8000-000000000201', 'exercise', now()),
-  ('10000000-0000-4000-8000-000000000202', '00000000-0000-4000-8000-000000000202', 'exercise', now())
+  ('10000000-0000-4000-8000-000000000202', '00000000-0000-4000-8000-000000000202', 'exercise', now()),
+  ('10000000-0000-4000-8000-000000000208', '00000000-0000-4000-8000-000000000201', 'daily', now())
 on conflict (id) do nothing;
 
 insert into public.exercise_details (entry_id, activity, duration_minutes, intensity, notes)
@@ -29,16 +30,28 @@ values
   ('10000000-0000-4000-8000-000000000202', 'Cycling', 45, 'vigorous', null)
 on conflict (entry_id) do nothing;
 
+do $$
+begin
+  if has_table_privilege('anon', 'public.exercise_details', 'SELECT') then
+    raise exception 'anon must not have exercise table privileges';
+  end if;
+  if has_table_privilege('anon', 'public.exercise_details', 'TRUNCATE') then
+    raise exception 'anon must not truncate exercises';
+  end if;
+  if has_table_privilege('authenticated', 'public.exercise_details', 'TRUNCATE') then
+    raise exception 'authenticated users must not truncate exercises';
+  end if;
+end $$;
+
 set local role anon;
 
 do $$
-declare
-  visible_exercises integer;
 begin
-  select count(*) into visible_exercises from public.exercise_details;
-  if visible_exercises <> 0 then
-    raise exception 'unauthenticated users should see 0 exercises, saw %', visible_exercises;
-  end if;
+  begin
+    perform count(*) from public.exercise_details;
+    raise exception 'anon should not have table access to exercises';
+  exception when insufficient_privilege then null;
+  end;
 end $$;
 
 reset role;
@@ -98,6 +111,14 @@ begin
     insert into public.exercise_details (entry_id, activity, duration_minutes, intensity)
     values ('10000000-0000-4000-8000-000000000209', 'Walking', 30, 'extreme');
     raise exception 'unknown exercise intensity should be rejected';
+  exception
+    when check_violation then null;
+  end;
+
+  begin
+    insert into public.exercise_details (entry_id, activity, duration_minutes, intensity)
+    values ('10000000-0000-4000-8000-000000000208', 'Wrong parent', 30, 'light');
+    raise exception 'exercise details should require an exercise parent entry';
   exception
     when check_violation then null;
   end;
@@ -165,6 +186,13 @@ begin
   get diagnostics changed_rows = row_count;
   if changed_rows <> 0 then
     raise exception 'linked doctor should not update exercise';
+  end if;
+
+  delete from public.exercise_details
+  where entry_id = '10000000-0000-4000-8000-000000000201';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then
+    raise exception 'linked doctor should not delete exercise';
   end if;
 end $$;
 

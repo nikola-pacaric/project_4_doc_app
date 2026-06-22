@@ -76,13 +76,12 @@ on conflict (entry_id) do nothing;
 set local role anon;
 
 do $$
-declare
-  visible_stools integer;
 begin
-  select count(*) into visible_stools from public.stool_details;
-  if visible_stools <> 0 then
-    raise exception 'unauthenticated users should see 0 stool records, saw %', visible_stools;
-  end if;
+  begin
+    perform count(*) from public.stool_details;
+    raise exception 'anon should not have table access to stool records';
+  exception when insufficient_privilege then null;
+  end;
 end $$;
 
 reset role;
@@ -187,7 +186,7 @@ begin
     values ('10000000-0000-4000-8000-000000000009', 4);
     raise exception 'stool records with missing required answers should be rejected';
   exception
-    when check_violation then null;
+    when check_violation or not_null_violation then null;
   end;
 
   insert into public.stool_details (

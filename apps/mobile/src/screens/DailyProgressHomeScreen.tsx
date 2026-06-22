@@ -1,15 +1,23 @@
 import type { EntryKind, PatientEntry, UserProfile } from '@project4/contracts';
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 
 import { PrimaryButton } from '../components/PrimaryButton';
 import { colors, sharedStyles } from '../theme';
 import { formatEntryTime, toLocalDateInput } from '../utils/dateTime';
 
 interface DailyProgressHomeScreenProps {
-  onBack: () => void;
   onOpenDaily: () => void;
+  onOpenBaseline: () => void;
   onOpenExercise: () => void;
   onOpenFood: () => void;
   onOpenMedication: () => void;
@@ -18,7 +26,6 @@ interface DailyProgressHomeScreenProps {
   onOpenStool: () => void;
   onOpenSymptoms: () => void;
   onSignOut: () => void | Promise<void>;
-  onViewAllEntries: () => void;
   canTrackMenstruation: boolean;
   dailyCompleted: boolean;
   exerciseCompleted: boolean;
@@ -28,6 +35,8 @@ interface DailyProgressHomeScreenProps {
   symptomsCompleted: boolean;
   profile: UserProfile;
   recentEntries: PatientEntry[];
+  error: string | null;
+  loading: boolean;
 }
 
 interface QuickAction {
@@ -78,8 +87,8 @@ function greetingKey(hour: number): TranslationKey {
 }
 
 export function DailyProgressHomeScreen({
-  onBack,
   onOpenDaily,
+  onOpenBaseline,
   onOpenExercise,
   onOpenFood,
   onOpenMedication,
@@ -88,7 +97,6 @@ export function DailyProgressHomeScreen({
   onOpenStool,
   onOpenSymptoms,
   onSignOut,
-  onViewAllEntries,
   canTrackMenstruation,
   dailyCompleted,
   exerciseCompleted,
@@ -98,6 +106,8 @@ export function DailyProgressHomeScreen({
   symptomsCompleted,
   profile,
   recentEntries,
+  error,
+  loading,
 }: DailyProgressHomeScreenProps) {
   const locale = DEFAULT_LOCALE;
   const { width } = useWindowDimensions();
@@ -130,14 +140,7 @@ export function DailyProgressHomeScreen({
       style={sharedStyles.screen}
     >
       <View style={styles.topBar}>
-        <Pressable
-          accessibilityLabel={t(locale, 'common.back')}
-          accessibilityRole="button"
-          onPress={onBack}
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.backIcon}>{'‹'}</Text>
-        </Pressable>
+        <View />
         <View style={styles.accountActions}>
           <Pressable
             accessibilityRole="button"
@@ -146,9 +149,14 @@ export function DailyProgressHomeScreen({
           >
             <Text style={styles.signOutLabel}>{t(locale, 'auth.signOut')}</Text>
           </Pressable>
-          <View style={styles.avatar}>
+          <Pressable
+            accessibilityLabel={t(locale, 'baseline.open')}
+            accessibilityRole="button"
+            onPress={onOpenBaseline}
+            style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
+          >
             <Text style={styles.avatarText}>{displayName.slice(0, 2).toUpperCase()}</Text>
-          </View>
+          </Pressable>
         </View>
       </View>
 
@@ -158,6 +166,8 @@ export function DailyProgressHomeScreen({
           {t(locale, greetingKey(now.getHours()))}, {displayName}
         </Text>
       </View>
+
+      {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
 
       <View style={styles.progressCard}>
         <View style={styles.progressCircle}>
@@ -264,33 +274,16 @@ export function DailyProgressHomeScreen({
       </View>
 
       <View style={styles.section}>
-        <View style={styles.sectionHeadingRow}>
-          <Text style={styles.sectionTitle}>{t(locale, 'home.recentEntries')}</Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onViewAllEntries}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <Text style={styles.viewAllLabel}>{t(locale, 'home.viewAll')}</Text>
-          </Pressable>
-        </View>
-        {todayEntries.length ? (
+        <Text style={styles.sectionTitle}>{t(locale, 'home.recentEntries')}</Text>
+        {loading ? (
+          <ActivityIndicator color={colors.accent} size="large" />
+        ) : todayEntries.length ? (
           <View style={styles.entryList}>
             {todayEntries.map((entry) => {
               const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
               const entryCompleted = entry.kind !== 'daily' || dailyCompleted;
               return (
-                <Pressable
-                  accessibilityHint={t(
-                    locale,
-                    entry.kind === 'daily' ? 'home.dailyEntryOpenHint' : 'home.entryOpenHint',
-                  )}
-                  accessibilityLabel={entry.text?.trim() || kindLabel}
-                  accessibilityRole="button"
-                  key={entry.id}
-                  onPress={entry.kind === 'daily' ? onOpenDaily : onViewAllEntries}
-                  style={({ pressed }) => [styles.entryCard, pressed && styles.entryCardPressed]}
-                >
+                <View key={entry.id} style={styles.entryCard}>
                   <View style={styles.entryIconContainer}>
                     <Text style={styles.entryIcon}>{entryIcons[entry.kind]}</Text>
                   </View>
@@ -306,9 +299,8 @@ export function DailyProgressHomeScreen({
                     <Text style={[styles.entryStatus, !entryCompleted && styles.entryStatusDraft]}>
                       {t(locale, entryCompleted ? 'home.action.completed' : 'daily.statusDraft')}
                     </Text>
-                    <Text style={styles.entryChevron}>›</Text>
                   </View>
-                </Pressable>
+                </View>
               );
             })}
           </View>
@@ -336,22 +328,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  backButton: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 22,
-    borderWidth: 1,
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-  },
-  backIcon: {
-    color: colors.text,
-    fontSize: 34,
-    lineHeight: 36,
-    marginTop: -3,
   },
   pressed: { opacity: 0.7 },
   accountActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
@@ -411,11 +387,6 @@ const styles = StyleSheet.create({
   progressTitle: { color: colors.text, fontSize: 19, fontWeight: '800' },
   progressDetail: { color: colors.mutedText, fontSize: 15, lineHeight: 21 },
   section: { gap: spacing.md },
-  sectionHeadingRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
   sectionTitle: {
     color: colors.mutedText,
     fontSize: 14,
@@ -464,7 +435,6 @@ const styles = StyleSheet.create({
   },
   actionStatusRequired: { color: '#b42318' },
   actionStatusCompleted: { color: '#16794b' },
-  viewAllLabel: { color: colors.accent, fontSize: 14, fontWeight: '800' },
   entryList: { gap: spacing.sm },
   entryCard: {
     alignItems: 'center',
@@ -477,7 +447,6 @@ const styles = StyleSheet.create({
     minHeight: 68,
     padding: spacing.sm,
   },
-  entryCardPressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
   entryIconContainer: {
     alignItems: 'center',
     backgroundColor: colors.background,
@@ -493,7 +462,6 @@ const styles = StyleSheet.create({
   entryTrailing: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   entryStatus: { color: '#16794b', fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
   entryStatusDraft: { color: '#a15c00' },
-  entryChevron: { color: colors.accent, fontSize: 25, fontWeight: '700', lineHeight: 25 },
   emptyEntries: { color: colors.mutedText, fontSize: 14, lineHeight: 20 },
   submitBlock: { gap: spacing.sm, marginTop: 'auto' },
   submitHelp: {

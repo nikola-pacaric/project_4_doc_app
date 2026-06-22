@@ -13,7 +13,7 @@ import { SymptomPreview } from './src/preview/SymptomPreview';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { ConsentScreen } from './src/screens/ConsentScreen';
 import { DoctorPendingScreen } from './src/screens/DoctorPendingScreen';
-import { TimelineScreen } from './src/screens/TimelineScreen';
+import { PatientHomeScreen } from './src/screens/PatientHomeScreen';
 import { colors, sharedStyles } from './src/theme';
 
 function MainApp() {
@@ -148,7 +148,7 @@ function MainApp() {
       />
     );
   } else {
-    content = <TimelineScreen client={supabase} onSignOut={signOut} profile={profile} />;
+    content = <PatientHomeScreen client={supabase} onSignOut={signOut} profile={profile} />;
   }
 
   return (

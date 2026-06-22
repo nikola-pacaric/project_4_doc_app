@@ -28,7 +28,7 @@ export function toExerciseRecord(row: ExerciseRow, occurredAt: string): Exercise
 
 export async function createPatientExercise(
   client: AppSupabaseClient,
-  patientId: string,
+  _patientId: string,
   draft: ExerciseDraft,
 ): Promise<ExerciseRecord> {
   if (!isCompleteExerciseDraft(draft)) {
@@ -38,27 +38,25 @@ export async function createPatientExercise(
   const occurredAt = normalizeExerciseDateTime(draft.occurredAt);
   if (!occurredAt) throw new Error('Cannot persist exercise without a valid time.');
 
-  const { data: entry, error: entryError } = await client
-    .from('patient_entries')
-    .insert({ patient_id: patientId, kind: 'exercise', occurred_at: occurredAt, text: null })
-    .select('id')
-    .single<{ id: string }>();
-  if (entryError) throw entryError;
+  const activity = draft.activity.trim();
+  const notes = draft.notes?.trim() || null;
+  const { data, error } = await client.rpc('save_patient_exercise', {
+    p_entry_id: draft.entryId ?? null,
+    p_occurred_at: occurredAt,
+    p_activity: activity,
+    p_duration_minutes: draft.durationMinutes,
+    p_intensity: draft.intensity,
+    p_notes: notes,
+  });
+  if (error) throw error;
+  if (typeof data !== 'string') throw new Error('Exercise save returned an invalid entry ID.');
 
-  const detail = {
-    entry_id: entry.id,
-    activity: draft.activity.trim(),
-    duration_minutes: draft.durationMinutes,
+  return {
+    entryId: data,
+    occurredAt,
+    activity,
+    durationMinutes: draft.durationMinutes,
     intensity: draft.intensity,
-    notes: draft.notes?.trim() || null,
+    notes,
   };
-  const { data, error: detailError } = await client
-    .from('exercise_details')
-    .insert(detail)
-    .select('entry_id, activity, duration_minutes, intensity, notes')
-    .single<ExerciseRow>();
-  if (!detailError) return toExerciseRecord(data, occurredAt);
-
-  await client.from('patient_entries').delete().eq('id', entry.id);
-  throw detailError;
 }

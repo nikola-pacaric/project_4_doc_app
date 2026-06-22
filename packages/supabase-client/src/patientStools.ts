@@ -32,7 +32,7 @@ export function toStoolRecord(row: StoolRow, occurredAt: string): StoolRecord {
 
 export async function createPatientStool(
   client: AppSupabaseClient,
-  patientId: string,
+  _patientId: string,
   draft: StoolDraft,
   occurredAt = new Date().toISOString(),
 ): Promise<StoolRecord> {
@@ -40,34 +40,32 @@ export async function createPatientStool(
     throw new Error('Cannot persist an incomplete stool draft.');
   }
 
-  const { data: entry, error: entryError } = await client
-    .from('patient_entries')
-    .insert({ patient_id: patientId, kind: 'stool', occurred_at: occurredAt, text: null })
-    .select('id')
-    .single<{ id: string }>();
-  if (entryError) throw entryError;
+  const notes = draft.notes?.trim() || null;
+  const { data, error } = await client.rpc('save_patient_stool', {
+    p_entry_id: draft.entryId ?? null,
+    p_occurred_at: occurredAt,
+    p_bristol_type: draft.bristolType,
+    p_urgency_level: draft.urgencyLevel,
+    p_pain: draft.pain,
+    p_mucus: draft.mucus,
+    p_blood: draft.blood,
+    p_fatty_stool: draft.fattyStool,
+    p_black_stool: draft.blackStool,
+    p_notes: notes,
+  });
+  if (error) throw error;
+  if (typeof data !== 'string') throw new Error('Stool save returned an invalid entry ID.');
 
-  const detail = {
-    entry_id: entry.id,
-    bristol_type: draft.bristolType,
-    urgency: draft.urgencyLevel !== 'none',
-    urgency_level: draft.urgencyLevel,
+  return {
+    entryId: data,
+    occurredAt,
+    bristolType: draft.bristolType,
+    urgencyLevel: draft.urgencyLevel,
     pain: draft.pain,
     mucus: draft.mucus,
     blood: draft.blood,
-    fatty_stool: draft.fattyStool,
-    black_stool: draft.blackStool,
-    notes: draft.notes?.trim() || null,
+    fattyStool: draft.fattyStool,
+    blackStool: draft.blackStool,
+    notes,
   };
-  const { data, error: detailError } = await client
-    .from('stool_details')
-    .insert(detail)
-    .select(
-      'entry_id, bristol_type, urgency_level, pain, mucus, blood, fatty_stool, black_stool, notes',
-    )
-    .single<StoolRow>();
-  if (!detailError) return toStoolRecord(data, occurredAt);
-
-  await client.from('patient_entries').delete().eq('id', entry.id);
-  throw detailError;
 }
