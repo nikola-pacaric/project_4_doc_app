@@ -54,6 +54,8 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
   const [exerciseCompleted, setExerciseCompleted] = useState(false);
   const [medicationRequired, setMedicationRequired] = useState(false);
   const [medicationCompleted, setMedicationCompleted] = useState(false);
+  const [periodRequired, setPeriodRequired] = useState(false);
+  const [periodCompleted, setPeriodCompleted] = useState(false);
   const [showMenstruationForm, setShowMenstruationForm] = useState(false);
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
@@ -64,6 +66,10 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
 
   const handleMedicationAnswerChange = useCallback((answer: boolean | undefined) => {
     setMedicationRequired(answer === true);
+  }, []);
+
+  const handleMenstruationAnswerChange = useCallback((answer: boolean | undefined) => {
+    setPeriodRequired(answer === true);
   }, []);
 
   const loadEntries = useCallback(async () => {
@@ -78,12 +84,14 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
         getPatientDailyForm(client, profile.id, range.start, range.end),
       ]);
       setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
-      setDailyCompleted(Boolean(dailyForm?.details.completedAt));
+      setDailyCompleted(Boolean(dailyForm));
       setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
       setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
+      setPeriodRequired(dailyForm?.details.hadMenstruation === true);
       setSymptomsCompleted(hasTodayEntry(nextEntries, 'symptom'));
       setExerciseCompleted(hasTodayEntry(nextEntries, 'exercise'));
       setMedicationCompleted(hasTodayEntry(nextEntries, 'medication'));
+      setPeriodCompleted(hasTodayEntry(nextEntries, 'menstruation'));
       setCanTrackMenstruation(baseline?.sex === 'female');
     } catch {
       setError(t(locale, 'entry.loadError'));
@@ -104,12 +112,14 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
       .then(([nextEntries, baseline, dailyForm]) => {
         if (active) {
           setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
-          setDailyCompleted(Boolean(dailyForm?.details.completedAt));
+          setDailyCompleted(Boolean(dailyForm));
           setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
           setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
+          setPeriodRequired(dailyForm?.details.hadMenstruation === true);
           setSymptomsCompleted(hasTodayEntry(nextEntries, 'symptom'));
           setExerciseCompleted(hasTodayEntry(nextEntries, 'exercise'));
           setMedicationCompleted(hasTodayEntry(nextEntries, 'medication'));
+          setPeriodCompleted(hasTodayEntry(nextEntries, 'menstruation'));
           setCanTrackMenstruation(baseline?.sex === 'female');
         }
       })
@@ -147,8 +157,13 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
       <DailyFormScreen
         client={client}
         onActivityAnswerChange={handleActivityAnswerChange}
+        onMenstruationAnswerChange={handleMenstruationAnswerChange}
         onMedicationAnswerChange={handleMedicationAnswerChange}
         onBack={() => {
+          setShowDailyForm(false);
+          void loadEntries();
+        }}
+        onSaved={() => {
           setShowDailyForm(false);
           void loadEntries();
         }}
@@ -159,7 +174,15 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
 
   if (showFoodForm) {
     return (
-      <FoodFormScreen client={client} onBack={() => setShowFoodForm(false)} profile={profile} />
+      <FoodFormScreen
+        client={client}
+        onBack={() => setShowFoodForm(false)}
+        onSaved={() => {
+          setShowFoodForm(false);
+          void loadEntries();
+        }}
+        profile={profile}
+      />
     );
   }
 
@@ -186,6 +209,7 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
         client={client}
         onBack={() => setShowStoolForm(false)}
         onSaved={() => {
+          setShowStoolForm(false);
           void loadEntries();
         }}
         profile={profile}
@@ -215,6 +239,7 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
         onBack={() => setShowExerciseForm(false)}
         onSaved={() => {
           setExerciseCompleted(true);
+          setShowExerciseForm(false);
           void loadEntries();
         }}
         profile={profile}
@@ -228,6 +253,7 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
         client={client}
         onBack={() => setShowMenstruationForm(false)}
         onSaved={() => {
+          setPeriodCompleted(true);
           setShowMenstruationForm(false);
           void loadEntries();
         }}
@@ -260,6 +286,8 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
       loading={loading}
       medicationCompleted={medicationCompleted}
       medicationRequired={medicationRequired}
+      periodCompleted={periodCompleted}
+      periodRequired={periodRequired}
       onOpenBaseline={() => setShowBaseline(true)}
       onOpenDaily={() => setShowDailyForm(true)}
       onOpenExercise={() => setShowExerciseForm(true)}

@@ -94,8 +94,6 @@ export function validateDailyForm(
   if (includeMenstruation) {
     if (draft.hadMenstruation === undefined) {
       errors.hadMenstruation = 'required';
-    } else if (draft.hadMenstruation && !draft.menstruationNotes?.trim()) {
-      errors.menstruationNotes = 'required';
     }
   }
 

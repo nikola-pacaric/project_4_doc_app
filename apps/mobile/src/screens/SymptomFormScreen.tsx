@@ -133,7 +133,7 @@ export function SymptomFormScreen({
             />
           </View>
           <View style={styles.action}>
-            <PrimaryButton busy={busy} label={t(locale, 'symptom.save')} onPress={save} />
+            <PrimaryButton busy={busy} label={t(locale, 'common.save')} onPress={save} />
           </View>
         </View>
       </ScrollView>

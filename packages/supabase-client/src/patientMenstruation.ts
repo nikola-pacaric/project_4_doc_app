@@ -30,7 +30,7 @@ export function toMenstruationRecord(row: MenstruationRow, occurredAt: string): 
 
 export async function createPatientMenstruation(
   client: AppSupabaseClient,
-  patientId: string,
+  _patientId: string,
   draft: MenstruationDraft,
 ): Promise<MenstruationRecord> {
   if (!isCompleteMenstruationDraft(draft)) {
@@ -40,26 +40,22 @@ export async function createPatientMenstruation(
   const occurredAt = normalizeMenstruationDateTime(draft.occurredAt);
   if (!occurredAt) throw new Error('Cannot persist menstruation without a valid time.');
 
-  const { data: entry, error: entryError } = await client
-    .from('patient_entries')
-    .insert({ patient_id: patientId, kind: 'menstruation', occurred_at: occurredAt, text: null })
-    .select('id')
-    .single<{ id: string }>();
-  if (entryError) throw entryError;
+  const notes = draft.notes?.trim() || null;
+  const { data, error } = await client.rpc('save_patient_menstruation', {
+    p_entry_id: draft.entryId ?? null,
+    p_occurred_at: occurredAt,
+    p_flow: draft.flow,
+    p_pain_level: draft.painLevel,
+    p_notes: notes,
+  });
+  if (error) throw error;
+  if (typeof data !== 'string') throw new Error('Period save returned an invalid entry ID.');
 
-  const detail = {
-    entry_id: entry.id,
+  return {
+    entryId: data,
+    occurredAt,
     flow: draft.flow,
-    pain_level: draft.painLevel,
-    notes: draft.notes?.trim() || null,
+    painLevel: draft.painLevel,
+    notes,
   };
-  const { data, error: detailError } = await client
-    .from('menstruation_events')
-    .insert(detail)
-    .select('entry_id, flow, pain_level, notes')
-    .single<MenstruationRow>();
-  if (!detailError) return toMenstruationRecord(data, occurredAt);
-
-  await client.from('patient_entries').delete().eq('id', entry.id);
-  throw detailError;
 }

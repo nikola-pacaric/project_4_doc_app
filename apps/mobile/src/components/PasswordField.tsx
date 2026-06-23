@@ -30,9 +30,11 @@ export function PasswordField({
           accessibilityLabel={label}
           autoCapitalize="none"
           autoComplete={textContentType === 'newPassword' ? 'new-password' : 'password'}
+          autoCorrect={false}
           onChangeText={onChangeText}
           placeholderTextColor="#a28d94"
           secureTextEntry={hidden}
+          spellCheck={false}
           style={[sharedStyles.input, styles.input]}
           textContentType={textContentType}
           value={value}

@@ -82,6 +82,22 @@ describe('savePatientFoodForm', () => {
     );
   });
 
+  it('normalizes water liters to two decimals before saving', async () => {
+    const { client, rpc } = createClientMock();
+
+    await savePatientFoodForm(
+      client,
+      range,
+      { waterLiters: 1.257, hasOtherFluids: false, otherFluids: '' },
+      [],
+    );
+
+    expect(rpc).toHaveBeenCalledWith(
+      'save_patient_food_form',
+      expect.objectContaining({ p_water_liters: 1.26 }),
+    );
+  });
+
   it('rejects incomplete hydration before calling Supabase', async () => {
     const { client, rpc } = createClientMock();
 

@@ -13,7 +13,9 @@ export function FormField({ label, ...props }: FormFieldProps) {
       <Text style={sharedStyles.fieldLabel}>{label}</Text>
       <TextInput
         accessibilityLabel={label}
+        autoCorrect={false}
         placeholderTextColor="#a28d94"
+        spellCheck={false}
         style={[
           sharedStyles.input,
           props.multiline && styles.multiline,

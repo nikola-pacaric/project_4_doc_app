@@ -178,6 +178,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
       setCurrent(saved);
       setDraft(toDraft(saved));
       setMessage(t(locale, 'baseline.saved'));
+      onBack();
     } catch {
       setError(t(locale, 'baseline.saveError'));
     } finally {

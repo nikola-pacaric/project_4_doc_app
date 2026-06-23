@@ -28,7 +28,7 @@ export function toMedicationRecord(row: MedicationRow, occurredAt: string): Medi
 
 export async function createPatientMedication(
   client: AppSupabaseClient,
-  patientId: string,
+  _patientId: string,
   draft: MedicationDraft,
 ): Promise<MedicationRecord> {
   if (!isCompleteMedicationDraft(draft)) {
@@ -38,27 +38,26 @@ export async function createPatientMedication(
   const occurredAt = normalizeMedicationDateTime(draft.takenAt);
   if (!occurredAt) throw new Error('Cannot persist medication without a valid time.');
 
-  const { data: entry, error: entryError } = await client
-    .from('patient_entries')
-    .insert({ patient_id: patientId, kind: 'medication', occurred_at: occurredAt, text: null })
-    .select('id')
-    .single<{ id: string }>();
-  if (entryError) throw entryError;
+  const name = draft.name.trim();
+  const dose = draft.dose.trim();
+  const reason = draft.reason?.trim() || null;
+  const { data, error } = await client.rpc('save_patient_medication', {
+    p_entry_id: draft.entryId ?? null,
+    p_occurred_at: occurredAt,
+    p_name: name,
+    p_dose: dose,
+    p_notes: reason,
+    p_is_chronic_therapy: draft.isChronicTherapy,
+  });
+  if (error) throw error;
+  if (typeof data !== 'string') throw new Error('Medication save returned an invalid entry ID.');
 
-  const detail = {
-    entry_id: entry.id,
-    name: draft.name.trim(),
-    dose: draft.dose.trim(),
-    notes: draft.reason?.trim() || null,
-    is_chronic_therapy: draft.isChronicTherapy,
+  return {
+    entryId: data,
+    occurredAt,
+    name,
+    dose,
+    reason,
+    isChronicTherapy: draft.isChronicTherapy,
   };
-  const { data, error: detailError } = await client
-    .from('medication_details')
-    .insert(detail)
-    .select('entry_id, name, dose, notes, is_chronic_therapy')
-    .single<MedicationRow>();
-  if (!detailError) return toMedicationRecord(data, occurredAt);
-
-  await client.from('patient_entries').delete().eq('id', entry.id);
-  throw detailError;
 }

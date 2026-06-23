@@ -52,6 +52,16 @@ describe('daily form validation', () => {
     expect(validateDailyForm(draft, false).errors.hadMenstruation).toBeUndefined();
   });
 
+  it('does not require inline menstruation notes because the Period form is separate', () => {
+    const result = validateDailyForm(
+      { ...completeDraft, hadMenstruation: true, menstruationNotes: '' },
+      true,
+    );
+
+    expect(result.errors.menstruationNotes).toBeUndefined();
+    expect(result.valid).toBe(true);
+  });
+
   it('requires conditional details only after a yes response', () => {
     expect(
       validateDailyForm({ ...completeDraft, hadNaps: true, naps: '' }, false).errors.naps,

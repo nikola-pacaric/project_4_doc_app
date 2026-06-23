@@ -59,8 +59,8 @@ function toDraft(details: DailyFormDetails | null): DailyFormDraft {
       details.tookMedicationOutsideChronicTherapy ??
       Boolean(details.medicationOutsideChronicTherapy?.trim()),
     medicationOutsideChronicTherapy: details.medicationOutsideChronicTherapy ?? '',
-    hadMenstruation: details.hadMenstruation ?? Boolean(details.menstruationNotes?.trim()),
-    menstruationNotes: details.menstruationNotes ?? '',
+    hadMenstruation: details.hadMenstruation ?? undefined,
+    menstruationNotes: '',
     energyLevel: details.energyLevel ?? undefined,
     hadNaps: details.hadNaps ?? Boolean(details.naps?.trim()),
     naps: details.naps ?? '',
@@ -148,7 +148,7 @@ export function DailyFormScreen({
       setExistingEntryId(saved?.entryId);
       setCompletedAt(saved?.details.completedAt ?? undefined);
       setDraft(toDraft(saved?.details ?? null));
-      setMessage(t(locale, mode === 'complete' ? 'daily.completed' : 'daily.progressSaved'));
+      setMessage(t(locale, mode === 'complete' ? 'daily.completed' : 'daily.saved'));
     } catch {
       setError(t(locale, 'daily.saveError'));
     } finally {
@@ -207,8 +207,6 @@ export function DailyFormScreen({
       </div>
     );
   }
-
-  const dailyFormValid = isCompleteDailyForm(draft, includeMenstruation, hasChronicTherapy);
 
   return (
     <main className="baseline-layout">
@@ -371,21 +369,31 @@ export function DailyFormScreen({
             ) : null}
           </div>
           {includeMenstruation ? (
-            <ConditionalTextField
-              answer={draft.hadMenstruation}
-              detailKey="daily.menstruationDetails"
-              id="menstruation"
-              onAnswerChange={(answer) =>
-                setDraft((value) => ({
-                  ...value,
-                  hadMenstruation: answer,
-                  menstruationNotes: answer ? value.menstruationNotes : '',
-                }))
-              }
-              onTextChange={(text) => setDraft((value) => ({ ...value, menstruationNotes: text }))}
-              questionKey="daily.menstruation"
-              text={draft.menstruationNotes ?? ''}
-            />
+            <div className="full-width choice-field conditional-question">
+              <span className="choice-label" id="menstruation-label">
+                {t(locale, 'daily.menstruation')}
+              </span>
+              <div aria-labelledby="menstruation-label" className="choice-row" role="radiogroup">
+                {([true, false] as const).map((answer) => (
+                  <button
+                    aria-checked={draft.hadMenstruation === answer}
+                    className={draft.hadMenstruation === answer ? 'selected' : ''}
+                    key={String(answer)}
+                    onClick={() =>
+                      setDraft((value) => ({
+                        ...value,
+                        hadMenstruation: answer,
+                        menstruationNotes: '',
+                      }))
+                    }
+                    role="radio"
+                    type="button"
+                  >
+                    {t(locale, answer ? 'common.yes' : 'common.no')}
+                  </button>
+                ))}
+              </div>
+            </div>
           ) : null}
           <ConditionalTextField
             answer={draft.hadNaps}
@@ -407,19 +415,12 @@ export function DailyFormScreen({
             {error ? <p className="notice error">{error}</p> : null}
             {message ? <p className="notice success">{message}</p> : null}
             <button
-              className={completedAt || dailyFormValid ? 'primary-button' : 'secondary-button'}
+              className="primary-button"
               disabled={saving}
-              onClick={() => void save(completedAt || dailyFormValid ? 'complete' : 'progress')}
+              onClick={() => void save('progress')}
               type="button"
             >
-              {t(
-                locale,
-                completedAt
-                  ? 'daily.saveChanges'
-                  : dailyFormValid
-                    ? 'daily.completeDay'
-                    : 'daily.saveProgress',
-              )}
+              {t(locale, 'common.save')}
             </button>
           </div>
         </form>

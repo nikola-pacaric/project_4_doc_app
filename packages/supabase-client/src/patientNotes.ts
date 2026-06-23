@@ -8,7 +8,7 @@ const noteEntryColumns = 'id, patient_id, kind, occurred_at, text, created_at, u
 
 export async function createPatientNote(
   client: AppSupabaseClient,
-  patientId: string,
+  _patientId: string,
   draft: NoteDraft,
 ): Promise<PatientEntry> {
   if (!isCompleteNoteDraft(draft)) {
@@ -19,12 +19,10 @@ export async function createPatientNote(
   if (!occurredAt) throw new Error('Cannot persist a note without a valid time.');
 
   const { data, error } = await client
-    .from('patient_entries')
-    .insert({
-      patient_id: patientId,
-      kind: 'note',
-      occurred_at: occurredAt,
-      text: draft.text.trim(),
+    .rpc('save_patient_note', {
+      p_entry_id: draft.entryId ?? null,
+      p_occurred_at: occurredAt,
+      p_text: draft.text.trim(),
     })
     .select(noteEntryColumns)
     .single<PatientEntryRow>();

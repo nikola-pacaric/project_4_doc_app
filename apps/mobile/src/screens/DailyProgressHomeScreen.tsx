@@ -32,6 +32,8 @@ interface DailyProgressHomeScreenProps {
   exerciseRequired: boolean;
   medicationCompleted: boolean;
   medicationRequired: boolean;
+  periodCompleted: boolean;
+  periodRequired: boolean;
   symptomsCompleted: boolean;
   profile: UserProfile;
   recentEntries: PatientEntry[];
@@ -103,6 +105,8 @@ export function DailyProgressHomeScreen({
   exerciseRequired,
   medicationCompleted,
   medicationRequired,
+  periodCompleted,
+  periodRequired,
   symptomsCompleted,
   profile,
   recentEntries,
@@ -115,15 +119,23 @@ export function DailyProgressHomeScreen({
   const visibleQuickActions = canTrackMenstruation
     ? quickActions
     : quickActions.filter((action) => action.id !== 'period');
+  const progressActions = visibleQuickActions.filter((action) => {
+    if (action.id === 'notes') return false;
+    if (action.id === 'exercise') return exerciseRequired;
+    if (action.id === 'medication') return medicationRequired;
+    if (action.id === 'period') return periodRequired;
+    return true;
+  });
   const today = toLocalDateInput(now);
-  const todayEntries = recentEntries
-    .filter((entry) => toLocalDateInput(new Date(entry.occurredAt)) === today)
-    .slice(0, 8);
-  const completedKinds = new Set(todayEntries.map((entry) => entry.kind));
-  const completedItems = visibleQuickActions.filter((action) =>
+  const allTodayEntries = recentEntries.filter(
+    (entry) => toLocalDateInput(new Date(entry.occurredAt)) === today,
+  );
+  const todayEntries = allTodayEntries.slice(0, 8);
+  const completedKinds = new Set(allTodayEntries.map((entry) => entry.kind));
+  const completedItems = progressActions.filter((action) =>
     action.id === 'daily' ? dailyCompleted : completedKinds.has(actionEntryKinds[action.id]),
   ).length;
-  const progress = Math.round((completedItems / visibleQuickActions.length) * 100);
+  const progress = Math.round((completedItems / progressActions.length) * 100);
   const actionWidth = width < 360 ? '47%' : '22%';
   const displayName = profile.displayName?.trim() || t(locale, 'role.patient');
   const dateLabel = new Intl.DateTimeFormat(locale, {
@@ -178,7 +190,7 @@ export function DailyProgressHomeScreen({
           <Text style={styles.progressDetail}>
             {t(locale, 'home.progress.items')
               .replace('{completed}', String(completedItems))
-              .replace('{total}', String(visibleQuickActions.length))}
+              .replace('{total}', String(progressActions.length))}
           </Text>
         </View>
       </View>
@@ -205,6 +217,8 @@ export function DailyProgressHomeScreen({
                             : onOpenNotes;
             const showExerciseStatus = action.id === 'exercise';
             const showMedicationStatus = action.id === 'medication';
+            const showPeriodStatus = action.id === 'period';
+            const showDailyCompleted = action.id === 'daily' && dailyCompleted;
             const showSymptomsCompleted = action.id === 'symptoms' && symptomsCompleted;
             const exerciseStatusKey = exerciseCompleted
               ? 'home.action.completed'
@@ -216,9 +230,15 @@ export function DailyProgressHomeScreen({
               : medicationRequired
                 ? 'home.action.required'
                 : 'home.action.optional';
+            const periodStatusKey = periodCompleted
+              ? 'home.action.completed'
+              : periodRequired
+                ? 'home.action.required'
+                : 'home.action.optional';
             const actionRequired =
               (showExerciseStatus && exerciseRequired && !exerciseCompleted) ||
-              (showMedicationStatus && medicationRequired && !medicationCompleted);
+              (showMedicationStatus && medicationRequired && !medicationCompleted) ||
+              (showPeriodStatus && periodRequired && !periodCompleted);
 
             return (
               <Pressable
@@ -260,6 +280,22 @@ export function DailyProgressHomeScreen({
                     ]}
                   >
                     {t(locale, medicationStatusKey)}
+                  </Text>
+                ) : null}
+                {showPeriodStatus ? (
+                  <Text
+                    style={[
+                      styles.actionStatus,
+                      periodRequired && !periodCompleted && styles.actionStatusRequired,
+                      periodCompleted && styles.actionStatusCompleted,
+                    ]}
+                  >
+                    {t(locale, periodStatusKey)}
+                  </Text>
+                ) : null}
+                {showDailyCompleted ? (
+                  <Text style={[styles.actionStatus, styles.actionStatusCompleted]}>
+                    {t(locale, 'home.action.completed')}
                   </Text>
                 ) : null}
                 {showSymptomsCompleted ? (

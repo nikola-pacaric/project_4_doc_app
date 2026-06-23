@@ -2,6 +2,7 @@ import type { FoodFormDetails, UserProfile } from '@project4/contracts';
 import {
   foodHydrationDefaults,
   getStartedMeals,
+  normalizeFoodWaterLiters,
   validateFoodHydration,
   validateMealProgress,
   type FoodHydrationDraft,
@@ -29,6 +30,7 @@ import { localDayRange, toLocalDateInput } from '../utils/dateTime';
 interface FoodFormScreenProps {
   client: AppSupabaseClient;
   onBack: () => void;
+  onSaved: () => void;
   profile: UserProfile;
 }
 
@@ -52,11 +54,30 @@ function toMealDrafts(records: Awaited<ReturnType<typeof listPatientMeals>>): Me
     : [{ description: '' }];
 }
 
-export function FoodFormScreen({ client, onBack, profile }: FoodFormScreenProps) {
+function formatWaterLiters(value: number | undefined): string {
+  return value === undefined ? '' : String(value);
+}
+
+function parseWaterLitersInput(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (/[.,]$/.test(trimmed)) return undefined;
+
+  const parsed = Number(trimmed.replace(',', '.'));
+  return Number.isFinite(parsed) ? normalizeFoodWaterLiters(parsed) : Number.NaN;
+}
+
+function normalizeWaterLitersText(value: string): string {
+  const parsed = parseWaterLitersInput(value);
+  return parsed === undefined || Number.isNaN(parsed) ? value : String(parsed);
+}
+
+export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScreenProps) {
   const locale = DEFAULT_LOCALE;
   const today = toLocalDateInput(new Date());
   const day = today;
   const [hydration, setHydration] = useState<FoodHydrationDraft>({ ...foodHydrationDefaults });
+  const [waterText, setWaterText] = useState('');
   const [meals, setMeals] = useState<MealDraft[]>([{ description: '' }]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -73,7 +94,9 @@ export function FoodFormScreen({ client, onBack, profile }: FoodFormScreenProps)
     ])
       .then(([foodRecord, mealRecords]) => {
         if (!active) return;
-        setHydration(toHydrationDraft(foodRecord?.details ?? null));
+        const nextHydration = toHydrationDraft(foodRecord?.details ?? null);
+        setHydration(nextHydration);
+        setWaterText(formatWaterLiters(nextHydration.waterLiters));
         setMeals(toMealDrafts(mealRecords));
       })
       .catch(() => active && setError(t(locale, 'food.loadError')))
@@ -86,7 +109,16 @@ export function FoodFormScreen({ client, onBack, profile }: FoodFormScreenProps)
 
   async function save() {
     const startedMeals = getStartedMeals(meals);
-    if (!validateFoodHydration(hydration).valid || !validateMealProgress(meals)) {
+    const normalizedWaterText = normalizeWaterLitersText(waterText);
+    const normalizedHydration: FoodHydrationDraft = {
+      ...hydration,
+      waterLiters: parseWaterLitersInput(normalizedWaterText),
+    };
+
+    setWaterText(normalizedWaterText);
+    setHydration(normalizedHydration);
+
+    if (!validateFoodHydration(normalizedHydration).valid || !validateMealProgress(meals)) {
       setError(t(locale, 'food.requiredError'));
       return;
     }
@@ -97,15 +129,18 @@ export function FoodFormScreen({ client, onBack, profile }: FoodFormScreenProps)
 
     try {
       const range = localDayRange(day);
-      await savePatientFoodForm(client, range, hydration, startedMeals);
+      await savePatientFoodForm(client, range, normalizedHydration, startedMeals);
 
       const [foodRecord, mealRecords] = await Promise.all([
         getPatientFoodForm(client, profile.id, range.start, range.end),
         listPatientMeals(client, profile.id, range.start, range.end),
       ]);
-      setHydration(toHydrationDraft(foodRecord?.details ?? null));
+      const nextHydration = toHydrationDraft(foodRecord?.details ?? null);
+      setHydration(nextHydration);
+      setWaterText(formatWaterLiters(nextHydration.waterLiters));
       setMeals(toMealDrafts(mealRecords));
       setMessage(t(locale, 'food.saved'));
+      onSaved();
     } catch {
       setError(t(locale, 'food.saveError'));
     } finally {
@@ -122,12 +157,6 @@ export function FoodFormScreen({ client, onBack, profile }: FoodFormScreenProps)
     >
       <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'food.title')} />
       <Text style={sharedStyles.body}>{t(locale, 'food.subtitle')}</Text>
-      <FormField
-        autoCapitalize="none"
-        editable={false}
-        label={t(locale, 'daily.trackedDay')}
-        value={day}
-      />
 
       {loading ? <ActivityIndicator color={colors.accent} size="large" /> : null}
       {!loading ? (
@@ -138,14 +167,16 @@ export function FoodFormScreen({ client, onBack, profile }: FoodFormScreenProps)
             <FormField
               keyboardType="decimal-pad"
               label={t(locale, 'food.waterAmountLiters')}
-              onChangeText={(value) =>
+              onBlur={() => setWaterText((current) => normalizeWaterLitersText(current))}
+              onChangeText={(value) => {
+                setWaterText(value);
                 setHydration((current) => ({
                   ...current,
-                  waterLiters: value.trim() ? Number(value.replace(',', '.')) : undefined,
-                }))
-              }
+                  waterLiters: parseWaterLitersInput(value),
+                }));
+              }}
               placeholder="2.0"
-              value={hydration.waterLiters?.toString() ?? ''}
+              value={waterText}
             />
             <ConditionalTextField
               answer={hydration.hasOtherFluids}

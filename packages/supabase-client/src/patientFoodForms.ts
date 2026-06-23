@@ -1,6 +1,7 @@
 import type { FoodFormDetails, FoodFormRecord } from '@project4/contracts';
 import {
   isCompleteFoodHydrationDraft,
+  normalizeFoodWaterLiters,
   validateMeal,
   type FoodHydrationDraft,
   type MealDraft,
@@ -71,7 +72,13 @@ function toFoodFormSaveParams(
   draft: FoodHydrationDraft,
   meals: MealDraft[],
 ) {
-  if (!isCompleteFoodHydrationDraft(draft)) {
+  const normalizedDraft: FoodHydrationDraft = {
+    ...draft,
+    waterLiters:
+      draft.waterLiters === undefined ? undefined : normalizeFoodWaterLiters(draft.waterLiters),
+  };
+
+  if (!isCompleteFoodHydrationDraft(normalizedDraft)) {
     throw new Error('Cannot persist incomplete food hydration data.');
   }
 
@@ -83,9 +90,9 @@ function toFoodFormSaveParams(
     p_day_start: range.start,
     p_day_end: range.end,
     p_occurred_at: range.occurredAt,
-    p_water_liters: draft.waterLiters,
-    p_has_other_fluids: draft.hasOtherFluids,
-    p_other_fluids: draft.hasOtherFluids ? draft.otherFluids.trim() : null,
+    p_water_liters: normalizedDraft.waterLiters,
+    p_has_other_fluids: normalizedDraft.hasOtherFluids,
+    p_other_fluids: normalizedDraft.hasOtherFluids ? normalizedDraft.otherFluids.trim() : null,
     p_meals: meals.map((meal) => ({
       entry_id: meal.entryId ?? null,
       meal_type: meal.type,

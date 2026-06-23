@@ -13,6 +13,15 @@ export interface FoodHydrationValidationResult {
 }
 
 export const foodHydrationDefaults: FoodHydrationDraft = { otherFluids: '' };
+export const maxFoodWaterLiters = 20;
+
+export function normalizeFoodWaterLiters(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function hasAtMostTwoDecimals(value: number): boolean {
+  return Math.abs(value * 100 - Math.round(value * 100)) < 0.0000001;
+}
 
 export function validateFoodHydration(draft: FoodHydrationDraft): FoodHydrationValidationResult {
   const errors: FoodHydrationValidationResult['errors'] = {};
@@ -22,7 +31,8 @@ export function validateFoodHydration(draft: FoodHydrationDraft): FoodHydrationV
   } else if (
     !Number.isFinite(draft.waterLiters) ||
     draft.waterLiters < 0 ||
-    draft.waterLiters > 20
+    draft.waterLiters > maxFoodWaterLiters ||
+    !hasAtMostTwoDecimals(draft.waterLiters)
   ) {
     errors.waterLiters = 'invalid';
   }

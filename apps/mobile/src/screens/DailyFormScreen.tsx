@@ -28,8 +28,10 @@ interface DailyFormScreenProps {
   client: AppSupabaseClient;
   onActivityAnswerChange: (answer: boolean | undefined) => void;
   onMedicationAnswerChange: (answer: boolean | undefined) => void;
+  onMenstruationAnswerChange: (answer: boolean | undefined) => void;
   profile: UserProfile;
   onBack: () => void;
+  onSaved: () => void;
 }
 
 function toDraft(details: DailyFormDetails | null): DailyFormDraft {
@@ -47,8 +49,8 @@ function toDraft(details: DailyFormDetails | null): DailyFormDraft {
       details.tookMedicationOutsideChronicTherapy ??
       Boolean(details.medicationOutsideChronicTherapy?.trim()),
     medicationOutsideChronicTherapy: details.medicationOutsideChronicTherapy ?? '',
-    hadMenstruation: details.hadMenstruation ?? Boolean(details.menstruationNotes?.trim()),
-    menstruationNotes: details.menstruationNotes ?? '',
+    hadMenstruation: details.hadMenstruation ?? undefined,
+    menstruationNotes: '',
     energyLevel: details.energyLevel ?? undefined,
     hadNaps: details.hadNaps ?? Boolean(details.naps?.trim()),
     naps: details.naps ?? '',
@@ -59,8 +61,10 @@ export function DailyFormScreen({
   client,
   onActivityAnswerChange,
   onMedicationAnswerChange,
+  onMenstruationAnswerChange,
   profile,
   onBack,
+  onSaved,
 }: DailyFormScreenProps) {
   const locale = DEFAULT_LOCALE;
   const today = toLocalDateInput(new Date());
@@ -95,6 +99,7 @@ export function DailyFormScreen({
         setDraft(nextDraft);
         onActivityAnswerChange(nextDraft.hadPhysicalActivity);
         onMedicationAnswerChange(nextDraft.tookMedicationOutsideChronicTherapy);
+        onMenstruationAnswerChange(nextDraft.hadMenstruation);
       })
       .catch(() => active && setError(t(locale, 'daily.loadError')))
       .finally(() => active && setLoading(false));
@@ -102,7 +107,15 @@ export function DailyFormScreen({
     return () => {
       active = false;
     };
-  }, [client, day, locale, onActivityAnswerChange, onMedicationAnswerChange, profile.id]);
+  }, [
+    client,
+    day,
+    locale,
+    onActivityAnswerChange,
+    onMedicationAnswerChange,
+    onMenstruationAnswerChange,
+    profile.id,
+  ]);
 
   function updateConditional(
     answerField: keyof DailyFormDraft,
@@ -147,7 +160,8 @@ export function DailyFormScreen({
       setExistingEntryId(saved?.entryId);
       setCompletedAt(saved?.details.completedAt ?? undefined);
       setDraft(toDraft(saved?.details ?? null));
-      setMessage(t(locale, mode === 'complete' ? 'daily.completed' : 'daily.progressSaved'));
+      setMessage(t(locale, mode === 'complete' ? 'daily.completed' : 'daily.saved'));
+      onSaved();
     } catch {
       setError(t(locale, 'daily.saveError'));
     } finally {
@@ -179,8 +193,6 @@ export function DailyFormScreen({
     );
   }
 
-  const dailyFormValid = isCompleteDailyForm(draft, includeMenstruation, hasChronicTherapy);
-
   return (
     <SafeAreaView style={sharedStyles.screen}>
       <ScrollView
@@ -189,12 +201,6 @@ export function DailyFormScreen({
       >
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'daily.title')} />
         <Text style={sharedStyles.body}>{t(locale, 'daily.subtitle')}</Text>
-        <FormField
-          autoCapitalize="none"
-          editable={false}
-          label={t(locale, 'daily.trackedDay')}
-          value={day}
-        />
         {loading ? <ActivityIndicator color={colors.accent} size="large" /> : null}
         {!loading ? (
           <View style={styles.form}>
@@ -328,17 +334,28 @@ export function DailyFormScreen({
               </Text>
             ) : null}
             {includeMenstruation ? (
-              <ConditionalTextField
-                answer={draft.hadMenstruation}
-                detailKey="daily.menstruationDetails"
-                onAnswerChange={(answer) =>
-                  updateConditional('hadMenstruation', 'menstruationNotes', answer)
+              <OptionButtons
+                label={t(locale, 'daily.menstruation')}
+                onChange={(value) => {
+                  const answer = value === 'yes';
+                  setDraft((current) => ({
+                    ...current,
+                    hadMenstruation: answer,
+                    menstruationNotes: '',
+                  }));
+                  onMenstruationAnswerChange(answer);
+                }}
+                options={[
+                  { value: 'yes', label: t(locale, 'common.yes') },
+                  { value: 'no', label: t(locale, 'common.no') },
+                ]}
+                value={
+                  draft.hadMenstruation === undefined
+                    ? undefined
+                    : draft.hadMenstruation
+                      ? 'yes'
+                      : 'no'
                 }
-                onTextChange={(menstruationNotes) =>
-                  setDraft((current) => ({ ...current, menstruationNotes }))
-                }
-                questionKey="daily.menstruation"
-                text={draft.menstruationNotes ?? ''}
               />
             ) : null}
             <ConditionalTextField
@@ -370,14 +387,8 @@ export function DailyFormScreen({
               <View style={styles.action}>
                 <PrimaryButton
                   busy={saving}
-                  label={
-                    completedAt
-                      ? t(locale, 'daily.saveChanges')
-                      : dailyFormValid
-                        ? t(locale, 'daily.completeDay')
-                        : t(locale, 'daily.saveProgress')
-                  }
-                  onPress={() => void save(completedAt || dailyFormValid ? 'complete' : 'progress')}
+                  label={t(locale, 'common.save')}
+                  onPress={() => void save('progress')}
                 />
               </View>
             </View>

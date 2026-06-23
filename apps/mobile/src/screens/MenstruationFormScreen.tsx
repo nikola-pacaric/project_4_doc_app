@@ -11,6 +11,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { colors, sharedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
@@ -65,27 +66,12 @@ export function MenstruationFormScreen({
   return (
     <SafeAreaView style={sharedStyles.screen}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={sharedStyles.scrollContent}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.titleRow}>
-          <Text selectable style={styles.title}>
-            {t(locale, 'menstruation.title')}
-          </Text>
-          <Pressable
-            accessibilityLabel={t(locale, 'common.cancel')}
-            accessibilityRole="button"
-            hitSlop={12}
-            onPress={onBack}
-            style={styles.closeButton}
-          >
-            <Text style={styles.closeLabel}>×</Text>
-          </Pressable>
-        </View>
-        <Text selectable style={styles.subtitle}>
-          {t(locale, 'menstruation.subtitle')}
-        </Text>
+        <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'menstruation.title')} />
+        <Text style={sharedStyles.body}>{t(locale, 'menstruation.subtitle')}</Text>
 
         <View style={styles.section}>
           <Text style={sharedStyles.fieldLabel}>{t(locale, 'menstruation.flow')}</Text>
@@ -176,7 +162,7 @@ export function MenstruationFormScreen({
             />
           </View>
           <View style={styles.action}>
-            <PrimaryButton busy={busy} label={t(locale, 'menstruation.save')} onPress={save} />
+            <PrimaryButton busy={busy} label={t(locale, 'common.save')} onPress={save} />
           </View>
         </View>
       </ScrollView>
@@ -185,19 +171,6 @@ export function MenstruationFormScreen({
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, gap: spacing.md, padding: spacing.lg },
-  titleRow: {
-    alignItems: 'center',
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingBottom: spacing.sm,
-  },
-  title: { color: colors.text, fontSize: 24, fontWeight: '800' },
-  closeButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44, minWidth: 44 },
-  closeLabel: { color: colors.accent, fontSize: 32, fontWeight: '500', lineHeight: 34 },
-  subtitle: { color: colors.mutedText, fontSize: 14, lineHeight: 20 },
   section: { gap: spacing.sm },
   segmentedRow: { flexDirection: 'row', gap: spacing.sm },
   segment: {
