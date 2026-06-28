@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AppSupabaseClient } from './index';
-import { createPatientMedication } from './patientMedications';
+import { createPatientMedication, getPatientMedication } from './patientMedications';
 
 function createClientMock(
   result: { data: unknown; error: unknown } = { data: 'medication-entry-1', error: null },
@@ -72,5 +72,38 @@ describe('createPatientMedication', () => {
     await expect(createPatientMedication(client, 'patient-1', completeDraft)).rejects.toThrow(
       'Medication save returned an invalid entry ID.',
     );
+  });
+});
+
+describe('getPatientMedication', () => {
+  it('loads a medication detail row by entry ID', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        entry_id: 'medication-entry-1',
+        name: 'Vitamin D',
+        dose: '1000 IU',
+        notes: 'Supplement',
+        is_chronic_therapy: false,
+      },
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+    const client = { from } as unknown as AppSupabaseClient;
+
+    await expect(
+      getPatientMedication(client, 'medication-entry-1', '2026-06-22T08:30:00.000Z'),
+    ).resolves.toEqual({
+      entryId: 'medication-entry-1',
+      occurredAt: '2026-06-22T08:30:00.000Z',
+      name: 'Vitamin D',
+      dose: '1000 IU',
+      reason: 'Supplement',
+      isChronicTherapy: false,
+    });
+
+    expect(from).toHaveBeenCalledWith('medication_details');
+    expect(eq).toHaveBeenCalledWith('entry_id', 'medication-entry-1');
   });
 });

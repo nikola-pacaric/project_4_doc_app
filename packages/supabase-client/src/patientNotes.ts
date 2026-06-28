@@ -1,4 +1,5 @@
 import type { PatientEntry } from '@project4/contracts';
+import { NO_STOOL_TODAY_TEXT } from '@project4/contracts';
 import { isCompleteNoteDraft, normalizeNoteDateTime, type NoteDraft } from '@project4/forms';
 
 import type { AppSupabaseClient } from './index';
@@ -29,4 +30,15 @@ export async function createPatientNote(
 
   if (error) throw error;
   return toPatientEntry(data);
+}
+
+export async function createPatientNoStoolMarker(
+  client: AppSupabaseClient,
+  patientId: string,
+  occurredAt: string,
+): Promise<PatientEntry> {
+  return createPatientNote(client, patientId, {
+    occurredAt,
+    text: NO_STOOL_TODAY_TEXT,
+  });
 }

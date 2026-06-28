@@ -59,3 +59,18 @@ export async function createPatientMenstruation(
     notes,
   };
 }
+
+export async function getPatientMenstruation(
+  client: AppSupabaseClient,
+  entryId: string,
+  occurredAt: string,
+): Promise<MenstruationRecord | null> {
+  const { data, error } = await client
+    .from('menstruation_events')
+    .select('entry_id, flow, pain_level, notes')
+    .eq('entry_id', entryId)
+    .maybeSingle<MenstruationRow>();
+
+  if (error) throw error;
+  return data ? toMenstruationRecord(data, occurredAt) : null;
+}

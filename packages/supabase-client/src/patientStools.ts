@@ -69,3 +69,20 @@ export async function createPatientStool(
     notes,
   };
 }
+
+export async function getPatientStool(
+  client: AppSupabaseClient,
+  entryId: string,
+  occurredAt: string,
+): Promise<StoolRecord | null> {
+  const { data, error } = await client
+    .from('stool_details')
+    .select(
+      'entry_id, bristol_type, urgency_level, pain, mucus, blood, fatty_stool, black_stool, notes',
+    )
+    .eq('entry_id', entryId)
+    .maybeSingle<StoolRow>();
+
+  if (error) throw error;
+  return data ? toStoolRecord(data, occurredAt) : null;
+}

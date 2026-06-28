@@ -4,18 +4,20 @@ import { spacing } from '@project4/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../theme';
+import { formatTimeInput, toLocalDateInput } from '../utils/dateTime';
 import { FormField } from './FormField';
 import { PrimaryButton } from './PrimaryButton';
 import { SelectField } from './SelectField';
 
 interface MealFieldsProps {
+  createMeal: () => MealDraft;
   meals: MealDraft[];
   onChange: (meals: MealDraft[]) => void;
 }
 
 const mealTypes: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack', 'other'];
 
-export function MealFields({ meals, onChange }: MealFieldsProps) {
+export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
   const locale = DEFAULT_LOCALE;
 
   function updateMeal(index: number, update: Partial<MealDraft>) {
@@ -24,7 +26,14 @@ export function MealFields({ meals, onChange }: MealFieldsProps) {
 
   function removeMeal(index: number) {
     const remainingMeals = meals.filter((_, mealIndex) => mealIndex !== index);
-    onChange(remainingMeals.length ? remainingMeals : [{ description: '' }]);
+    onChange(remainingMeals.length ? remainingMeals : [createMeal()]);
+  }
+
+  function updateMealTime(index: number, value: string) {
+    const current = meals[index];
+    const date = current?.occurredAt?.slice(0, 10) ?? toLocalDateInput(new Date());
+    const time = current?.occurredAt?.slice(11, 16) ?? '';
+    updateMeal(index, { occurredAt: `${date} ${formatTimeInput(value, time, 23)}` });
   }
 
   return (
@@ -33,6 +42,15 @@ export function MealFields({ meals, onChange }: MealFieldsProps) {
       <Text style={styles.help}>{t(locale, 'meal.sectionHelp')}</Text>
       {meals.map((meal, index) => (
         <View style={styles.card} key={meal.entryId ?? `new-${index}`}>
+          <FormField
+            autoCapitalize="none"
+            keyboardType="numbers-and-punctuation"
+            label={t(locale, 'meal.time')}
+            maxLength={5}
+            onChangeText={(value) => updateMealTime(index, value)}
+            placeholder={t(locale, 'meal.timePlaceholder')}
+            value={meal.occurredAt?.slice(11, 16) ?? ''}
+          />
           <SelectField
             label={t(locale, 'meal.type')}
             onChange={(value) => updateMeal(index, { type: value as MealType })}
@@ -69,7 +87,7 @@ export function MealFields({ meals, onChange }: MealFieldsProps) {
       ))}
       <PrimaryButton
         label={`＋ ${t(locale, 'meal.add')}`}
-        onPress={() => onChange([...meals, { description: '' }])}
+        onPress={() => onChange([...meals, createMeal()])}
         variant="secondary"
       />
     </View>

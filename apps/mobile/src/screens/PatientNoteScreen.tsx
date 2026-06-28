@@ -1,4 +1,4 @@
-import type { UserProfile } from '@project4/contracts';
+import type { PatientEntry, UserProfile } from '@project4/contracts';
 import type { NoteDraft } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import { createPatientNote, type AppSupabaseClient } from '@project4/supabase-client';
@@ -8,12 +8,33 @@ import { NoteFormScreen } from './NoteFormScreen';
 
 interface PatientNoteScreenProps {
   client: AppSupabaseClient;
+  entryToEdit?: PatientEntry | null;
   onBack: () => void;
   onSaved: () => void;
   profile: UserProfile;
 }
 
-export function PatientNoteScreen({ client, onBack, onSaved, profile }: PatientNoteScreenProps) {
+function toDraft(entry: PatientEntry): NoteDraft {
+  const occurredAt = new Date(entry.occurredAt);
+  return {
+    entryId: entry.kind === 'note' ? entry.id : undefined,
+    text: entry.text ?? '',
+    occurredAt: `${occurredAt.getFullYear()}-${String(occurredAt.getMonth() + 1).padStart(
+      2,
+      '0',
+    )}-${String(occurredAt.getDate()).padStart(2, '0')} ${String(
+      occurredAt.getHours(),
+    ).padStart(2, '0')}:${String(occurredAt.getMinutes()).padStart(2, '0')}`,
+  };
+}
+
+export function PatientNoteScreen({
+  client,
+  entryToEdit,
+  onBack,
+  onSaved,
+  profile,
+}: PatientNoteScreenProps) {
   const locale = DEFAULT_LOCALE;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,5 +52,13 @@ export function PatientNoteScreen({ client, onBack, onSaved, profile }: PatientN
     }
   }
 
-  return <NoteFormScreen busy={saving} error={error} onBack={onBack} onSave={save} />;
+  return (
+    <NoteFormScreen
+      busy={saving}
+      error={error}
+      initialDraft={entryToEdit ? toDraft(entryToEdit) : undefined}
+      onBack={onBack}
+      onSave={save}
+    />
+  );
 }

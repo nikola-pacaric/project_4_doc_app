@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AppSupabaseClient } from './index';
-import { createPatientStool } from './patientStools';
+import { createPatientStool, getPatientStool } from './patientStools';
 
 function createClientMock(
   result: { data: unknown; error: unknown } = { data: 'stool-entry-1', error: null },
@@ -90,5 +90,46 @@ describe('createPatientStool', () => {
     await expect(createPatientStool(client, 'patient-1', completeDraft)).rejects.toThrow(
       'Stool save returned an invalid entry ID.',
     );
+  });
+});
+
+describe('getPatientStool', () => {
+  it('loads a stool detail row by entry ID', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        entry_id: 'stool-entry-1',
+        bristol_type: 4,
+        urgency_level: 'none',
+        pain: false,
+        mucus: false,
+        blood: false,
+        fatty_stool: false,
+        black_stool: false,
+        notes: 'Normal',
+      },
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+    const client = { from } as unknown as AppSupabaseClient;
+
+    await expect(
+      getPatientStool(client, 'stool-entry-1', '2026-06-22T08:30:00.000Z'),
+    ).resolves.toEqual({
+      entryId: 'stool-entry-1',
+      occurredAt: '2026-06-22T08:30:00.000Z',
+      bristolType: 4,
+      urgencyLevel: 'none',
+      pain: false,
+      mucus: false,
+      blood: false,
+      fattyStool: false,
+      blackStool: false,
+      notes: 'Normal',
+    });
+
+    expect(from).toHaveBeenCalledWith('stool_details');
+    expect(eq).toHaveBeenCalledWith('entry_id', 'stool-entry-1');
   });
 });

@@ -19,3 +19,9 @@ export interface PatientEntry {
   createdAt: string;
   updatedAt: string;
 }
+
+export const NO_STOOL_TODAY_TEXT = 'No stool today';
+
+export function isNoStoolTodayEntry(entry: PatientEntry): boolean {
+  return entry.kind === 'note' && entry.text?.trim() === NO_STOOL_TODAY_TEXT;
+}

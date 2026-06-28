@@ -61,3 +61,18 @@ export async function createPatientMedication(
     isChronicTherapy: draft.isChronicTherapy,
   };
 }
+
+export async function getPatientMedication(
+  client: AppSupabaseClient,
+  entryId: string,
+  occurredAt: string,
+): Promise<MedicationRecord | null> {
+  const { data, error } = await client
+    .from('medication_details')
+    .select('entry_id, name, dose, notes, is_chronic_therapy')
+    .eq('entry_id', entryId)
+    .maybeSingle<MedicationRow>();
+
+  if (error) throw error;
+  return data ? toMedicationRecord(data, occurredAt) : null;
+}

@@ -50,11 +50,12 @@ describe('savePatientFoodForm', () => {
       [
         {
           entryId: 'meal-1',
+          occurredAt: '2026-06-23T08:15:00.000Z',
           type: 'breakfast',
           name: '  Oatmeal  ',
           description: '  With fruit  ',
         },
-        { type: 'lunch', name: 'Soup', description: '' },
+        { occurredAt: '2026-06-23T12:30:00.000Z', type: 'lunch', name: 'Soup', description: '' },
       ],
     );
 
@@ -67,12 +68,14 @@ describe('savePatientFoodForm', () => {
         p_meals: [
           {
             entry_id: 'meal-1',
+            occurred_at: '2026-06-23T08:15:00.000Z',
             meal_type: 'breakfast',
             name: 'Oatmeal',
             description: 'With fruit',
           },
           {
             entry_id: null,
+            occurred_at: '2026-06-23T12:30:00.000Z',
             meal_type: 'lunch',
             name: 'Soup',
             description: null,
@@ -117,7 +120,7 @@ describe('savePatientFoodForm', () => {
 
     await expect(
       savePatientFoodForm(client, range, { waterLiters: 1.5, hasOtherFluids: false }, [
-        { type: 'breakfast', name: '' },
+        { occurredAt: '2026-06-23T08:15:00.000Z', type: 'breakfast', name: '' },
       ]),
     ).rejects.toThrow('Cannot persist incomplete meal data.');
     expect(rpc).not.toHaveBeenCalled();

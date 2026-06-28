@@ -13,15 +13,17 @@ import { colors, sharedStyles } from '../theme';
 interface StoolFormScreenProps {
   busy?: boolean;
   error?: string | null;
+  initialDraft?: StoolDraft;
   onBack: () => void;
   onSave: (draft: StoolDraft) => void | Promise<void>;
+  onSaveNoStool: () => void | Promise<void>;
 }
 
 const bristolTypes: BristolStoolType[] = [1, 2, 3, 4, 5, 6, 7];
 const urgencyLevels: StoolUrgencyLevel[] = ['none', 'mild', 'moderate', 'severe'];
 const symptomFields = ['pain', 'mucus', 'blood', 'fattyStool', 'blackStool'] as const;
 
-const initialDraft: StoolDraft = {
+const defaultStoolDraft: StoolDraft = {
   ...stoolDraftDefaults,
   pain: false,
   mucus: false,
@@ -34,7 +36,14 @@ function bristolDescriptionKey(type: BristolStoolType): TranslationKey {
   return `stool.bristolDescription.${type}` as TranslationKey;
 }
 
-export function StoolFormScreen({ busy = false, error, onBack, onSave }: StoolFormScreenProps) {
+export function StoolFormScreen({
+  busy = false,
+  error,
+  initialDraft = defaultStoolDraft,
+  onBack,
+  onSave,
+  onSaveNoStool,
+}: StoolFormScreenProps) {
   const locale = DEFAULT_LOCALE;
   const [draft, setDraft] = useState<StoolDraft>(initialDraft);
   const [showErrors, setShowErrors] = useState(false);
@@ -62,6 +71,17 @@ export function StoolFormScreen({ busy = false, error, onBack, onSave }: StoolFo
       >
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'stool.title')} />
         <Text style={sharedStyles.body}>{t(locale, 'stool.subtitle')}</Text>
+
+        <View style={styles.noStoolCard}>
+          <Text style={styles.noStoolTitle}>{t(locale, 'stool.noStoolToday')}</Text>
+          <Text style={styles.noStoolDetail}>{t(locale, 'stool.noStoolDetail')}</Text>
+          <PrimaryButton
+            busy={busy}
+            label={t(locale, 'stool.saveNoStool')}
+            onPress={() => void onSaveNoStool()}
+            variant="secondary"
+          />
+        </View>
 
         <View style={styles.section}>
           <Text style={sharedStyles.fieldLabel}>{t(locale, 'stool.bristolType')}</Text>
@@ -190,6 +210,16 @@ export function StoolFormScreen({ busy = false, error, onBack, onSave }: StoolFo
 
 const styles = StyleSheet.create({
   section: { gap: spacing.sm },
+  noStoolCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  noStoolTitle: { color: colors.text, fontSize: 17, fontWeight: '800' },
+  noStoolDetail: { color: colors.mutedText, fontSize: 14, lineHeight: 20 },
   bristolOptions: { flexDirection: 'row', gap: 6 },
   bristolOption: {
     alignItems: 'center',

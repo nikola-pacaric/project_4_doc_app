@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AppSupabaseClient } from './index';
-import { createPatientExercise } from './patientExercises';
+import { createPatientExercise, getPatientExercise } from './patientExercises';
 
 function createClientMock(
   result: { data: unknown; error: unknown } = { data: 'exercise-entry-1', error: null },
@@ -78,5 +78,38 @@ describe('createPatientExercise', () => {
         occurredAt: '2026-06-22T08:00:00.000Z',
       }),
     ).rejects.toThrow('Exercise save returned an invalid entry ID.');
+  });
+});
+
+describe('getPatientExercise', () => {
+  it('loads an exercise detail row by entry ID', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        entry_id: 'exercise-entry-1',
+        activity: 'Cycling',
+        duration_minutes: 45,
+        intensity: 'moderate',
+        notes: 'Riverside route',
+      },
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+    const client = { from } as unknown as AppSupabaseClient;
+
+    await expect(
+      getPatientExercise(client, 'exercise-entry-1', '2026-06-22T18:30:00.000Z'),
+    ).resolves.toEqual({
+      entryId: 'exercise-entry-1',
+      occurredAt: '2026-06-22T18:30:00.000Z',
+      activity: 'Cycling',
+      durationMinutes: 45,
+      intensity: 'moderate',
+      notes: 'Riverside route',
+    });
+
+    expect(from).toHaveBeenCalledWith('exercise_details');
+    expect(eq).toHaveBeenCalledWith('entry_id', 'exercise-entry-1');
   });
 });

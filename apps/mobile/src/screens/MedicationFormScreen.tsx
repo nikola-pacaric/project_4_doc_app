@@ -13,6 +13,7 @@ import { formatTimeInput, toLocalDateInput, toLocalTimeInput } from '../utils/da
 interface MedicationFormScreenProps {
   busy?: boolean;
   error?: string | null;
+  initialDraft?: MedicationDraft;
   onBack: () => void;
   onSave: (draft: MedicationDraft) => void | Promise<void>;
 }
@@ -29,11 +30,12 @@ function createInitialDraft(): MedicationDraft {
 export function MedicationFormScreen({
   busy = false,
   error,
+  initialDraft,
   onBack,
   onSave,
 }: MedicationFormScreenProps) {
   const locale = DEFAULT_LOCALE;
-  const [draft, setDraft] = useState<MedicationDraft>(createInitialDraft);
+  const [draft, setDraft] = useState<MedicationDraft>(() => initialDraft ?? createInitialDraft());
   const [showErrors, setShowErrors] = useState(false);
 
   function update<K extends keyof MedicationDraft>(field: K, value: MedicationDraft[K]) {

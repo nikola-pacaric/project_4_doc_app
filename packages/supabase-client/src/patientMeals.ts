@@ -1,5 +1,5 @@
 import type { MealRecord } from '@project4/contracts';
-import type { MealDraft, MealType } from '@project4/forms';
+import { normalizeMealDateTime, type MealDraft, type MealType } from '@project4/forms';
 
 import type { AppSupabaseClient } from './index';
 
@@ -73,6 +73,9 @@ export async function savePatientMeals(
   }
 
   for (const [index, draft] of drafts.entries()) {
+    const entryTime =
+      normalizeMealDateTime(draft.occurredAt) ??
+      new Date(new Date(occurredAt).getTime() + index * 60_000).toISOString();
     const detail = {
       meal_type: draft.type,
       name: draft.name?.trim(),
@@ -80,6 +83,12 @@ export async function savePatientMeals(
     };
 
     if (draft.entryId) {
+      const { error: entryError } = await client
+        .from('patient_entries')
+        .update({ occurred_at: entryTime })
+        .eq('id', draft.entryId);
+      if (entryError) throw entryError;
+
       const { error } = await client
         .from('meal_details')
         .update(detail)
@@ -88,7 +97,6 @@ export async function savePatientMeals(
       continue;
     }
 
-    const entryTime = new Date(new Date(occurredAt).getTime() + index * 60_000).toISOString();
     const { data: entry, error: entryError } = await client
       .from('patient_entries')
       .insert({ patient_id: patientId, kind: 'meal', occurred_at: entryTime, text: null })

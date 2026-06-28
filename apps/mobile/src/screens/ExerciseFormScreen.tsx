@@ -14,6 +14,7 @@ import { formatTimeInput, toLocalDateInput, toLocalTimeInput } from '../utils/da
 interface ExerciseFormScreenProps {
   busy?: boolean;
   error?: string | null;
+  initialDraft?: ExerciseDraft;
   onBack: () => void;
   onSave: (draft: ExerciseDraft) => void | Promise<void>;
 }
@@ -29,11 +30,12 @@ function createInitialDraft(): ExerciseDraft {
 export function ExerciseFormScreen({
   busy = false,
   error,
+  initialDraft,
   onBack,
   onSave,
 }: ExerciseFormScreenProps) {
   const locale = DEFAULT_LOCALE;
-  const [draft, setDraft] = useState<ExerciseDraft>(createInitialDraft);
+  const [draft, setDraft] = useState<ExerciseDraft>(() => initialDraft ?? createInitialDraft());
   const [showErrors, setShowErrors] = useState(false);
 
   function update<K extends keyof ExerciseDraft>(field: K, value: ExerciseDraft[K]) {

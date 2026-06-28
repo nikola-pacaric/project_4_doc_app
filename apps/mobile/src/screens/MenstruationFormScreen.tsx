@@ -18,6 +18,7 @@ import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 interface MenstruationFormScreenProps {
   busy?: boolean;
   error?: string | null;
+  initialDraft?: MenstruationDraft;
   onBack: () => void;
   onSave: (draft: MenstruationDraft) => void | Promise<void>;
 }
@@ -35,11 +36,14 @@ function createInitialDraft(): MenstruationDraft {
 export function MenstruationFormScreen({
   busy = false,
   error,
+  initialDraft,
   onBack,
   onSave,
 }: MenstruationFormScreenProps) {
   const locale = DEFAULT_LOCALE;
-  const [draft, setDraft] = useState<MenstruationDraft>(createInitialDraft);
+  const [draft, setDraft] = useState<MenstruationDraft>(
+    () => initialDraft ?? createInitialDraft(),
+  );
   const [showErrors, setShowErrors] = useState(false);
 
   function update<K extends keyof MenstruationDraft>(field: K, value: MenstruationDraft[K]) {

@@ -1,6 +1,7 @@
 import type { FoodFormDetails, FoodFormRecord } from '@project4/contracts';
 import {
   isCompleteFoodHydrationDraft,
+  normalizeMealDateTime,
   normalizeFoodWaterLiters,
   validateMeal,
   type FoodHydrationDraft,
@@ -95,6 +96,7 @@ function toFoodFormSaveParams(
     p_other_fluids: normalizedDraft.hasOtherFluids ? normalizedDraft.otherFluids.trim() : null,
     p_meals: meals.map((meal) => ({
       entry_id: meal.entryId ?? null,
+      occurred_at: normalizeMealDateTime(meal.occurredAt) ?? null,
       meal_type: meal.type,
       name: meal.name?.trim(),
       description: meal.description?.trim() || null,

@@ -60,3 +60,18 @@ export async function createPatientExercise(
     notes,
   };
 }
+
+export async function getPatientExercise(
+  client: AppSupabaseClient,
+  entryId: string,
+  occurredAt: string,
+): Promise<ExerciseRecord | null> {
+  const { data, error } = await client
+    .from('exercise_details')
+    .select('entry_id, activity, duration_minutes, intensity, notes')
+    .eq('entry_id', entryId)
+    .maybeSingle<ExerciseRow>();
+
+  if (error) throw error;
+  return data ? toExerciseRecord(data, occurredAt) : null;
+}

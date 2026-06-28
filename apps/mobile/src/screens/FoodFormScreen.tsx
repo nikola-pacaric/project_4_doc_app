@@ -2,6 +2,7 @@ import type { FoodFormDetails, UserProfile } from '@project4/contracts';
 import {
   foodHydrationDefaults,
   getStartedMeals,
+  mealDraftDefaults,
   normalizeFoodWaterLiters,
   validateFoodHydration,
   validateMealProgress,
@@ -25,7 +26,7 @@ import { MealFields } from '../components/MealFields';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { colors, sharedStyles } from '../theme';
-import { localDayRange, toLocalDateInput } from '../utils/dateTime';
+import { localDayRange, toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
 interface FoodFormScreenProps {
   client: AppSupabaseClient;
@@ -47,11 +48,20 @@ function toMealDrafts(records: Awaited<ReturnType<typeof listPatientMeals>>): Me
   return records.length
     ? records.map((meal) => ({
         entryId: meal.entryId,
+        occurredAt: toLocalDateTime(new Date(meal.occurredAt)),
         type: meal.type ?? undefined,
         name: meal.name ?? '',
         description: meal.description ?? '',
       }))
-    : [{ description: '' }];
+    : [createEmptyMealDraft()];
+}
+
+function toLocalDateTime(value: Date): string {
+  return `${toLocalDateInput(value)} ${toLocalTimeInput(value)}`;
+}
+
+function createEmptyMealDraft(): MealDraft {
+  return { ...mealDraftDefaults, occurredAt: toLocalDateTime(new Date()) };
 }
 
 function formatWaterLiters(value: number | undefined): string {
@@ -78,7 +88,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
   const day = today;
   const [hydration, setHydration] = useState<FoodHydrationDraft>({ ...foodHydrationDefaults });
   const [waterText, setWaterText] = useState('');
-  const [meals, setMeals] = useState<MealDraft[]>([{ description: '' }]);
+  const [meals, setMeals] = useState<MealDraft[]>([createEmptyMealDraft()]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -161,7 +171,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
       {loading ? <ActivityIndicator color={colors.accent} size="large" /> : null}
       {!loading ? (
         <View style={styles.form}>
-          <MealFields meals={meals} onChange={setMeals} />
+          <MealFields createMeal={createEmptyMealDraft} meals={meals} onChange={setMeals} />
           <View style={styles.hydrationCard}>
             <Text style={styles.sectionTitle}>{t(locale, 'food.waterTitle')}</Text>
             <FormField

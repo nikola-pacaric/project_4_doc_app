@@ -13,6 +13,7 @@ import { formatTimeInput, toLocalDateInput, toLocalTimeInput } from '../utils/da
 interface NoteFormScreenProps {
   busy?: boolean;
   error?: string | null;
+  initialDraft?: NoteDraft;
   onBack: () => void;
   onSave: (draft: NoteDraft) => void | Promise<void>;
 }
@@ -25,9 +26,15 @@ function createInitialDraft(): NoteDraft {
   };
 }
 
-export function NoteFormScreen({ busy = false, error, onBack, onSave }: NoteFormScreenProps) {
+export function NoteFormScreen({
+  busy = false,
+  error,
+  initialDraft,
+  onBack,
+  onSave,
+}: NoteFormScreenProps) {
   const locale = DEFAULT_LOCALE;
-  const [draft, setDraft] = useState<NoteDraft>(createInitialDraft);
+  const [draft, setDraft] = useState<NoteDraft>(() => initialDraft ?? createInitialDraft());
   const [showErrors, setShowErrors] = useState(false);
 
   function update<K extends keyof NoteDraft>(field: K, value: NoteDraft[K]) {

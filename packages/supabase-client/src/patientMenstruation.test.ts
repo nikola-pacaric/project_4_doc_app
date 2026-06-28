@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AppSupabaseClient } from './index';
-import { createPatientMenstruation } from './patientMenstruation';
+import { createPatientMenstruation, getPatientMenstruation } from './patientMenstruation';
 
 function createClientMock(
   result: { data: unknown; error: unknown } = { data: 'period-entry-1', error: null },
@@ -69,5 +69,36 @@ describe('createPatientMenstruation', () => {
     await expect(createPatientMenstruation(client, 'patient-1', completeDraft)).rejects.toThrow(
       'Period save returned an invalid entry ID.',
     );
+  });
+});
+
+describe('getPatientMenstruation', () => {
+  it('loads a menstruation detail row by entry ID', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        entry_id: 'period-entry-1',
+        flow: 'moderate',
+        pain_level: 2,
+        notes: 'Mild cramps',
+      },
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+    const client = { from } as unknown as AppSupabaseClient;
+
+    await expect(
+      getPatientMenstruation(client, 'period-entry-1', '2026-06-23T08:30:00.000Z'),
+    ).resolves.toEqual({
+      entryId: 'period-entry-1',
+      occurredAt: '2026-06-23T08:30:00.000Z',
+      flow: 'moderate',
+      painLevel: 2,
+      notes: 'Mild cramps',
+    });
+
+    expect(from).toHaveBeenCalledWith('menstruation_events');
+    expect(eq).toHaveBeenCalledWith('entry_id', 'period-entry-1');
   });
 });

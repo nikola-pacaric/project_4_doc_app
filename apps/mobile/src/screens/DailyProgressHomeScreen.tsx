@@ -29,6 +29,8 @@ interface DailyProgressHomeScreenProps {
   onOpenPeriod: () => void;
   onOpenStool: () => void;
   onOpenSymptoms: () => void;
+  onOpenEntry: (entry: PatientEntry) => void;
+  onOpenTimeline: () => void;
   onSignOut: () => void | Promise<void>;
   canTrackMenstruation: boolean;
   dailyCompleted: boolean;
@@ -38,6 +40,7 @@ interface DailyProgressHomeScreenProps {
   medicationRequired: boolean;
   periodCompleted: boolean;
   periodRequired: boolean;
+  stoolCompleted: boolean;
   symptomsCompleted: boolean;
   profile: UserProfile;
   recentEntries: PatientEntry[];
@@ -102,6 +105,8 @@ export function DailyProgressHomeScreen({
   onOpenPeriod,
   onOpenStool,
   onOpenSymptoms,
+  onOpenEntry,
+  onOpenTimeline,
   onSignOut,
   canTrackMenstruation,
   dailyCompleted,
@@ -111,6 +116,7 @@ export function DailyProgressHomeScreen({
   medicationRequired,
   periodCompleted,
   periodRequired,
+  stoolCompleted,
   symptomsCompleted,
   profile,
   recentEntries,
@@ -137,10 +143,14 @@ export function DailyProgressHomeScreen({
   const todayEntries = allTodayEntries.slice(0, 8);
   const completedKinds = new Set(allTodayEntries.map((entry) => entry.kind));
   const completedItems = progressActions.filter((action) =>
-    action.id === 'daily' ? dailyCompleted : completedKinds.has(actionEntryKinds[action.id]),
+    action.id === 'daily'
+      ? dailyCompleted
+      : action.id === 'stool'
+        ? stoolCompleted
+        : completedKinds.has(actionEntryKinds[action.id]),
   ).length;
   const progress = Math.round((completedItems / progressActions.length) * 100);
-  const actionColumns = width < 360 ? 2 : 4;
+  const actionColumns = 4;
   const actionGridWidth = width - spacing.lg * 2 - spacing.sm * (actionColumns - 1);
   const actionCardWidth = Math.min(112, actionGridWidth / actionColumns);
   const displayName = profile.displayName?.trim() || t(locale, 'role.patient');
@@ -227,6 +237,7 @@ export function DailyProgressHomeScreen({
               const showExerciseStatus = action.id === 'exercise';
               const showMedicationStatus = action.id === 'medication';
               const showPeriodStatus = action.id === 'period';
+              const showStoolCompleted = action.id === 'stool' && stoolCompleted;
               const showDailyCompleted = action.id === 'daily' && dailyCompleted;
               const showSymptomsCompleted = action.id === 'symptoms' && symptomsCompleted;
               const exerciseStatusKey = exerciseCompleted
@@ -260,7 +271,7 @@ export function DailyProgressHomeScreen({
                     styles.actionCardEnabled,
                     actionRequired && styles.actionCardRequired,
                     pressed && styles.actionCardPressed,
-                    { width: actionCardWidth },
+                    { height: actionCardWidth, width: actionCardWidth },
                   ]}
                 >
                   <View style={styles.actionIconContainer}>
@@ -307,6 +318,11 @@ export function DailyProgressHomeScreen({
                       {t(locale, 'home.action.completed')}
                     </Text>
                   ) : null}
+                  {showStoolCompleted ? (
+                    <Text style={[styles.actionStatus, styles.actionStatusCompleted]}>
+                      {t(locale, 'home.action.completed')}
+                    </Text>
+                  ) : null}
                   {showSymptomsCompleted ? (
                     <Text style={[styles.actionStatus, styles.actionStatusCompleted]}>
                       {t(locale, 'home.action.completed')}
@@ -319,7 +335,16 @@ export function DailyProgressHomeScreen({
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t(locale, 'home.recentEntries')}</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{t(locale, 'home.recentEntries')}</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={onOpenTimeline}
+              style={({ pressed }) => [styles.viewAllButton, pressed && styles.pressed]}
+            >
+              <Text style={styles.viewAllLabel}>{t(locale, 'home.viewAll')}</Text>
+            </Pressable>
+          </View>
           {loading ? (
             <ActivityIndicator color={colors.accent} size="large" />
           ) : todayEntries.length ? (
@@ -328,7 +353,13 @@ export function DailyProgressHomeScreen({
                 const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
                 const entryCompleted = entry.kind !== 'daily' || dailyCompleted;
                 return (
-                  <View key={entry.id} style={styles.entryCard}>
+                  <Pressable
+                    accessibilityHint={t(locale, 'home.entryOpenHint')}
+                    accessibilityRole="button"
+                    key={entry.id}
+                    onPress={() => onOpenEntry(entry)}
+                    style={({ pressed }) => [styles.entryCard, pressed && styles.pressed]}
+                  >
                     <View style={styles.entryIconContainer}>
                       <Text style={styles.entryIcon}>{entryIcons[entry.kind]}</Text>
                     </View>
@@ -347,7 +378,7 @@ export function DailyProgressHomeScreen({
                         {t(locale, entryCompleted ? 'home.action.completed' : 'daily.statusDraft')}
                       </Text>
                     </View>
-                  </View>
+                  </Pressable>
                 );
               })}
             </View>
@@ -433,6 +464,12 @@ const styles = StyleSheet.create({
   progressTitle: { color: colors.text, fontSize: 19, fontWeight: '800' },
   progressDetail: { color: colors.mutedText, fontSize: 15, lineHeight: 21 },
   section: { gap: spacing.md },
+  sectionHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
   sectionTitle: {
     color: colors.mutedText,
     fontSize: 14,
@@ -440,6 +477,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
+  viewAllButton: {
+    alignItems: 'center',
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+  },
+  viewAllLabel: { color: colors.accent, fontSize: 13, fontWeight: '800' },
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   actionCard: {
     alignItems: 'center',
@@ -449,7 +493,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: spacing.xs,
     justifyContent: 'center',
-    minHeight: 102,
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.sm,
   },

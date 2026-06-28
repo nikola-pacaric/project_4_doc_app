@@ -110,6 +110,14 @@ function serializeChronicTherapies(therapies: ChronicTherapyInput[]): string {
     .join('\n');
 }
 
+function savedYesNoFromText(
+  profile: PatientBaselineProfile | null,
+  value: string | null | undefined,
+): boolean | undefined {
+  if (!profile) return undefined;
+  return Boolean(value?.trim());
+}
+
 export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps) {
   const locale = DEFAULT_LOCALE;
   const [current, setCurrent] = useState<PatientBaselineProfile | null>(null);
@@ -142,8 +150,8 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
         if (!active) return;
         setCurrent(loaded);
         setDraft(toDraft(loaded));
-        setHasChronicDiseases(loaded?.chronicDiseases?.trim() ? true : undefined);
-        setHasChronicTherapy(loaded?.chronicTherapy?.trim() ? true : undefined);
+        setHasChronicDiseases(savedYesNoFromText(loaded, loaded?.chronicDiseases));
+        setHasChronicTherapy(savedYesNoFromText(loaded, loaded?.chronicTherapy));
         setChronicDiseaseNames(parseDiseaseNames(loaded?.chronicDiseases));
         setChronicTherapies(parseChronicTherapies(loaded?.chronicTherapy));
       })
