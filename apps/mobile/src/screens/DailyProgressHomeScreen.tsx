@@ -3,14 +3,18 @@ import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
+  SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from 'react-native';
 
+import { CircularProgress } from '../components/CircularProgress';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { colors, sharedStyles } from '../theme';
 import { formatEntryTime, toLocalDateInput } from '../utils/dateTime';
@@ -136,7 +140,9 @@ export function DailyProgressHomeScreen({
     action.id === 'daily' ? dailyCompleted : completedKinds.has(actionEntryKinds[action.id]),
   ).length;
   const progress = Math.round((completedItems / progressActions.length) * 100);
-  const actionWidth = width < 360 ? '47%' : '22%';
+  const actionColumns = width < 360 ? 2 : 4;
+  const actionGridWidth = width - spacing.lg * 2 - spacing.sm * (actionColumns - 1);
+  const actionCardWidth = Math.min(112, actionGridWidth / actionColumns);
   const displayName = profile.displayName?.trim() || t(locale, 'role.patient');
   const dateLabel = new Intl.DateTimeFormat(locale, {
     weekday: 'long',
@@ -145,220 +151,233 @@ export function DailyProgressHomeScreen({
   }).format(now);
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      contentInsetAdjustmentBehavior="automatic"
-      keyboardShouldPersistTaps="handled"
-      style={sharedStyles.screen}
-    >
-      <View style={styles.topBar}>
-        <View />
-        <View style={styles.accountActions}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => void onSignOut()}
-            style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}
-          >
-            <Text style={styles.signOutLabel}>{t(locale, 'auth.signOut')}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityLabel={t(locale, 'baseline.open')}
-            accessibilityRole="button"
-            onPress={onOpenBaseline}
-            style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
-          >
-            <Text style={styles.avatarText}>{displayName.slice(0, 2).toUpperCase()}</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={styles.greetingBlock}>
-        <Text style={styles.date}>{dateLabel}</Text>
-        <Text style={styles.greeting}>
-          {t(locale, greetingKey(now.getHours()))}, {displayName}
-        </Text>
-      </View>
-
-      {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
-
-      <View style={styles.progressCard}>
-        <View style={styles.progressCircle}>
-          <Text style={styles.progressValue}>{progress}%</Text>
-        </View>
-        <View style={styles.progressCopy}>
-          <Text style={styles.progressTitle}>{t(locale, 'home.progress.title')}</Text>
-          <Text style={styles.progressDetail}>
-            {t(locale, 'home.progress.items')
-              .replace('{completed}', String(completedItems))
-              .replace('{total}', String(progressActions.length))}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t(locale, 'home.quickActions')}</Text>
-        <View style={styles.actionGrid}>
-          {visibleQuickActions.map((action) => {
-            const onPress =
-              action.id === 'daily'
-                ? onOpenDaily
-                : action.id === 'symptoms'
-                  ? onOpenSymptoms
-                  : action.id === 'exercise'
-                    ? onOpenExercise
-                    : action.id === 'food'
-                      ? onOpenFood
-                      : action.id === 'stool'
-                        ? onOpenStool
-                        : action.id === 'medication'
-                          ? onOpenMedication
-                          : action.id === 'period'
-                            ? onOpenPeriod
-                            : onOpenNotes;
-            const showExerciseStatus = action.id === 'exercise';
-            const showMedicationStatus = action.id === 'medication';
-            const showPeriodStatus = action.id === 'period';
-            const showDailyCompleted = action.id === 'daily' && dailyCompleted;
-            const showSymptomsCompleted = action.id === 'symptoms' && symptomsCompleted;
-            const exerciseStatusKey = exerciseCompleted
-              ? 'home.action.completed'
-              : exerciseRequired
-                ? 'home.action.required'
-                : 'home.action.optional';
-            const medicationStatusKey = medicationCompleted
-              ? 'home.action.completed'
-              : medicationRequired
-                ? 'home.action.required'
-                : 'home.action.optional';
-            const periodStatusKey = periodCompleted
-              ? 'home.action.completed'
-              : periodRequired
-                ? 'home.action.required'
-                : 'home.action.optional';
-            const actionRequired =
-              (showExerciseStatus && exerciseRequired && !exerciseCompleted) ||
-              (showMedicationStatus && medicationRequired && !medicationCompleted) ||
-              (showPeriodStatus && periodRequired && !periodCompleted);
-
-            return (
+    <SafeAreaView style={[sharedStyles.screen, styles.safeArea]}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+        style={sharedStyles.screen}
+      >
+        <View style={styles.headerGroup}>
+          <View style={styles.topBar}>
+            <View />
+            <View style={styles.accountActions}>
               <Pressable
-                accessibilityLabel={t(locale, action.labelKey)}
                 accessibilityRole="button"
-                key={action.id}
-                onPress={onPress}
-                style={({ pressed }) => [
-                  styles.actionCard,
-                  styles.actionCardEnabled,
-                  actionRequired && styles.actionCardRequired,
-                  pressed && styles.actionCardPressed,
-                  { flexBasis: actionWidth },
-                ]}
+                onPress={() => void onSignOut()}
+                style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}
               >
-                <View style={styles.actionIconContainer}>
-                  <Text style={styles.actionIcon}>{action.icon}</Text>
-                </View>
-                <Text numberOfLines={2} style={styles.actionLabel}>
-                  {t(locale, action.labelKey)}
-                </Text>
-                {showExerciseStatus ? (
-                  <Text
-                    style={[
-                      styles.actionStatus,
-                      exerciseRequired && !exerciseCompleted && styles.actionStatusRequired,
-                      exerciseCompleted && styles.actionStatusCompleted,
-                    ]}
-                  >
-                    {t(locale, exerciseStatusKey)}
-                  </Text>
-                ) : null}
-                {showMedicationStatus ? (
-                  <Text
-                    style={[
-                      styles.actionStatus,
-                      medicationRequired && !medicationCompleted && styles.actionStatusRequired,
-                      medicationCompleted && styles.actionStatusCompleted,
-                    ]}
-                  >
-                    {t(locale, medicationStatusKey)}
-                  </Text>
-                ) : null}
-                {showPeriodStatus ? (
-                  <Text
-                    style={[
-                      styles.actionStatus,
-                      periodRequired && !periodCompleted && styles.actionStatusRequired,
-                      periodCompleted && styles.actionStatusCompleted,
-                    ]}
-                  >
-                    {t(locale, periodStatusKey)}
-                  </Text>
-                ) : null}
-                {showDailyCompleted ? (
-                  <Text style={[styles.actionStatus, styles.actionStatusCompleted]}>
-                    {t(locale, 'home.action.completed')}
-                  </Text>
-                ) : null}
-                {showSymptomsCompleted ? (
-                  <Text style={[styles.actionStatus, styles.actionStatusCompleted]}>
-                    {t(locale, 'home.action.completed')}
-                  </Text>
-                ) : null}
+                <Text style={styles.signOutLabel}>{t(locale, 'auth.signOut')}</Text>
               </Pressable>
-            );
-          })}
-        </View>
-      </View>
+              <Pressable
+                accessibilityLabel={t(locale, 'baseline.open')}
+                accessibilityRole="button"
+                onPress={onOpenBaseline}
+                style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
+              >
+                <Text style={styles.avatarText}>{displayName.slice(0, 2).toUpperCase()}</Text>
+              </Pressable>
+            </View>
+          </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t(locale, 'home.recentEntries')}</Text>
-        {loading ? (
-          <ActivityIndicator color={colors.accent} size="large" />
-        ) : todayEntries.length ? (
-          <View style={styles.entryList}>
-            {todayEntries.map((entry) => {
-              const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
-              const entryCompleted = entry.kind !== 'daily' || dailyCompleted;
+          <View style={styles.greetingBlock}>
+            <Text style={styles.date}>{dateLabel}</Text>
+            <Text style={styles.greeting}>
+              {t(locale, greetingKey(now.getHours()))}, {displayName}
+            </Text>
+          </View>
+        </View>
+
+        {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
+
+        <View style={styles.progressCard}>
+          <CircularProgress progress={progress} size={76} strokeWidth={7}>
+            <Text style={styles.progressValue}>{progress}%</Text>
+          </CircularProgress>
+          <View style={styles.progressCopy}>
+            <Text style={styles.progressTitle}>{t(locale, 'home.progress.title')}</Text>
+            <Text style={styles.progressDetail}>
+              {t(locale, 'home.progress.items')
+                .replace('{completed}', String(completedItems))
+                .replace('{total}', String(progressActions.length))}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t(locale, 'home.quickActions')}</Text>
+          <View style={styles.actionGrid}>
+            {visibleQuickActions.map((action) => {
+              const onPress =
+                action.id === 'daily'
+                  ? onOpenDaily
+                  : action.id === 'symptoms'
+                    ? onOpenSymptoms
+                    : action.id === 'exercise'
+                      ? onOpenExercise
+                      : action.id === 'food'
+                        ? onOpenFood
+                        : action.id === 'stool'
+                          ? onOpenStool
+                          : action.id === 'medication'
+                            ? onOpenMedication
+                            : action.id === 'period'
+                              ? onOpenPeriod
+                              : onOpenNotes;
+              const showExerciseStatus = action.id === 'exercise';
+              const showMedicationStatus = action.id === 'medication';
+              const showPeriodStatus = action.id === 'period';
+              const showDailyCompleted = action.id === 'daily' && dailyCompleted;
+              const showSymptomsCompleted = action.id === 'symptoms' && symptomsCompleted;
+              const exerciseStatusKey = exerciseCompleted
+                ? 'home.action.completed'
+                : exerciseRequired
+                  ? 'home.action.required'
+                  : 'home.action.optional';
+              const medicationStatusKey = medicationCompleted
+                ? 'home.action.completed'
+                : medicationRequired
+                  ? 'home.action.required'
+                  : 'home.action.optional';
+              const periodStatusKey = periodCompleted
+                ? 'home.action.completed'
+                : periodRequired
+                  ? 'home.action.required'
+                  : 'home.action.optional';
+              const actionRequired =
+                (showExerciseStatus && exerciseRequired && !exerciseCompleted) ||
+                (showMedicationStatus && medicationRequired && !medicationCompleted) ||
+                (showPeriodStatus && periodRequired && !periodCompleted);
+
               return (
-                <View key={entry.id} style={styles.entryCard}>
-                  <View style={styles.entryIconContainer}>
-                    <Text style={styles.entryIcon}>{entryIcons[entry.kind]}</Text>
+                <Pressable
+                  accessibilityLabel={t(locale, action.labelKey)}
+                  accessibilityRole="button"
+                  key={action.id}
+                  onPress={onPress}
+                  style={({ pressed }) => [
+                    styles.actionCard,
+                    styles.actionCardEnabled,
+                    actionRequired && styles.actionCardRequired,
+                    pressed && styles.actionCardPressed,
+                    { width: actionCardWidth },
+                  ]}
+                >
+                  <View style={styles.actionIconContainer}>
+                    <Text style={styles.actionIcon}>{action.icon}</Text>
                   </View>
-                  <View style={styles.entryCopy}>
-                    <Text numberOfLines={1} style={styles.entryTitle}>
-                      {entry.text?.trim() || kindLabel}
+                  <Text numberOfLines={2} style={styles.actionLabel}>
+                    {t(locale, action.labelKey)}
+                  </Text>
+                  {showExerciseStatus ? (
+                    <Text
+                      style={[
+                        styles.actionStatus,
+                        exerciseRequired && !exerciseCompleted && styles.actionStatusRequired,
+                        exerciseCompleted && styles.actionStatusCompleted,
+                      ]}
+                    >
+                      {t(locale, exerciseStatusKey)}
                     </Text>
-                    <Text style={styles.entryTime}>
-                      {formatEntryTime(entry.occurredAt, locale)}
+                  ) : null}
+                  {showMedicationStatus ? (
+                    <Text
+                      style={[
+                        styles.actionStatus,
+                        medicationRequired && !medicationCompleted && styles.actionStatusRequired,
+                        medicationCompleted && styles.actionStatusCompleted,
+                      ]}
+                    >
+                      {t(locale, medicationStatusKey)}
                     </Text>
-                  </View>
-                  <View style={styles.entryTrailing}>
-                    <Text style={[styles.entryStatus, !entryCompleted && styles.entryStatusDraft]}>
-                      {t(locale, entryCompleted ? 'home.action.completed' : 'daily.statusDraft')}
+                  ) : null}
+                  {showPeriodStatus ? (
+                    <Text
+                      style={[
+                        styles.actionStatus,
+                        periodRequired && !periodCompleted && styles.actionStatusRequired,
+                        periodCompleted && styles.actionStatusCompleted,
+                      ]}
+                    >
+                      {t(locale, periodStatusKey)}
                     </Text>
-                  </View>
-                </View>
+                  ) : null}
+                  {showDailyCompleted ? (
+                    <Text style={[styles.actionStatus, styles.actionStatusCompleted]}>
+                      {t(locale, 'home.action.completed')}
+                    </Text>
+                  ) : null}
+                  {showSymptomsCompleted ? (
+                    <Text style={[styles.actionStatus, styles.actionStatusCompleted]}>
+                      {t(locale, 'home.action.completed')}
+                    </Text>
+                  ) : null}
+                </Pressable>
               );
             })}
           </View>
-        ) : (
-          <Text style={styles.emptyEntries}>{t(locale, 'home.noEntriesToday')}</Text>
-        )}
-      </View>
+        </View>
 
-      <View style={styles.submitBlock}>
-        <PrimaryButton disabled label={t(locale, 'home.submit')} onPress={() => undefined} />
-        <Text style={styles.submitHelp}>{t(locale, 'home.submitHelp')}</Text>
-      </View>
-    </ScrollView>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t(locale, 'home.recentEntries')}</Text>
+          {loading ? (
+            <ActivityIndicator color={colors.accent} size="large" />
+          ) : todayEntries.length ? (
+            <View style={styles.entryList}>
+              {todayEntries.map((entry) => {
+                const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
+                const entryCompleted = entry.kind !== 'daily' || dailyCompleted;
+                return (
+                  <View key={entry.id} style={styles.entryCard}>
+                    <View style={styles.entryIconContainer}>
+                      <Text style={styles.entryIcon}>{entryIcons[entry.kind]}</Text>
+                    </View>
+                    <View style={styles.entryCopy}>
+                      <Text numberOfLines={1} style={styles.entryTitle}>
+                        {entry.text?.trim() || kindLabel}
+                      </Text>
+                      <Text style={styles.entryTime}>
+                        {formatEntryTime(entry.occurredAt, locale)}
+                      </Text>
+                    </View>
+                    <View style={styles.entryTrailing}>
+                      <Text
+                        style={[styles.entryStatus, !entryCompleted && styles.entryStatusDraft]}
+                      >
+                        {t(locale, entryCompleted ? 'home.action.completed' : 'daily.statusDraft')}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.emptyEntries}>{t(locale, 'home.noEntriesToday')}</Text>
+          )}
+        </View>
+
+        <View style={styles.submitBlock}>
+          <PrimaryButton disabled label={t(locale, 'home.submit')} onPress={() => undefined} />
+          <Text style={styles.submitHelp}>{t(locale, 'home.submitHelp')}</Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
   content: {
     flexGrow: 1,
     gap: spacing.xl,
     padding: spacing.lg,
     paddingBottom: spacing.xl,
+  },
+  headerGroup: {
+    gap: spacing.md,
   },
   topBar: {
     alignItems: 'center',
@@ -404,15 +423,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.lg,
   },
-  progressCircle: {
-    alignItems: 'center',
-    borderColor: colors.accent,
-    borderRadius: 38,
-    borderWidth: 7,
-    height: 76,
-    justifyContent: 'center',
-    width: 76,
-  },
   progressValue: {
     color: colors.text,
     fontSize: 18,
@@ -435,14 +445,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: 18,
+    borderRadius: 12,
     borderWidth: 1,
-    flexGrow: 1,
-    gap: spacing.sm,
+    gap: spacing.xs,
     justifyContent: 'center',
-    minHeight: 108,
+    minHeight: 102,
     paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
   },
   actionCardEnabled: { borderColor: colors.accent },
   actionCardRequired: { backgroundColor: '#fff4e5', borderColor: '#d97706' },
@@ -450,23 +459,24 @@ const styles = StyleSheet.create({
   actionIconContainer: {
     alignItems: 'center',
     backgroundColor: colors.background,
-    borderRadius: 22,
-    height: 44,
+    borderRadius: 16,
+    height: 32,
     justifyContent: 'center',
-    width: 44,
+    width: 32,
   },
-  actionIcon: { fontSize: 24 },
+  actionIcon: { fontSize: 18 },
   actionLabel: {
     color: colors.text,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    lineHeight: 17,
+    lineHeight: 15,
     textAlign: 'center',
   },
   actionStatus: {
     color: colors.mutedText,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
+    lineHeight: 12,
     textTransform: 'uppercase',
   },
   actionStatusRequired: { color: '#b42318' },
