@@ -1,4 +1,4 @@
-import type { DailyFormDetails, UserProfile } from '@project4/contracts';
+import type { UserProfile } from '@project4/contracts';
 import {
   dailyFormDefaults,
   hasDailyFormProgress,
@@ -22,6 +22,11 @@ import { OptionButtons } from '../components/OptionButtons';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { colors, sharedStyles } from '../theme';
+import {
+  formatDailyFormMissingFields,
+  getDailyFormMissingFields,
+  toDailyFormDraft,
+} from '../utils/dailyFormCompletion';
 import { formatTimeInput, localDayRange, toLocalDateInput } from '../utils/dateTime';
 
 interface DailyFormScreenProps {
@@ -32,29 +37,6 @@ interface DailyFormScreenProps {
   profile: UserProfile;
   onBack: () => void;
   onSaved: () => void;
-}
-
-function toDraft(details: DailyFormDetails | null): DailyFormDraft {
-  if (!details) return { ...dailyFormDefaults };
-  return {
-    wakeTime: details.wakeTime ?? undefined,
-    sleepDuration: details.sleepDuration ?? undefined,
-    appetite: details.appetite ?? undefined,
-    hadPhysicalActivity: details.hadPhysicalActivity ?? Boolean(details.activityNotes?.trim()),
-    activityNotes: details.activityNotes ?? '',
-    stressLevel: details.stressLevel ?? undefined,
-    dayDescription: details.dayDescription ?? '',
-    tookChronicTherapy: details.tookChronicTherapy ?? undefined,
-    tookMedicationOutsideChronicTherapy:
-      details.tookMedicationOutsideChronicTherapy ??
-      Boolean(details.medicationOutsideChronicTherapy?.trim()),
-    medicationOutsideChronicTherapy: details.medicationOutsideChronicTherapy ?? '',
-    hadMenstruation: details.hadMenstruation ?? undefined,
-    menstruationNotes: '',
-    energyLevel: details.energyLevel ?? undefined,
-    hadNaps: details.hadNaps ?? Boolean(details.naps?.trim()),
-    naps: details.naps ?? '',
-  };
 }
 
 export function DailyFormScreen({
@@ -94,7 +76,7 @@ export function DailyFormScreen({
         setHasChronicTherapy(nextHasChronicTherapy);
         setExistingEntryId(record?.entryId);
         setCompletedAt(record?.details.completedAt ?? undefined);
-        const nextDraft = toDraft(record?.details ?? null);
+        const nextDraft = toDailyFormDraft(record?.details ?? null);
         if (!nextHasChronicTherapy) nextDraft.tookChronicTherapy = false;
         setDraft(nextDraft);
         onActivityAnswerChange(nextDraft.hadPhysicalActivity);
@@ -159,7 +141,7 @@ export function DailyFormScreen({
       const saved = await getPatientDailyForm(client, profile.id, range.start, range.end);
       setExistingEntryId(saved?.entryId);
       setCompletedAt(saved?.details.completedAt ?? undefined);
-      setDraft(toDraft(saved?.details ?? null));
+      setDraft(toDailyFormDraft(saved?.details ?? null));
       setMessage(t(locale, mode === 'complete' ? 'daily.completed' : 'daily.saved'));
       onSaved();
     } catch {
@@ -193,10 +175,18 @@ export function DailyFormScreen({
     );
   }
 
+  const missingFields = getDailyFormMissingFields(draft, includeMenstruation, hasChronicTherapy);
+  const draftStatusTitle = missingFields.length
+    ? t(locale, 'daily.statusDraft')
+    : t(locale, 'home.action.completed');
+  const draftStatusHelp = missingFields.length
+    ? formatDailyFormMissingFields(locale, missingFields)
+    : t(locale, 'daily.readyForHomeSubmit');
+
   return (
-    <SafeAreaView style={sharedStyles.screen}>
+    <SafeAreaView style={sharedStyles.formScreen}>
       <ScrollView
-        contentContainerStyle={sharedStyles.scrollContent}
+        contentContainerStyle={sharedStyles.formScrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'daily.title')} />
@@ -206,10 +196,10 @@ export function DailyFormScreen({
           <View style={styles.form}>
             <View style={[styles.status, completedAt ? styles.completeStatus : styles.draftStatus]}>
               <Text style={styles.statusTitle}>
-                {t(locale, completedAt ? 'daily.statusComplete' : 'daily.statusDraft')}
+                {completedAt ? t(locale, 'daily.statusComplete') : draftStatusTitle}
               </Text>
               <Text style={styles.statusHelp}>
-                {t(locale, completedAt ? 'daily.statusCompleteHelp' : 'daily.statusDraftHelp')}
+                {completedAt ? t(locale, 'daily.statusCompleteHelp') : draftStatusHelp}
               </Text>
             </View>
             <FormField

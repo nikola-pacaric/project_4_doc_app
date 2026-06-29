@@ -1,6 +1,7 @@
 import type { FoodFormDetails, FoodFormRecord } from '@project4/contracts';
 import {
   isCompleteFoodHydrationDraft,
+  formatOtherFluidsForDisplay,
   normalizeMealDateTime,
   normalizeFoodWaterLiters,
   validateMeal,
@@ -25,6 +26,7 @@ export function toFoodFormDetails(row: FoodFormRow): FoodFormDetails {
     waterLiters: row.water_liters,
     hasOtherFluids: row.has_other_fluids,
     otherFluids: row.other_fluids,
+    otherFluidsDisplay: formatOtherFluidsForDisplay(row.other_fluids),
   };
 }
 

@@ -138,7 +138,7 @@ function MainApp() {
       </SafeAreaView>
     );
   } else if (profile.role === 'doctor') {
-    content = <DoctorPendingScreen onSignOut={signOut} />;
+    content = <DoctorPendingScreen client={supabase} onSignOut={signOut} />;
   } else if (!profile.consentAcceptedAt) {
     content = (
       <ConsentScreen

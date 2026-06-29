@@ -86,9 +86,9 @@ export function SymptomFormScreen({
 
   const selectedTypes = drafts.flatMap((draft) => (draft.type ? [draft.type] : []));
   return (
-    <SafeAreaView style={sharedStyles.screen}>
+    <SafeAreaView style={sharedStyles.formScreen}>
       <ScrollView
-        contentContainerStyle={sharedStyles.scrollContent}
+        contentContainerStyle={sharedStyles.formScrollContent}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
       >

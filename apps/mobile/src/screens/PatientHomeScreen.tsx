@@ -4,8 +4,10 @@ import {
   type PatientEntry,
   type UserProfile,
 } from '@project4/contracts';
+import type { DailyFormField } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import {
+  completePatientDailyForm,
   getPatientBaseline,
   getPatientDailyForm,
   listRecentPatientEntries,
@@ -23,6 +25,11 @@ import { PatientMenstruationScreen } from './PatientMenstruationScreen';
 import { PatientNoteScreen } from './PatientNoteScreen';
 import { PatientSymptomsScreen } from './PatientSymptomsScreen';
 import { PatientStoolScreen } from './PatientStoolScreen';
+import {
+  formatDailyFormMissingFields,
+  getDailyFormMissingFields,
+  toDailyFormDraft,
+} from '../utils/dailyFormCompletion';
 import { PatientTimelineScreen } from './PatientTimelineScreen';
 
 interface PatientHomeScreenProps {
@@ -57,7 +64,10 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
   const [error, setError] = useState<string | null>(null);
   const [showBaseline, setShowBaseline] = useState(false);
   const [showDailyForm, setShowDailyForm] = useState(false);
+  const [dailyEntryId, setDailyEntryId] = useState<string | null>(null);
   const [dailyCompleted, setDailyCompleted] = useState(false);
+  const [dailyMissingFields, setDailyMissingFields] = useState<DailyFormField[]>([]);
+  const [submittingDay, setSubmittingDay] = useState(false);
   const [showFoodForm, setShowFoodForm] = useState(false);
   const [showSymptomForm, setShowSymptomForm] = useState(false);
   const [symptomsCompleted, setSymptomsCompleted] = useState(false);
@@ -147,7 +157,17 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
         getPatientDailyForm(client, profile.id, range.start, range.end),
       ]);
       setEntries(filterEntriesForToday(filterPatientTimelineEntries(nextEntries, baseline?.sex)));
-      setDailyCompleted(Boolean(dailyForm));
+      setDailyEntryId(dailyForm?.entryId ?? null);
+      setDailyCompleted(Boolean(dailyForm?.details.completedAt));
+      setDailyMissingFields(
+        dailyForm
+          ? getDailyFormMissingFields(
+              toDailyFormDraft(dailyForm.details),
+              baseline?.sex === 'female',
+              Boolean(baseline?.chronicTherapy?.trim()),
+            )
+          : [],
+      );
       setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
       setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
       setPeriodRequired(dailyForm?.details.hadMenstruation === true);
@@ -175,7 +195,17 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
       .then(([nextEntries, baseline, dailyForm]) => {
         if (active) {
           setEntries(filterEntriesForToday(filterPatientTimelineEntries(nextEntries, baseline?.sex)));
-          setDailyCompleted(Boolean(dailyForm));
+          setDailyEntryId(dailyForm?.entryId ?? null);
+          setDailyCompleted(Boolean(dailyForm?.details.completedAt));
+          setDailyMissingFields(
+            dailyForm
+              ? getDailyFormMissingFields(
+                  toDailyFormDraft(dailyForm.details),
+                  baseline?.sex === 'female',
+                  Boolean(baseline?.chronicTherapy?.trim()),
+                )
+              : [],
+          );
           setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
           setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
           setPeriodRequired(dailyForm?.details.hadMenstruation === true);
@@ -376,10 +406,46 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
     );
   }
 
+  const submitDisabled =
+    loading ||
+    submittingDay ||
+    dailyCompleted ||
+    !dailyEntryId ||
+    dailyMissingFields.length > 0 ||
+    (exerciseRequired && !exerciseCompleted) ||
+    (medicationRequired && !medicationCompleted) ||
+    (periodRequired && !periodCompleted);
+  const dailyReadyToSubmit = Boolean(dailyEntryId && dailyMissingFields.length === 0);
+
+  async function submitDay() {
+    if (!dailyEntryId || submitDisabled) return;
+
+    setSubmittingDay(true);
+    setError(null);
+    try {
+      await completePatientDailyForm(client, dailyEntryId);
+      await loadEntries();
+    } catch {
+      setError(t(locale, 'daily.saveError'));
+    } finally {
+      setSubmittingDay(false);
+    }
+  }
+
+  const submitHelp =
+    dailyCompleted
+      ? t(locale, 'home.submitCompletedHelp')
+      : !dailyEntryId
+        ? t(locale, 'home.submitDailyFirst')
+        : dailyMissingFields.length
+          ? formatDailyFormMissingFields(locale, dailyMissingFields)
+          : t(locale, 'home.submitHelp');
+
   return (
     <DailyProgressHomeScreen
       canTrackMenstruation={canTrackMenstruation}
       dailyCompleted={dailyCompleted}
+      dailyReadyToSubmit={dailyReadyToSubmit}
       error={error}
       exerciseCompleted={exerciseCompleted}
       exerciseRequired={exerciseRequired}
@@ -415,9 +481,13 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
       onOpenSymptoms={() => setShowSymptomForm(true)}
       onOpenEntry={openRecentEntry}
       onOpenTimeline={() => setShowTimeline(true)}
+      onSubmitDay={submitDay}
       onSignOut={onSignOut}
       profile={profile}
       recentEntries={entries}
+      submitBusy={submittingDay}
+      submitDisabled={submitDisabled}
+      submitHelp={submitHelp}
       symptomsCompleted={symptomsCompleted}
     />
   );

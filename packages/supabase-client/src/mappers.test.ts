@@ -53,6 +53,7 @@ describe('Supabase row mappers', () => {
       waterLiters: 1.75,
       hasOtherFluids: true,
       otherFluids: 'Coffee',
+      otherFluidsDisplay: 'Coffee',
     });
   });
 

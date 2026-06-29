@@ -2,12 +2,17 @@ import type { FoodFormDetails, UserProfile } from '@project4/contracts';
 import {
   foodHydrationDefaults,
   getStartedMeals,
+  getStartedOtherFluids,
   mealDraftDefaults,
   normalizeFoodWaterLiters,
+  parseOtherFluids,
+  serializeOtherFluids,
   validateFoodHydration,
   validateMealProgress,
+  validateOtherFluidProgress,
   type FoodHydrationDraft,
   type MealDraft,
+  type OtherFluidDraft,
 } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import {
@@ -18,11 +23,12 @@ import {
 } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ConditionalTextField } from '../components/ConditionalTextField';
 import { FormField } from '../components/FormField';
 import { MealFields } from '../components/MealFields';
+import { OptionButtons } from '../components/OptionButtons';
+import { OtherFluidFields } from '../components/OtherFluidFields';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { colors, sharedStyles } from '../theme';
@@ -64,6 +70,28 @@ function createEmptyMealDraft(): MealDraft {
   return { ...mealDraftDefaults, occurredAt: toLocalDateTime(new Date()) };
 }
 
+function createEmptyOtherFluidDraft(): OtherFluidDraft {
+  return { occurredAt: toLocalDateTime(new Date()) };
+}
+
+function toValidLocalDateTime(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : toLocalDateTime(date);
+}
+
+function toOtherFluidDrafts(value: string | null | undefined): OtherFluidDraft[] {
+  const parsedFluids = parseOtherFluids(value);
+  if (!parsedFluids.length) return [createEmptyOtherFluidDraft()];
+
+  return parsedFluids.map((fluid) => {
+    return {
+      occurredAt: toValidLocalDateTime(fluid.occurredAt) ?? toLocalDateTime(new Date()),
+      name: fluid.name ?? '',
+    };
+  });
+}
+
 function formatWaterLiters(value: number | undefined): string {
   return value === undefined ? '' : String(value);
 }
@@ -89,6 +117,9 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
   const [hydration, setHydration] = useState<FoodHydrationDraft>({ ...foodHydrationDefaults });
   const [waterText, setWaterText] = useState('');
   const [meals, setMeals] = useState<MealDraft[]>([createEmptyMealDraft()]);
+  const [otherFluids, setOtherFluids] = useState<OtherFluidDraft[]>([
+    createEmptyOtherFluidDraft(),
+  ]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +139,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
         setHydration(nextHydration);
         setWaterText(formatWaterLiters(nextHydration.waterLiters));
         setMeals(toMealDrafts(mealRecords));
+        setOtherFluids(toOtherFluidDrafts(nextHydration.otherFluids));
       })
       .catch(() => active && setError(t(locale, 'food.loadError')))
       .finally(() => active && setLoading(false));
@@ -119,16 +151,23 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
 
   async function save() {
     const startedMeals = getStartedMeals(meals);
+    const startedOtherFluids = getStartedOtherFluids(otherFluids);
     const normalizedWaterText = normalizeWaterLitersText(waterText);
     const normalizedHydration: FoodHydrationDraft = {
       ...hydration,
       waterLiters: parseWaterLitersInput(normalizedWaterText),
+      otherFluids: hydration.hasOtherFluids ? serializeOtherFluids(startedOtherFluids) : '',
     };
 
     setWaterText(normalizedWaterText);
     setHydration(normalizedHydration);
 
-    if (!validateFoodHydration(normalizedHydration).valid || !validateMealProgress(meals)) {
+    if (
+      !validateFoodHydration(normalizedHydration).valid ||
+      !validateMealProgress(meals) ||
+      (normalizedHydration.hasOtherFluids &&
+        (!startedOtherFluids.length || !validateOtherFluidProgress(otherFluids)))
+    ) {
       setError(t(locale, 'food.requiredError'));
       return;
     }
@@ -149,6 +188,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
       setHydration(nextHydration);
       setWaterText(formatWaterLiters(nextHydration.waterLiters));
       setMeals(toMealDrafts(mealRecords));
+      setOtherFluids(toOtherFluidDrafts(nextHydration.otherFluids));
       setMessage(t(locale, 'food.saved'));
       onSaved();
     } catch {
@@ -159,75 +199,88 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={sharedStyles.scrollContent}
-      contentInsetAdjustmentBehavior="automatic"
-      keyboardShouldPersistTaps="handled"
-      style={sharedStyles.screen}
-    >
-      <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'food.title')} />
-      <Text style={sharedStyles.body}>{t(locale, 'food.subtitle')}</Text>
+    <SafeAreaView style={sharedStyles.formScreen}>
+      <ScrollView
+        contentContainerStyle={sharedStyles.formScrollContent}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+      >
+        <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'food.title')} />
+        <Text style={sharedStyles.body}>{t(locale, 'food.subtitle')}</Text>
 
-      {loading ? <ActivityIndicator color={colors.accent} size="large" /> : null}
-      {!loading ? (
-        <View style={styles.form}>
-          <MealFields createMeal={createEmptyMealDraft} meals={meals} onChange={setMeals} />
-          <View style={styles.hydrationCard}>
-            <Text style={styles.sectionTitle}>{t(locale, 'food.waterTitle')}</Text>
-            <FormField
-              keyboardType="decimal-pad"
-              label={t(locale, 'food.waterAmountLiters')}
-              onBlur={() => setWaterText((current) => normalizeWaterLitersText(current))}
-              onChangeText={(value) => {
-                setWaterText(value);
+        {loading ? <ActivityIndicator color={colors.accent} size="large" /> : null}
+        {!loading ? (
+          <View style={styles.form}>
+            <MealFields createMeal={createEmptyMealDraft} meals={meals} onChange={setMeals} />
+            <View style={styles.hydrationCard}>
+              <Text style={styles.sectionTitle}>{t(locale, 'food.waterTitle')}</Text>
+              <FormField
+                keyboardType="decimal-pad"
+                label={t(locale, 'food.waterAmountLiters')}
+                onBlur={() => setWaterText((current) => normalizeWaterLitersText(current))}
+                onChangeText={(value) => {
+                  setWaterText(value);
+                  setHydration((current) => ({
+                    ...current,
+                    waterLiters: parseWaterLitersInput(value),
+                  }));
+                }}
+                placeholder="2.0"
+                value={waterText}
+              />
+            </View>
+            <OptionButtons
+              label={t(locale, 'food.otherFluids')}
+              onChange={(value) =>
                 setHydration((current) => ({
                   ...current,
-                  waterLiters: parseWaterLitersInput(value),
-                }));
-              }}
-              placeholder="2.0"
-              value={waterText}
-            />
-            <ConditionalTextField
-              answer={hydration.hasOtherFluids}
-              detailKey="food.otherFluidsDetails"
-              onAnswerChange={(answer) =>
-                setHydration((current) => ({
-                  ...current,
-                  hasOtherFluids: answer,
-                  otherFluids: answer ? current.otherFluids : '',
+                  hasOtherFluids: value === 'yes',
+                  otherFluids: value === 'yes' ? current.otherFluids : '',
                 }))
               }
-              onTextChange={(otherFluids) =>
-                setHydration((current) => ({ ...current, otherFluids }))
+              options={[
+                { value: 'yes', label: t(locale, 'common.yes') },
+                { value: 'no', label: t(locale, 'common.no') },
+              ]}
+              value={
+                hydration.hasOtherFluids === undefined
+                  ? undefined
+                  : hydration.hasOtherFluids
+                    ? 'yes'
+                    : 'no'
               }
-              questionKey="food.otherFluids"
-              text={hydration.otherFluids ?? ''}
             />
-          </View>
+            {hydration.hasOtherFluids ? (
+              <OtherFluidFields
+                createFluid={createEmptyOtherFluidDraft}
+                fluids={otherFluids}
+                onChange={setOtherFluids}
+              />
+            ) : null}
 
-          {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
-          {message ? <Text style={sharedStyles.success}>{message}</Text> : null}
-          <View style={styles.actions}>
-            <View style={styles.action}>
-              <PrimaryButton
-                label={t(locale, 'common.cancel')}
-                onPress={onBack}
-                variant="secondary"
-              />
-            </View>
-            <View style={styles.action}>
-              <PrimaryButton
-                accessibilityLabel={t(locale, 'common.save')}
-                busy={saving}
-                label={t(locale, 'common.save')}
-                onPress={() => void save()}
-              />
+            {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
+            {message ? <Text style={sharedStyles.success}>{message}</Text> : null}
+            <View style={styles.actions}>
+              <View style={styles.action}>
+                <PrimaryButton
+                  label={t(locale, 'common.cancel')}
+                  onPress={onBack}
+                  variant="secondary"
+                />
+              </View>
+              <View style={styles.action}>
+                <PrimaryButton
+                  accessibilityLabel={t(locale, 'common.save')}
+                  busy={saving}
+                  label={t(locale, 'common.save')}
+                  onPress={() => void save()}
+                />
+              </View>
             </View>
           </View>
-        </View>
-      ) : null}
-    </ScrollView>
+        ) : null}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 

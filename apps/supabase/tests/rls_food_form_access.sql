@@ -39,6 +39,12 @@ values
   ('10000000-0000-4000-8000-000000000402', 2.000, false, null)
 on conflict (entry_id) do nothing;
 
+insert into public.other_fluid_details (daily_entry_id, occurred_at, name)
+values
+  ('10000000-0000-4000-8000-000000000401', '2026-06-22 09:30:00+02', 'Tea'),
+  ('10000000-0000-4000-8000-000000000402', '2026-06-22 10:30:00+02', 'Coffee')
+on conflict do nothing;
+
 set local role anon;
 
 do $$
@@ -46,6 +52,13 @@ begin
   begin
     perform count(*) from public.food_form_details;
     raise exception 'unauthenticated users should not have table access to food forms';
+  exception
+    when insufficient_privilege then null;
+  end;
+
+  begin
+    perform count(*) from public.other_fluid_details;
+    raise exception 'unauthenticated users should not have table access to other fluids';
   exception
     when insufficient_privilege then null;
   end;
@@ -59,6 +72,7 @@ set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000401';
 do $$
 declare
   visible_food_forms integer;
+  visible_other_fluids integer;
   changed_rows integer;
 begin
   select count(*) into visible_food_forms from public.food_form_details;
@@ -66,15 +80,30 @@ begin
     raise exception 'patient A should see exactly 1 own food form, saw %', visible_food_forms;
   end if;
 
+  select count(*) into visible_other_fluids from public.other_fluid_details;
+  if visible_other_fluids <> 1 then
+    raise exception 'patient A should see exactly 1 own other-fluid row, saw %', visible_other_fluids;
+  end if;
+
   update public.food_form_details set water_liters = 2.250
   where entry_id = '10000000-0000-4000-8000-000000000401';
   get diagnostics changed_rows = row_count;
   if changed_rows <> 1 then raise exception 'patient A should update an own food form'; end if;
 
+  update public.other_fluid_details set name = 'Updated tea'
+  where daily_entry_id = '10000000-0000-4000-8000-000000000401';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 1 then raise exception 'patient A should update an own other-fluid row'; end if;
+
   update public.food_form_details set water_liters = 3.000
   where entry_id = '10000000-0000-4000-8000-000000000402';
   get diagnostics changed_rows = row_count;
   if changed_rows <> 0 then raise exception 'patient A should not update patient B food form'; end if;
+
+  update public.other_fluid_details set name = 'Forbidden coffee'
+  where daily_entry_id = '10000000-0000-4000-8000-000000000402';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then raise exception 'patient A should not update patient B other-fluid row'; end if;
 
   begin
     insert into public.food_form_details (entry_id, water_liters, has_other_fluids)
@@ -93,6 +122,14 @@ begin
   insert into public.food_form_details (entry_id, water_liters, has_other_fluids)
   values ('10000000-0000-4000-8000-000000000409', 1.000, false);
 
+  insert into public.other_fluid_details (daily_entry_id, occurred_at, name)
+  values ('10000000-0000-4000-8000-000000000409', '2026-06-22 16:00:00+02', 'Juice');
+
+  delete from public.other_fluid_details
+  where daily_entry_id = '10000000-0000-4000-8000-000000000409';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 1 then raise exception 'patient A should delete an own other-fluid row'; end if;
+
   delete from public.food_form_details
   where entry_id = '10000000-0000-4000-8000-000000000409';
   get diagnostics changed_rows = row_count;
@@ -102,6 +139,13 @@ begin
     insert into public.food_form_details (entry_id, water_liters, has_other_fluids)
     values ('10000000-0000-4000-8000-000000000408', 1.000, false);
     raise exception 'patient A should not insert a food form for patient B';
+  exception when insufficient_privilege or check_violation then null;
+  end;
+
+  begin
+    insert into public.other_fluid_details (daily_entry_id, occurred_at, name)
+    values ('10000000-0000-4000-8000-000000000408', '2026-06-22 16:00:00+02', 'Forbidden juice');
+    raise exception 'patient A should not insert an other-fluid row for patient B';
   exception when insufficient_privilege or check_violation then null;
   end;
 end $$;
@@ -114,6 +158,7 @@ set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000403';
 do $$
 declare
   visible_food_forms integer;
+  visible_other_fluids integer;
   changed_rows integer;
 begin
   select count(*) into visible_food_forms from public.food_form_details;
@@ -121,10 +166,20 @@ begin
     raise exception 'unlinked doctor should see 0 food forms, saw %', visible_food_forms;
   end if;
 
+  select count(*) into visible_other_fluids from public.other_fluid_details;
+  if visible_other_fluids <> 0 then
+    raise exception 'unlinked doctor should see 0 other-fluid rows, saw %', visible_other_fluids;
+  end if;
+
   update public.food_form_details set water_liters = 3.000
   where entry_id = '10000000-0000-4000-8000-000000000401';
   get diagnostics changed_rows = row_count;
   if changed_rows <> 0 then raise exception 'unlinked doctor should not update food forms'; end if;
+
+  update public.other_fluid_details set name = 'Doctor attempted edit'
+  where daily_entry_id = '10000000-0000-4000-8000-000000000401';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then raise exception 'unlinked doctor should not update other-fluid rows'; end if;
 end $$;
 
 reset role;
@@ -141,6 +196,7 @@ set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000403';
 do $$
 declare
   visible_food_forms integer;
+  visible_other_fluids integer;
   changed_rows integer;
 begin
   select count(*) into visible_food_forms from public.food_form_details;
@@ -148,10 +204,20 @@ begin
     raise exception 'linked doctor should see exactly 1 linked food form, saw %', visible_food_forms;
   end if;
 
+  select count(*) into visible_other_fluids from public.other_fluid_details;
+  if visible_other_fluids <> 1 then
+    raise exception 'linked doctor should see exactly 1 linked other-fluid row, saw %', visible_other_fluids;
+  end if;
+
   update public.food_form_details set water_liters = 3.000
   where entry_id = '10000000-0000-4000-8000-000000000401';
   get diagnostics changed_rows = row_count;
   if changed_rows <> 0 then raise exception 'linked doctor should not update food forms'; end if;
+
+  update public.other_fluid_details set name = 'Doctor attempted edit'
+  where daily_entry_id = '10000000-0000-4000-8000-000000000401';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then raise exception 'linked doctor should not update other-fluid rows'; end if;
 end $$;
 
 reset role;

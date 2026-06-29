@@ -46,9 +46,9 @@ export function PatientTimelineScreen({
   const locale = DEFAULT_LOCALE;
 
   return (
-    <SafeAreaView style={sharedStyles.screen}>
+    <SafeAreaView style={sharedStyles.formScreen}>
       <ScrollView
-        contentContainerStyle={sharedStyles.scrollContent}
+        contentContainerStyle={sharedStyles.formScrollContent}
         contentInsetAdjustmentBehavior="automatic"
       >
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'timeline.title')} />

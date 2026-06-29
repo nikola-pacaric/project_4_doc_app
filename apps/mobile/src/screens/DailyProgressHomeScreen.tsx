@@ -31,9 +31,11 @@ interface DailyProgressHomeScreenProps {
   onOpenSymptoms: () => void;
   onOpenEntry: (entry: PatientEntry) => void;
   onOpenTimeline: () => void;
+  onSubmitDay: () => void | Promise<void>;
   onSignOut: () => void | Promise<void>;
   canTrackMenstruation: boolean;
   dailyCompleted: boolean;
+  dailyReadyToSubmit: boolean;
   exerciseCompleted: boolean;
   exerciseRequired: boolean;
   medicationCompleted: boolean;
@@ -46,6 +48,9 @@ interface DailyProgressHomeScreenProps {
   recentEntries: PatientEntry[];
   error: string | null;
   loading: boolean;
+  submitDisabled: boolean;
+  submitBusy: boolean;
+  submitHelp: string;
 }
 
 interface QuickAction {
@@ -107,9 +112,11 @@ export function DailyProgressHomeScreen({
   onOpenSymptoms,
   onOpenEntry,
   onOpenTimeline,
+  onSubmitDay,
   onSignOut,
   canTrackMenstruation,
   dailyCompleted,
+  dailyReadyToSubmit,
   exerciseCompleted,
   exerciseRequired,
   medicationCompleted,
@@ -122,6 +129,9 @@ export function DailyProgressHomeScreen({
   recentEntries,
   error,
   loading,
+  submitDisabled,
+  submitBusy,
+  submitHelp,
 }: DailyProgressHomeScreenProps) {
   const locale = DEFAULT_LOCALE;
   const { width } = useWindowDimensions();
@@ -144,7 +154,7 @@ export function DailyProgressHomeScreen({
   const completedKinds = new Set(allTodayEntries.map((entry) => entry.kind));
   const completedItems = progressActions.filter((action) =>
     action.id === 'daily'
-      ? dailyCompleted
+      ? dailyCompleted || dailyReadyToSubmit
       : action.id === 'stool'
         ? stoolCompleted
         : completedKinds.has(actionEntryKinds[action.id]),
@@ -239,6 +249,7 @@ export function DailyProgressHomeScreen({
               const showPeriodStatus = action.id === 'period';
               const showStoolCompleted = action.id === 'stool' && stoolCompleted;
               const showDailyCompleted = action.id === 'daily' && dailyCompleted;
+              const showDailyReady = action.id === 'daily' && !dailyCompleted && dailyReadyToSubmit;
               const showSymptomsCompleted = action.id === 'symptoms' && symptomsCompleted;
               const exerciseStatusKey = exerciseCompleted
                 ? 'home.action.completed'
@@ -313,7 +324,7 @@ export function DailyProgressHomeScreen({
                       {t(locale, periodStatusKey)}
                     </Text>
                   ) : null}
-                  {showDailyCompleted ? (
+                  {showDailyCompleted || showDailyReady ? (
                     <Text style={[styles.actionStatus, styles.actionStatusCompleted]}>
                       {t(locale, 'home.action.completed')}
                     </Text>
@@ -351,7 +362,12 @@ export function DailyProgressHomeScreen({
             <View style={styles.entryList}>
               {todayEntries.map((entry) => {
                 const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
+                const dailyEntryReady = entry.kind === 'daily' && dailyReadyToSubmit;
                 const entryCompleted = entry.kind !== 'daily' || dailyCompleted;
+                const statusKey =
+                  entryCompleted || dailyEntryReady
+                    ? 'home.action.completed'
+                    : 'daily.statusDraft';
                 return (
                   <Pressable
                     accessibilityHint={t(locale, 'home.entryOpenHint')}
@@ -373,9 +389,12 @@ export function DailyProgressHomeScreen({
                     </View>
                     <View style={styles.entryTrailing}>
                       <Text
-                        style={[styles.entryStatus, !entryCompleted && styles.entryStatusDraft]}
+                        style={[
+                          styles.entryStatus,
+                          !entryCompleted && !dailyEntryReady && styles.entryStatusDraft,
+                        ]}
                       >
-                        {t(locale, entryCompleted ? 'home.action.completed' : 'daily.statusDraft')}
+                        {t(locale, statusKey)}
                       </Text>
                     </View>
                   </Pressable>
@@ -388,8 +407,16 @@ export function DailyProgressHomeScreen({
         </View>
 
         <View style={styles.submitBlock}>
-          <PrimaryButton disabled label={t(locale, 'home.submit')} onPress={() => undefined} />
-          <Text style={styles.submitHelp}>{t(locale, 'home.submitHelp')}</Text>
+          <PrimaryButton
+            busy={submitBusy}
+            disabled={submitDisabled}
+            label={t(locale, dailyCompleted ? 'home.submitCompleted' : 'home.submit')}
+            onPress={() => void onSubmitDay()}
+            variant={dailyCompleted ? 'secondary' : 'primary'}
+          />
+          <Text style={[styles.submitHelp, dailyCompleted && styles.submitHelpCompleted]}>
+            {submitHelp}
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -405,7 +432,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: spacing.xl,
     padding: spacing.lg,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.xl + spacing.lg,
   },
   headerGroup: {
     gap: spacing.md,
@@ -559,4 +586,5 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
   },
+  submitHelpCompleted: { color: '#16794b', fontWeight: '700' },
 });

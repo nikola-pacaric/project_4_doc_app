@@ -195,9 +195,9 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
   }
 
   return (
-    <SafeAreaView style={sharedStyles.screen}>
+    <SafeAreaView style={sharedStyles.formScreen}>
       <ScrollView
-        contentContainerStyle={sharedStyles.scrollContent}
+        contentContainerStyle={sharedStyles.formScrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'baseline.title')} />

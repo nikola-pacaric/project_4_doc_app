@@ -39,6 +39,12 @@ values
   ('10000000-0000-4000-8000-000000000602', 2.000, false, null)
 on conflict (entry_id) do nothing;
 
+insert into public.other_fluid_details (daily_entry_id, occurred_at, name)
+values
+  ('10000000-0000-4000-8000-000000000601', '2026-06-22 09:30:00+02', 'Tea'),
+  ('10000000-0000-4000-8000-000000000602', '2026-06-22 10:30:00+02', 'Coffee')
+on conflict do nothing;
+
 insert into public.meal_details (entry_id, meal_type, name, description)
 values
   ('10000000-0000-4000-8000-000000000603', 'breakfast', 'Oatmeal', 'With fruit'),
@@ -53,11 +59,17 @@ begin
   if has_table_privilege('anon', 'public.meal_details', 'SELECT') then
     raise exception 'anon must not have meal table privileges';
   end if;
+  if has_table_privilege('anon', 'public.other_fluid_details', 'SELECT') then
+    raise exception 'anon must not have other-fluid table privileges';
+  end if;
   if has_table_privilege('anon', 'public.meal_details', 'TRUNCATE') then
     raise exception 'anon must not be able to truncate meals';
   end if;
   if has_table_privilege('authenticated', 'public.meal_details', 'TRUNCATE') then
     raise exception 'authenticated users must not be able to truncate meals';
+  end if;
+  if has_table_privilege('authenticated', 'public.other_fluid_details', 'TRUNCATE') then
+    raise exception 'authenticated users must not be able to truncate other fluids';
   end if;
 end $$;
 
@@ -76,6 +88,12 @@ begin
     raise exception 'anon should not have table access to meals';
   exception when insufficient_privilege then null;
   end;
+
+  begin
+    perform count(*) from public.other_fluid_details;
+    raise exception 'anon should not have table access to other fluids';
+  exception when insufficient_privilege then null;
+  end;
 end $$;
 
 reset role;
@@ -87,6 +105,7 @@ do $$
 declare
   visible_food integer;
   visible_meals integer;
+  visible_other_fluids integer;
   changed_rows integer;
 begin
   select count(*) into visible_food from public.food_form_details;
@@ -94,6 +113,9 @@ begin
 
   select count(*) into visible_meals from public.meal_details;
   if visible_meals <> 1 then raise exception 'patient A should see 1 own meal'; end if;
+
+  select count(*) into visible_other_fluids from public.other_fluid_details;
+  if visible_other_fluids <> 1 then raise exception 'patient A should see 1 own other-fluid row'; end if;
 
   update public.meal_details set name = 'Updated oatmeal'
   where entry_id = '10000000-0000-4000-8000-000000000603';
@@ -133,6 +155,20 @@ begin
   exception when check_violation then null;
   end;
 
+  begin
+    insert into public.other_fluid_details (daily_entry_id, occurred_at, name)
+    values ('10000000-0000-4000-8000-000000000603', now(), 'Wrong parent');
+    raise exception 'other-fluid details should require a daily parent entry';
+  exception when check_violation then null;
+  end;
+
+  begin
+    insert into public.other_fluid_details (daily_entry_id, occurred_at, name)
+    values ('10000000-0000-4000-8000-000000000601', now(), '   ');
+    raise exception 'other-fluid name should be nonblank';
+  exception when check_violation then null;
+  end;
+
   insert into public.meal_details (entry_id, meal_type, name)
   values ('10000000-0000-4000-8000-000000000605', 'snack', 'Apple');
 
@@ -158,12 +194,16 @@ do $$
 declare
   visible_food integer;
   visible_meals integer;
+  visible_other_fluids integer;
 begin
   select count(*) into visible_food from public.food_form_details;
   if visible_food <> 0 then raise exception 'unlinked doctor should see 0 food forms'; end if;
 
   select count(*) into visible_meals from public.meal_details;
   if visible_meals <> 0 then raise exception 'unlinked doctor should see 0 meals'; end if;
+
+  select count(*) into visible_other_fluids from public.other_fluid_details;
+  if visible_other_fluids <> 0 then raise exception 'unlinked doctor should see 0 other-fluid rows'; end if;
 end $$;
 
 reset role;
@@ -181,6 +221,7 @@ do $$
 declare
   visible_food integer;
   visible_meals integer;
+  visible_other_fluids integer;
   changed_rows integer;
 begin
   select count(*) into visible_food from public.food_form_details;
@@ -188,6 +229,9 @@ begin
 
   select count(*) into visible_meals from public.meal_details;
   if visible_meals <> 1 then raise exception 'linked doctor should see 1 linked meal'; end if;
+
+  select count(*) into visible_other_fluids from public.other_fluid_details;
+  if visible_other_fluids <> 1 then raise exception 'linked doctor should see 1 linked other-fluid row'; end if;
 
   update public.meal_details set name = 'Doctor attempted edit'
   where entry_id = '10000000-0000-4000-8000-000000000603';

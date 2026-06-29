@@ -54,10 +54,11 @@ set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000701';
 
 do $$
 declare
-  daily_entry_id uuid;
+  v_daily_entry_id uuid;
   breakfast_entry_id uuid;
   saved_water numeric;
   meal_count integer;
+  other_fluid_count integer;
 begin
   select public.save_patient_food_form(
     '2026-06-22 00:00:00+02',
@@ -67,11 +68,11 @@ begin
     false,
     null,
     '[]'::jsonb
-  ) into daily_entry_id;
+  ) into v_daily_entry_id;
 
   select water_liters into saved_water
   from public.food_form_details
-  where entry_id = daily_entry_id;
+  where entry_id = v_daily_entry_id;
   if saved_water <> 1.000 then raise exception 'morning hydration checkpoint was not saved'; end if;
 
   select count(*) into meal_count
@@ -87,7 +88,7 @@ begin
     1.500,
     true,
     'Tea',
-    '[{"meal_type":"breakfast","name":"Oatmeal","description":"With fruit"}]'::jsonb
+    '[{"meal_type":"breakfast","name":"Oatmeal","description":"With fruit","occurred_at":"2026-06-22T09:00:00+02:00"}]'::jsonb
   );
 
   select entry.id into breakfast_entry_id
@@ -109,12 +110,14 @@ begin
         'entry_id', breakfast_entry_id,
         'meal_type', 'breakfast',
         'name', 'Oatmeal and banana',
-        'description', null
+        'description', null,
+        'occurred_at', '2026-06-22T09:15:00+02:00'
       ),
       jsonb_build_object(
         'meal_type', 'lunch',
         'name', 'Soup',
-        'description', 'With bread'
+        'description', 'With bread',
+        'occurred_at', '2026-06-22T13:00:00+02:00'
       )
     )
   );
@@ -125,6 +128,82 @@ begin
     and kind = 'meal';
   if meal_count <> 2 then raise exception 'later checkpoint should contain breakfast and lunch'; end if;
 
+  perform public.save_patient_food_form(
+    '2026-06-22 00:00:00+02',
+    '2026-06-23 00:00:00+02',
+    '2026-06-22 12:00:00+02',
+    1.900,
+    true,
+    'project4:other-fluids:v1:[{"occurredAt":"2026-06-22T09:30:00+02:00","name":"Coffee"},{"occurredAt":"2026-06-22T17:15:00+02:00","name":"Tea"}]',
+    '[]'::jsonb
+  );
+
+  select count(*) into other_fluid_count
+  from public.other_fluid_details fluid
+  where fluid.daily_entry_id = v_daily_entry_id;
+  if other_fluid_count <> 2 then
+    raise exception 'structured other-fluid checkpoint should save 2 rows, found %', other_fluid_count;
+  end if;
+
+  perform public.save_patient_food_form(
+    '2026-06-22 00:00:00+02',
+    '2026-06-23 00:00:00+02',
+    '2026-06-22 12:00:00+02',
+    2.100,
+    true,
+    'project4:other-fluids:v1:[{"occurredAt":"2026-06-22T20:00:00+02:00","name":"Kefir"}]',
+    '[]'::jsonb
+  );
+
+  select count(*) into other_fluid_count
+  from public.other_fluid_details fluid
+  where fluid.daily_entry_id = v_daily_entry_id;
+  if other_fluid_count <> 1 then
+    raise exception 'later structured other-fluid checkpoint should replace rows, found %', other_fluid_count;
+  end if;
+
+  begin
+    perform public.save_patient_food_form(
+      '2026-06-22 00:00:00+02',
+      '2026-06-23 00:00:00+02',
+      '2026-06-22 12:00:00+02',
+      2.500,
+      true,
+      'project4:other-fluids:v1:[{"occurredAt":"2026-06-22T11:00:00+02:00","name":"   "}]',
+      '[]'::jsonb
+    );
+    raise exception 'blank structured other-fluid names should fail';
+  exception when invalid_parameter_value then null;
+  end;
+
+  select count(*) into other_fluid_count
+  from public.other_fluid_details fluid
+  where fluid.daily_entry_id = v_daily_entry_id;
+  if other_fluid_count <> 1 then
+    raise exception 'failed structured other-fluid checkpoint should roll rows back, found %', other_fluid_count;
+  end if;
+
+  begin
+    perform public.save_patient_food_form(
+      '2026-06-22 00:00:00+02',
+      '2026-06-23 00:00:00+02',
+      '2026-06-22 12:00:00+02',
+      2.500,
+      true,
+      'project4:other-fluids:v1:[{"occurredAt":"2026-06-23T00:05:00+02:00","name":"Late tea"}]',
+      '[]'::jsonb
+    );
+    raise exception 'out-of-day structured other-fluid times should fail';
+  exception when invalid_parameter_value then null;
+  end;
+
+  select count(*) into other_fluid_count
+  from public.other_fluid_details fluid
+  where fluid.daily_entry_id = v_daily_entry_id;
+  if other_fluid_count <> 1 then
+    raise exception 'failed out-of-day checkpoint should preserve previous other-fluid rows, found %', other_fluid_count;
+  end if;
+
   begin
     perform public.save_patient_food_form(
       '2026-06-22 00:00:00+02',
@@ -133,7 +212,7 @@ begin
       9.000,
       false,
       null,
-      '[{"entry_id":"10000000-0000-4000-8000-000000000702","meal_type":"lunch","name":"Forbidden update"}]'::jsonb
+      '[{"entry_id":"10000000-0000-4000-8000-000000000702","meal_type":"lunch","name":"Forbidden update","occurred_at":"2026-06-22T12:00:00+02:00"}]'::jsonb
     );
     raise exception 'cross-patient meal update should fail';
   exception when insufficient_privilege then null;
@@ -141,8 +220,8 @@ begin
 
   select water_liters into saved_water
   from public.food_form_details
-  where entry_id = daily_entry_id;
-  if saved_water <> 1.750 then
+  where entry_id = v_daily_entry_id;
+  if saved_water <> 2.100 then
     raise exception 'failed checkpoint should roll hydration back, found %', saved_water;
   end if;
 
@@ -150,7 +229,7 @@ begin
   from public.patient_entries
   where patient_id = '00000000-0000-4000-8000-000000000701'
     and kind = 'meal';
-  if meal_count <> 2 then raise exception 'failed checkpoint should preserve existing meals'; end if;
+  if meal_count <> 0 then raise exception 'failed checkpoint should preserve the current empty meal set'; end if;
 
   perform public.save_patient_food_form(
     '2026-06-22 00:00:00+02',
@@ -167,6 +246,11 @@ begin
   where patient_id = '00000000-0000-4000-8000-000000000701'
     and kind = 'meal';
   if meal_count <> 0 then raise exception 'empty meal checkpoint should remove tracked-day meals'; end if;
+
+  select count(*) into other_fluid_count
+  from public.other_fluid_details fluid
+  where fluid.daily_entry_id = v_daily_entry_id;
+  if other_fluid_count <> 0 then raise exception 'empty fluid checkpoint should remove other-fluid rows'; end if;
 end $$;
 
 reset role;

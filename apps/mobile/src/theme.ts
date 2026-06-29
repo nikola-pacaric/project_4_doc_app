@@ -1,5 +1,5 @@
 import { lightTheme, spacing, typography } from '@project4/ui-tokens';
-import { StyleSheet } from 'react-native';
+import { Platform, StatusBar, StyleSheet } from 'react-native';
 
 export const colors = lightTheme.colors;
 
@@ -8,9 +8,21 @@ export const sharedStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  formScreen: {
+    flex: 1,
+    backgroundColor: colors.background,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) + spacing.sm : 0,
+  },
   scrollContent: {
     flexGrow: 1,
     padding: spacing.lg,
+    gap: spacing.lg,
+  },
+  formScrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl + spacing.lg,
     gap: spacing.lg,
   },
   heading: {
