@@ -2,13 +2,14 @@ import type { MealDraft, MealType } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 
 interface MealFieldsProps {
+  createMeal: () => MealDraft;
   meals: MealDraft[];
   onChange: (meals: MealDraft[]) => void;
 }
 
 const mealTypes: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack', 'other'];
 
-export function MealFields({ meals, onChange }: MealFieldsProps) {
+export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
   const locale = DEFAULT_LOCALE;
 
   function updateMeal(index: number, update: Partial<MealDraft>) {
@@ -43,6 +44,19 @@ export function MealFields({ meals, onChange }: MealFieldsProps) {
           {meal.type ? (
             <div className="meal-details conditional-field-bubble">
               <label>
+                <span>{t(locale, 'meal.time')}</span>
+                <input
+                  onChange={(event) =>
+                    updateMeal(index, {
+                      occurredAt: `${meal.occurredAt?.slice(0, 10) ?? ''} ${event.target.value}`,
+                    })
+                  }
+                  required
+                  type="time"
+                  value={meal.occurredAt?.slice(11, 16) ?? ''}
+                />
+              </label>
+              <label>
                 <span>{t(locale, 'meal.name')}</span>
                 <input
                   onChange={(event) => updateMeal(index, { name: event.target.value })}
@@ -73,10 +87,10 @@ export function MealFields({ meals, onChange }: MealFieldsProps) {
       ))}
       <button
         className="secondary-button add-meal-button"
-        onClick={() => onChange([...meals, { description: '' }])}
+        onClick={() => onChange([...meals, createMeal()])}
         type="button"
       >
-        <span aria-hidden="true">＋</span> {t(locale, 'meal.add')}
+        <span aria-hidden="true">+</span> {t(locale, 'meal.add')}
       </button>
     </fieldset>
   );

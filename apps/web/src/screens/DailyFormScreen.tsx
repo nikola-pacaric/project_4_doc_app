@@ -21,8 +21,11 @@ import { formatTimeInput } from '../utils/timeInput';
 interface DailyFormScreenProps {
   client: AppSupabaseClient;
   onActivityAnswerChange: (answer: boolean | undefined) => void;
+  onMedicationAnswerChange: (answer: boolean | undefined) => void;
+  onMenstruationAnswerChange: (answer: boolean | undefined) => void;
   profile: UserProfile;
   onBack: () => void;
+  onSaved: () => void;
 }
 
 function localDateValue(date: Date): string {
@@ -70,8 +73,11 @@ function toDraft(details: DailyFormDetails | null): DailyFormDraft {
 export function DailyFormScreen({
   client,
   onActivityAnswerChange,
+  onMedicationAnswerChange,
+  onMenstruationAnswerChange,
   profile,
   onBack,
+  onSaved,
 }: DailyFormScreenProps) {
   const locale = DEFAULT_LOCALE;
   const day = localDateValue(new Date());
@@ -104,6 +110,8 @@ export function DailyFormScreen({
         if (!nextHasChronicTherapy) nextDraft.tookChronicTherapy = false;
         setDraft(nextDraft);
         onActivityAnswerChange(nextDraft.hadPhysicalActivity);
+        onMedicationAnswerChange(nextDraft.tookMedicationOutsideChronicTherapy);
+        onMenstruationAnswerChange(nextDraft.hadMenstruation);
       })
       .catch(() => {
         if (active) setError(t(locale, 'daily.loadError'));
@@ -115,7 +123,15 @@ export function DailyFormScreen({
     return () => {
       active = false;
     };
-  }, [client, day, locale, onActivityAnswerChange, profile.id]);
+  }, [
+    client,
+    day,
+    locale,
+    onActivityAnswerChange,
+    onMedicationAnswerChange,
+    onMenstruationAnswerChange,
+    profile.id,
+  ]);
 
   async function save(mode: 'progress' | 'complete') {
     if (mode === 'progress' && !hasDailyFormProgress(draft)) {
@@ -149,6 +165,7 @@ export function DailyFormScreen({
       setCompletedAt(saved?.details.completedAt ?? undefined);
       setDraft(toDraft(saved?.details ?? null));
       setMessage(t(locale, mode === 'complete' ? 'daily.completed' : 'daily.saved'));
+      onSaved();
     } catch {
       setError(t(locale, 'daily.saveError'));
     } finally {
@@ -350,13 +367,14 @@ export function DailyFormScreen({
                   aria-checked={draft.tookMedicationOutsideChronicTherapy === answer}
                   className={draft.tookMedicationOutsideChronicTherapy === answer ? 'selected' : ''}
                   key={String(answer)}
-                  onClick={() =>
+                  onClick={() => {
                     setDraft((value) => ({
                       ...value,
                       tookMedicationOutsideChronicTherapy: answer,
                       medicationOutsideChronicTherapy: '',
-                    }))
-                  }
+                    }));
+                    onMedicationAnswerChange(answer);
+                  }}
                   role="radio"
                   type="button"
                 >
@@ -379,13 +397,14 @@ export function DailyFormScreen({
                     aria-checked={draft.hadMenstruation === answer}
                     className={draft.hadMenstruation === answer ? 'selected' : ''}
                     key={String(answer)}
-                    onClick={() =>
+                    onClick={() => {
                       setDraft((value) => ({
                         ...value,
                         hadMenstruation: answer,
                         menstruationNotes: '',
-                      }))
-                    }
+                      }));
+                      onMenstruationAnswerChange(answer);
+                    }}
                     role="radio"
                     type="button"
                   >
@@ -420,7 +439,15 @@ export function DailyFormScreen({
               onClick={() => void save('progress')}
               type="button"
             >
-              {t(locale, 'common.save')}
+              {t(locale, 'daily.saveProgress')}
+            </button>
+            <button
+              className="primary-button"
+              disabled={saving || Boolean(completedAt)}
+              onClick={() => void save('complete')}
+              type="button"
+            >
+              {t(locale, completedAt ? 'daily.statusComplete' : 'home.submit')}
             </button>
           </div>
         </form>

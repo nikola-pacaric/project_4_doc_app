@@ -865,7 +865,9 @@ button:focus-visible {
   padding: 16px;
 }
 
-.meal-section legend {
+.meal-section legend,
+.fluid-section legend,
+.hydration-section legend {
   padding: 0 6px;
   color: #34292d;
   font-size: 17px;
@@ -884,12 +886,15 @@ button:focus-visible {
 }
 
 .meal-card > label,
-.meal-details label {
+.meal-details label,
+.fluid-card label,
+.hydration-section label {
   display: grid;
   gap: 7px;
 }
 
-.meal-details {
+.meal-details,
+.fluid-card {
   display: grid;
   gap: 12px;
   margin-top: 10px;
@@ -912,6 +917,24 @@ button:focus-visible {
 
 .text-button.danger {
   color: #b42318;
+}
+
+.food-form {
+  align-items: start;
+}
+
+.fluid-section,
+.hydration-section {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid #f0dfe1;
+  border-radius: 18px;
+  background: #fffafb;
+  padding: 16px;
+}
+
+.fluid-card + .fluid-card {
+  margin-top: 12px;
 }
 
 .symptom-form,
@@ -1244,6 +1267,272 @@ button:focus-visible {
   padding-top: 16px;
 }
 
+.web-home-layout {
+  min-height: 100%;
+  display: grid;
+  gap: 24px;
+  padding: 28px;
+}
+
+.web-home-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.web-home-greeting {
+  display: grid;
+  gap: 8px;
+}
+
+.web-home-date {
+  margin: 0;
+  color: #806c73;
+  font-size: 14px;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.web-home-greeting h1 {
+  max-width: 720px;
+  margin: 0;
+  color: #34292d;
+  font-size: 42px;
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.web-home-account {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.web-home-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.15fr) minmax(260px, 0.85fr);
+  gap: 18px;
+}
+
+.web-progress-panel,
+.web-submit-panel,
+.web-home-section {
+  border: 1px solid #eadfe2;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(84, 59, 68, 0.07);
+}
+
+.web-progress-panel,
+.web-submit-panel {
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 22px;
+}
+
+.web-progress-panel h2,
+.web-submit-panel h2,
+.web-home-section h2 {
+  margin: 0;
+  color: #34292d;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.web-progress-panel p,
+.web-submit-panel p {
+  margin: 6px 0 0;
+  color: #806c73;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.web-progress-ring {
+  width: 96px;
+  height: 96px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, #ffffff 58%, transparent 59%),
+    conic-gradient(#f45b7a var(--progress), #f4e7ea 0);
+}
+
+.web-progress-ring span {
+  color: #34292d;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.web-submit-panel {
+  align-items: stretch;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.web-home-section {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+}
+
+.web-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.web-action-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 14px;
+}
+
+.web-action-card {
+  min-width: 0;
+  min-height: 138px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 9px;
+  border: 1px solid #f0dfe1;
+  border-radius: 18px;
+  background: #fffafb;
+  color: #34292d;
+  padding: 14px 10px;
+  text-align: center;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.web-action-card:hover {
+  border-color: #f45b7a;
+  box-shadow: 0 12px 24px rgba(244, 91, 122, 0.13);
+  transform: translateY(-2px);
+}
+
+.web-action-card.required {
+  border-color: #d97706;
+  background: #fff7ea;
+}
+
+.web-action-card.completed {
+  border-color: #bde5cc;
+  background: #f5fbf7;
+}
+
+.web-action-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  background: #fff0f3;
+  color: #e84f70;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.web-action-card strong {
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.web-action-card small {
+  color: #806c73;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.web-recent-list {
+  display: grid;
+  gap: 10px;
+}
+
+.web-recent-entry {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #f2e5e7;
+  border-radius: 16px;
+  background: #fffafb;
+  padding: 10px;
+}
+
+.web-recent-entry > button {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  color: #34292d;
+  padding: 0;
+  text-align: left;
+}
+
+.web-entry-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #e84f70;
+  font-size: 19px;
+  font-weight: 900;
+}
+
+.web-recent-entry strong,
+.web-recent-entry small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.web-recent-entry strong {
+  color: #34292d;
+  font-size: 15px;
+}
+
+.web-recent-entry small {
+  margin-top: 3px;
+  color: #806c73;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.web-entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-left: 54px;
+}
+
+.web-entry-actions button {
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  color: #e84f70;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.web-entry-actions button:last-child {
+  color: #b42318;
+}
+
 @media (max-width: 390px) {
   .baseline-form {
     grid-template-columns: 1fr;
@@ -1512,5 +1801,39 @@ button:focus-visible {
 
   .web-app-content .baseline-toolbar > .summary {
     grid-column: auto;
+  }
+
+  .web-home-layout {
+    padding: 18px;
+  }
+
+  .web-home-hero,
+  .web-home-account,
+  .web-section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .web-home-greeting h1 {
+    font-size: 30px;
+  }
+
+  .web-home-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .web-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .web-action-card {
+    min-height: 124px;
+  }
+
+}
+
+@media (min-width: 701px) and (max-width: 1040px) {
+  .web-action-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
