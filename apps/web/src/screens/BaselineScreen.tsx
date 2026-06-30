@@ -5,7 +5,7 @@ import {
   parseRecentMajorWeightChange,
   type BaselineProfileDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
 import {
   getPatientBaseline,
   savePatientBaseline,
@@ -21,7 +21,7 @@ interface BaselineScreenProps {
   onBack: () => void;
 }
 
-const sexOptions: Array<{ value: PatientSex; key: Parameters<typeof t>[1] }> = [
+const sexOptions: Array<{ value: PatientSex; key: TranslationKey }> = [
   { value: 'female', key: 'baseline.sexFemale' },
   { value: 'male', key: 'baseline.sexMale' },
   { value: 'other', key: 'baseline.sexOther' },
@@ -44,7 +44,58 @@ function toDraft(current: PatientBaselineProfile | null): BaselineProfileDraft {
 }
 
 function optionalNumber(value: string): number | undefined {
-  return value === '' ? undefined : Number(value);
+  return value.trim() === '' ? undefined : Number(value.replace(',', '.'));
+}
+
+interface ChronicTherapyInput {
+  name: string;
+  dose: string;
+}
+
+function parseDiseaseNames(value: string | null | undefined): string[] {
+  const names = value
+    ?.split(/\r?\n/)
+    .map((name) => name.trim())
+    .filter(Boolean);
+  return names?.length ? names : [''];
+}
+
+function parseChronicTherapies(value: string | null | undefined): ChronicTherapyInput[] {
+  const therapies = value
+    ?.split(/\r?\n/)
+    .map((line) => {
+      const [name = '', ...doseParts] = line.split(/\s+[—-]\s+/);
+      return { name: name.trim(), dose: doseParts.join(' - ').trim() };
+    })
+    .filter(({ name, dose }) => name || dose);
+  return therapies?.length ? therapies : [{ name: '', dose: '' }];
+}
+
+function serializeDiseaseNames(names: string[]): string {
+  return names
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .join('\n');
+}
+
+function serializeChronicTherapies(therapies: ChronicTherapyInput[]): string {
+  return therapies
+    .map(({ name, dose }) => {
+      const trimmedName = name.trim();
+      const trimmedDose = dose.trim();
+      if (!trimmedName && !trimmedDose) return '';
+      return trimmedDose ? `${trimmedName} — ${trimmedDose}` : trimmedName;
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+function savedYesNoFromText(
+  profile: PatientBaselineProfile | null,
+  value: string | null | undefined,
+): boolean | undefined {
+  if (!profile) return undefined;
+  return Boolean(value?.trim());
 }
 
 export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps) {
@@ -55,6 +106,12 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [hasChronicDiseases, setHasChronicDiseases] = useState<boolean>();
+  const [hasChronicTherapy, setHasChronicTherapy] = useState<boolean>();
+  const [chronicDiseaseNames, setChronicDiseaseNames] = useState<string[]>(['']);
+  const [chronicTherapies, setChronicTherapies] = useState<ChronicTherapyInput[]>([
+    { name: '', dose: '' },
+  ]);
 
   useEffect(() => {
     let active = true;
@@ -63,6 +120,10 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
         if (!active) return;
         setCurrent(loaded);
         setDraft(toDraft(loaded));
+        setHasChronicDiseases(savedYesNoFromText(loaded, loaded?.chronicDiseases));
+        setHasChronicTherapy(savedYesNoFromText(loaded, loaded?.chronicTherapy));
+        setChronicDiseaseNames(parseDiseaseNames(loaded?.chronicDiseases));
+        setChronicTherapies(parseChronicTherapies(loaded?.chronicTherapy));
       })
       .catch(() => {
         if (active) setError(t(locale, 'baseline.loadError'));
@@ -77,7 +138,13 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!isCompleteBaselineProfile(draft)) {
+    if (
+      !isCompleteBaselineProfile(draft) ||
+      hasChronicDiseases === undefined ||
+      hasChronicTherapy === undefined ||
+      (hasChronicDiseases && chronicDiseaseNames.some((name) => !name.trim())) ||
+      (hasChronicTherapy && chronicTherapies.some(({ name, dose }) => !name.trim() || !dose.trim()))
+    ) {
       setError(t(locale, 'baseline.requiredError'));
       return;
     }
@@ -90,6 +157,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
       setCurrent(saved);
       setDraft(toDraft(saved));
       setMessage(t(locale, 'baseline.saved'));
+      onBack();
     } catch {
       setError(t(locale, 'baseline.saveError'));
     } finally {
@@ -107,25 +175,29 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading ? (
         <form className="baseline-form" onSubmit={(event) => void submit(event)}>
-          <label>
-            <span>{t(locale, 'baseline.sex')}</span>
-            <select
-              onChange={(event) =>
-                setDraft((value) => ({ ...value, sex: event.target.value as PatientSex }))
-              }
-              required
-              value={draft.sex ?? ''}
+          <div className="full-width choice-field">
+            <span className="choice-label" id="baseline-sex-label">
+              {t(locale, 'baseline.sex')}
+            </span>
+            <div
+              aria-labelledby="baseline-sex-label"
+              className="choice-row four-options"
+              role="radiogroup"
             >
-              <option disabled value="">
-                —
-              </option>
               {sexOptions.map((option) => (
-                <option key={option.value} value={option.value}>
+                <button
+                  aria-checked={draft.sex === option.value}
+                  className={draft.sex === option.value ? 'selected' : ''}
+                  key={option.value}
+                  onClick={() => setDraft((value) => ({ ...value, sex: option.value }))}
+                  role="radio"
+                  type="button"
+                >
                   {t(locale, option.key)}
-                </option>
+                </button>
               ))}
-            </select>
-          </label>
+            </div>
+          </div>
           <label>
             <span>{t(locale, 'baseline.birthYear')}</span>
             <input
@@ -225,26 +297,194 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
               </label>
             </div>
           ) : null}
-          <label className="full-width">
-            <span>{t(locale, 'baseline.chronicDiseases')}</span>
-            <textarea
-              onChange={(event) =>
-                setDraft((value) => ({ ...value, chronicDiseases: event.target.value }))
-              }
-              rows={3}
-              value={draft.chronicDiseases ?? ''}
-            />
-          </label>
-          <label className="full-width">
-            <span>{t(locale, 'baseline.chronicTherapy')}</span>
-            <textarea
-              onChange={(event) =>
-                setDraft((value) => ({ ...value, chronicTherapy: event.target.value }))
-              }
-              rows={3}
-              value={draft.chronicTherapy ?? ''}
-            />
-          </label>
+          <div className="full-width choice-field">
+            <span className="choice-label" id="chronic-diseases-label">
+              {t(locale, 'baseline.chronicDiseases')}
+            </span>
+            <div
+              aria-labelledby="chronic-diseases-label"
+              className="choice-row"
+              role="radiogroup"
+            >
+              {([true, false] as const).map((answer) => (
+                <button
+                  aria-checked={hasChronicDiseases === answer}
+                  className={hasChronicDiseases === answer ? 'selected' : ''}
+                  key={String(answer)}
+                  onClick={() => {
+                    setHasChronicDiseases(answer);
+                    if (!answer) {
+                      setHasChronicTherapy(false);
+                      setDraft((value) => ({
+                        ...value,
+                        chronicDiseases: '',
+                        chronicTherapy: '',
+                      }));
+                      setChronicDiseaseNames(['']);
+                      setChronicTherapies([{ name: '', dose: '' }]);
+                    }
+                  }}
+                  role="radio"
+                  type="button"
+                >
+                  {t(locale, answer ? 'common.yes' : 'common.no')}
+                </button>
+              ))}
+            </div>
+          </div>
+          {hasChronicDiseases ? (
+            <div className="full-width conditional-field-bubble repeatable-field">
+              {chronicDiseaseNames.map((name, index) => (
+                <div className="repeatable-item" key={index}>
+                  <label>
+                    <span>{t(locale, 'baseline.chronicDiseaseName')}</span>
+                    <input
+                      onChange={(event) => {
+                        const next = chronicDiseaseNames.map((current, currentIndex) =>
+                          currentIndex === index ? event.target.value : current,
+                        );
+                        setChronicDiseaseNames(next);
+                        setDraft((value) => ({
+                          ...value,
+                          chronicDiseases: serializeDiseaseNames(next),
+                        }));
+                      }}
+                      required
+                      value={name}
+                    />
+                  </label>
+                  {chronicDiseaseNames.length > 1 ? (
+                    <button
+                      className="remove-inline-button"
+                      onClick={() => {
+                        const next = chronicDiseaseNames.filter(
+                          (_current, currentIndex) => currentIndex !== index,
+                        );
+                        setChronicDiseaseNames(next);
+                        setDraft((value) => ({
+                          ...value,
+                          chronicDiseases: serializeDiseaseNames(next),
+                        }));
+                      }}
+                      type="button"
+                    >
+                      {t(locale, 'common.remove')}
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+              <button
+                className="add-inline-button"
+                onClick={() => setChronicDiseaseNames((current) => [...current, ''])}
+                type="button"
+              >
+                + {t(locale, 'baseline.addChronicDisease')}
+              </button>
+            </div>
+          ) : null}
+          <div className="full-width choice-field">
+            <span className="choice-label" id="chronic-therapy-label">
+              {t(locale, 'baseline.chronicTherapy')}
+            </span>
+            <div
+              aria-labelledby="chronic-therapy-label"
+              className="choice-row"
+              role="radiogroup"
+            >
+              {([true, false] as const).map((answer) => (
+                <button
+                  aria-checked={hasChronicTherapy === answer}
+                  className={hasChronicTherapy === answer ? 'selected' : ''}
+                  key={String(answer)}
+                  onClick={() => {
+                    setHasChronicTherapy(answer);
+                    if (!answer) {
+                      setDraft((value) => ({ ...value, chronicTherapy: '' }));
+                      setChronicTherapies([{ name: '', dose: '' }]);
+                    }
+                  }}
+                  role="radio"
+                  type="button"
+                >
+                  {t(locale, answer ? 'common.yes' : 'common.no')}
+                </button>
+              ))}
+            </div>
+          </div>
+          {hasChronicTherapy ? (
+            <div className="full-width conditional-field-bubble repeatable-field">
+              {chronicTherapies.map((therapy, index) => (
+                <div className="repeatable-item" key={index}>
+                  <label>
+                    <span>{t(locale, 'baseline.chronicTherapyName')}</span>
+                    <input
+                      autoCapitalize="words"
+                      onChange={(event) => {
+                        const next = chronicTherapies.map((current, currentIndex) =>
+                          currentIndex === index
+                            ? { ...current, name: event.target.value }
+                            : current,
+                        );
+                        setChronicTherapies(next);
+                        setDraft((value) => ({
+                          ...value,
+                          chronicTherapy: serializeChronicTherapies(next),
+                        }));
+                      }}
+                      required
+                      value={therapy.name}
+                    />
+                  </label>
+                  <label>
+                    <span>{t(locale, 'baseline.chronicTherapyDose')}</span>
+                    <input
+                      onChange={(event) => {
+                        const next = chronicTherapies.map((current, currentIndex) =>
+                          currentIndex === index
+                            ? { ...current, dose: event.target.value }
+                            : current,
+                        );
+                        setChronicTherapies(next);
+                        setDraft((value) => ({
+                          ...value,
+                          chronicTherapy: serializeChronicTherapies(next),
+                        }));
+                      }}
+                      required
+                      value={therapy.dose}
+                    />
+                  </label>
+                  {chronicTherapies.length > 1 ? (
+                    <button
+                      className="remove-inline-button"
+                      onClick={() => {
+                        const next = chronicTherapies.filter(
+                          (_current, currentIndex) => currentIndex !== index,
+                        );
+                        setChronicTherapies(next);
+                        setDraft((value) => ({
+                          ...value,
+                          chronicTherapy: serializeChronicTherapies(next),
+                        }));
+                      }}
+                      type="button"
+                    >
+                      {t(locale, 'common.remove')}
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+              <button
+                className="add-inline-button"
+                onClick={() =>
+                  setChronicTherapies((current) => [...current, { name: '', dose: '' }])
+                }
+                type="button"
+              >
+                + {t(locale, 'baseline.addChronicTherapy')}
+              </button>
+            </div>
+          ) : null}
           {draft.sex === 'female' ? (
             <label className="full-width">
               <span>{t(locale, 'baseline.menstrualHistory')}</span>

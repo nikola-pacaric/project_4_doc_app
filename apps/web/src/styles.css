@@ -668,6 +668,43 @@ button:focus-visible {
   animation: conditional-bubble-open 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.repeatable-field {
+  display: grid;
+  gap: 14px;
+}
+
+.repeatable-item {
+  display: grid;
+  gap: 10px;
+  border-bottom: 1px solid #f0dfe1;
+  padding-bottom: 14px;
+}
+
+.repeatable-item:last-of-type {
+  border-bottom: 0;
+}
+
+.add-inline-button {
+  min-height: 48px;
+  border: 1px dashed #f45b7a;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #e84f70;
+  padding: 10px 12px;
+  font-weight: 850;
+}
+
+.remove-inline-button {
+  justify-self: end;
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  color: #b42318;
+  padding: 2px 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
 @keyframes conditional-bubble-open {
   from {
     opacity: 0;
