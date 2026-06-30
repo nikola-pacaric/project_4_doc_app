@@ -1,8 +1,11 @@
 import type { UserProfile } from '@project4/contracts';
 import {
   dailyFormDefaults,
+  formatDailyFormMissingFields,
+  getDailyFormMissingFields,
   hasDailyFormProgress,
   isCompleteDailyForm,
+  toDailyFormDraft,
   type DailyFormDraft,
 } from '@project4/forms';
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
@@ -22,11 +25,6 @@ import { OptionButtons } from '../components/OptionButtons';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { colors, sharedStyles } from '../theme';
-import {
-  formatDailyFormMissingFields,
-  getDailyFormMissingFields,
-  toDailyFormDraft,
-} from '../utils/dailyFormCompletion';
 import { formatTimeInput, localDayRange, toLocalDateInput } from '../utils/dateTime';
 
 interface DailyFormScreenProps {

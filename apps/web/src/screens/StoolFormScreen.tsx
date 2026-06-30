@@ -64,9 +64,6 @@ export function StoolFormScreen({ client, onBack, onSaved, profile }: StoolFormS
           subtitle={t(locale, 'stool.subtitle')}
           title={t(locale, 'stool.title')}
         />
-        <button className="secondary-button" onClick={onBack} type="button">
-          {t(locale, 'common.cancel')}
-        </button>
       </div>
 
       <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>

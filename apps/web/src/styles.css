@@ -1326,6 +1326,11 @@ button:focus-visible {
   box-shadow: 0 14px 34px rgba(84, 59, 68, 0.07);
 }
 
+.web-progress-panel {
+  justify-content: center;
+  background: linear-gradient(135deg, #fff6f8 0%, #ffffff 72%);
+}
+
 .web-progress-panel,
 .web-submit-panel {
   min-height: 150px;
@@ -1351,6 +1356,7 @@ button:focus-visible {
   color: #806c73;
   font-size: 15px;
   line-height: 1.45;
+  text-align: center;
 }
 
 .web-progress-ring {
@@ -1363,6 +1369,9 @@ button:focus-visible {
   background:
     radial-gradient(circle at center, #ffffff 58%, transparent 59%),
     conic-gradient(#f45b7a var(--progress), #f4e7ea 0);
+  box-shadow:
+    0 10px 24px rgba(244, 91, 122, 0.1),
+    inset 0 0 0 1px rgba(244, 91, 122, 0.08);
 }
 
 .web-progress-ring span {
@@ -1392,22 +1401,23 @@ button:focus-visible {
 
 .web-action-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(120px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(8, minmax(86px, 1fr));
+  justify-content: stretch;
+  gap: 10px;
 }
 
 .web-action-card {
   min-width: 0;
-  min-height: 138px;
+  min-height: 92px;
   display: grid;
   align-content: center;
   justify-items: center;
-  gap: 9px;
+  gap: 5px;
   border: 1px solid #f0dfe1;
-  border-radius: 18px;
+  border-radius: 14px;
   background: #fffafb;
   color: #34292d;
-  padding: 14px 10px;
+  padding: 8px 6px;
   text-align: center;
   transition:
     border-color 160ms ease,
@@ -1432,25 +1442,28 @@ button:focus-visible {
 }
 
 .web-action-icon {
-  width: 46px;
-  height: 46px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  border-radius: 15px;
+  border-radius: 13px;
   background: #fff0f3;
   color: #e84f70;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 900;
 }
 
 .web-action-card strong {
-  font-size: 15px;
+  max-width: 100%;
+  font-size: 12px;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .web-action-card small {
   color: #806c73;
-  font-size: 11px;
+  font-size: 9px;
+  line-height: 1.2;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -1768,8 +1781,31 @@ button:focus-visible {
 @media (max-width: 700px) {
   .web-topbar-inner,
   .web-app-content {
-    padding-right: 16px;
-    padding-left: 16px;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .web-topbar-inner {
+    min-height: 66px;
+  }
+
+  .web-brand {
+    gap: 9px;
+  }
+
+  .web-brand-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    font-size: 16px;
+  }
+
+  .web-brand strong {
+    font-size: 16px;
+  }
+
+  .web-brand div span {
+    font-size: 11px;
   }
 
   .web-security-chip {
@@ -1804,7 +1840,8 @@ button:focus-visible {
   }
 
   .web-home-layout {
-    padding: 18px;
+    gap: 14px;
+    padding: 14px 0;
   }
 
   .web-home-hero,
@@ -1814,26 +1851,170 @@ button:focus-visible {
     flex-direction: column;
   }
 
+  .web-section-heading {
+    align-items: center;
+    flex-direction: row;
+  }
+
   .web-home-greeting h1 {
-    font-size: 30px;
+    font-size: 26px;
+    line-height: 1.08;
+  }
+
+  .web-home-date {
+    font-size: 13px;
+  }
+
+  .web-home-account {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .web-home-account .secondary-button {
+    min-height: 36px;
+    border-radius: 12px;
+    padding: 6px 8px;
+    font-size: 13px;
   }
 
   .web-home-grid {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
 
+  .web-progress-panel,
+  .web-submit-panel,
+  .web-home-section {
+    border-radius: 16px;
+    box-shadow: 0 8px 22px rgba(84, 59, 68, 0.055);
+  }
+
+  .web-progress-panel,
+  .web-submit-panel {
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .web-progress-panel {
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .web-progress-ring {
+    width: 58px;
+    height: 58px;
+  }
+
+  .web-progress-ring span {
+    font-size: 14px;
+  }
+
+  .web-progress-panel h2,
+  .web-submit-panel h2,
+  .web-home-section h2 {
+    font-size: 16px;
+  }
+
+  .web-progress-panel p,
+  .web-submit-panel p {
+    margin-top: 4px;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .web-submit-panel {
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .web-submit-panel .primary-button {
+    width: 100%;
+    min-height: 40px;
+    border-radius: 13px;
+    padding: 7px 10px;
+    font-size: 13px;
+    box-shadow: 0 5px 14px rgba(239, 79, 112, 0.18);
+  }
+
+  .web-submit-panel p {
+    margin: 0;
+    text-align: center;
+  }
+
+  .web-home-section {
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .web-action-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    justify-content: stretch;
+    gap: 8px;
+  }
+
+  .web-action-card {
+    min-height: 78px;
+    border-radius: 12px;
+    gap: 4px;
+    padding: 6px 4px;
+  }
+
+  .web-action-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 10px;
+    font-size: 16px;
+  }
+
+  .web-action-card strong {
+    font-size: 11px;
+  }
+
+  .web-action-card small {
+    font-size: 8px;
+  }
+
+}
+
+@media (max-width: 430px) {
   .web-action-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .web-action-card {
-    min-height: 124px;
+    min-height: 96px;
   }
-
 }
 
-@media (min-width: 701px) and (max-width: 1040px) {
+@media (min-width: 701px) and (max-width: 920px) {
   .web-action-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    justify-content: stretch;
+    gap: 8px;
+  }
+
+  .web-action-card {
+    min-height: 82px;
+    border-radius: 12px;
+    gap: 4px;
+    padding: 7px 5px;
+  }
+
+  .web-action-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 10px;
+    font-size: 16px;
+  }
+
+  .web-action-card strong {
+    font-size: 11px;
+  }
+
+  .web-action-card small {
+    font-size: 8px;
   }
 }

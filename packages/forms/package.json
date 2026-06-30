@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "dependencies": {
+    "@project4/contracts": "*",
+    "@project4/i18n": "*"
+  },
   "exports": {
     ".": "./src/index.ts"
   }

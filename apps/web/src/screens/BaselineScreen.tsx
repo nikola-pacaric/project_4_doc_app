@@ -102,9 +102,6 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
       <div className="baseline-toolbar">
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'baseline.title')} />
         <p className="summary">{t(locale, 'baseline.subtitle')}</p>
-        <button className="secondary-button" onClick={onBack} type="button">
-          {t(locale, 'common.cancel')}
-        </button>
       </div>
 
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
@@ -261,6 +258,9 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
             </label>
           ) : null}
           <div className="full-width form-actions">
+            <button className="secondary-button" onClick={onBack} type="button">
+              {t(locale, 'common.cancel')}
+            </button>
             <button className="primary-button" disabled={saving} type="submit">
               {t(locale, 'common.save')}
             </button>

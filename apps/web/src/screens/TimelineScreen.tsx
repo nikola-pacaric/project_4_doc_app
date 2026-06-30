@@ -107,27 +107,27 @@ function greetingKey(hour: number): TranslationKey {
 }
 
 const quickActions = [
-  { id: 'daily', icon: '☀', labelKey: 'home.action.daily', kind: 'daily' },
-  { id: 'food', icon: '🍽', labelKey: 'home.action.food', kind: 'meal' },
-  { id: 'symptoms', icon: '!', labelKey: 'home.action.symptoms', kind: 'symptom' },
-  { id: 'exercise', icon: '↗', labelKey: 'home.action.exercise', kind: 'exercise' },
-  { id: 'stool', icon: '◆', labelKey: 'home.action.stool', kind: 'stool' },
-  { id: 'medication', icon: '+', labelKey: 'home.action.medication', kind: 'medication' },
-  { id: 'period', icon: '●', labelKey: 'home.action.period', kind: 'menstruation' },
-  { id: 'notes', icon: '✎', labelKey: 'home.action.notes', kind: 'note' },
+  { id: 'daily', icon: '☀️', labelKey: 'home.action.daily', kind: 'daily' },
+  { id: 'food', icon: '🍽️', labelKey: 'home.action.food', kind: 'meal' },
+  { id: 'symptoms', icon: '⚠️', labelKey: 'home.action.symptoms', kind: 'symptom' },
+  { id: 'exercise', icon: '🏃', labelKey: 'home.action.exercise', kind: 'exercise' },
+  { id: 'stool', icon: '💩', labelKey: 'home.action.stool', kind: 'stool' },
+  { id: 'medication', icon: '💊', labelKey: 'home.action.medication', kind: 'medication' },
+  { id: 'period', icon: '🩸', labelKey: 'home.action.period', kind: 'menstruation' },
+  { id: 'notes', icon: '📝', labelKey: 'home.action.notes', kind: 'note' },
 ] as const;
 
 const entryIcons: Record<EntryKind, string> = {
-  text: '✎',
-  daily: '☀',
-  meal: '🍽',
-  symptom: '!',
-  stool: '◆',
-  medication: '+',
-  exercise: '↗',
-  menstruation: '●',
-  note: '✎',
-  custom: '□',
+  text: '📝',
+  daily: '☀️',
+  meal: '🍽️',
+  symptom: '⚠️',
+  stool: '💩',
+  medication: '💊',
+  exercise: '🏃',
+  menstruation: '🩸',
+  note: '📝',
+  custom: '📋',
 };
 
 export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenProps) {

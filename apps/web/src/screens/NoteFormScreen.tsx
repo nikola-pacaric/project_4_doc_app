@@ -59,9 +59,6 @@ export function NoteFormScreen({ client, onBack, onSaved, profile }: NoteFormScr
           subtitle={t(locale, 'note.subtitle')}
           title={t(locale, 'note.title')}
         />
-        <button className="secondary-button" onClick={onBack} type="button">
-          {t(locale, 'common.cancel')}
-        </button>
       </div>
 
       <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>

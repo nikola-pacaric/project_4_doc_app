@@ -1,5 +1,6 @@
 export * from './baseline';
 export * from './daily';
+export * from './dailyCompletion';
 export * from './exercises';
 export * from './food';
 export * from './meals';

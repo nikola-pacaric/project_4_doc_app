@@ -218,9 +218,6 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
       <div className="baseline-toolbar">
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'food.title')} />
         <p className="summary">{t(locale, 'food.subtitle')}</p>
-        <button className="secondary-button" onClick={onBack} type="button">
-          {t(locale, 'common.cancel')}
-        </button>
       </div>
 
       <label className="tracked-day-field">
@@ -291,6 +288,9 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
           <div className="full-width form-actions">
             {error ? <p className="notice error">{error}</p> : null}
             {message ? <p className="notice success">{message}</p> : null}
+            <button className="secondary-button" onClick={onBack} type="button">
+              {t(locale, 'common.cancel')}
+            </button>
             <button
               className="primary-button"
               disabled={saving}

@@ -146,9 +146,6 @@ export function SymptomFormScreen({ client, onBack, profile }: SymptomFormScreen
       <div className="baseline-toolbar">
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'symptom.title')} />
         <p className="summary">{t(locale, 'symptom.subtitle')}</p>
-        <button className="secondary-button" onClick={onBack} type="button">
-          {t(locale, 'common.cancel')}
-        </button>
       </div>
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading ? (
@@ -170,6 +167,9 @@ export function SymptomFormScreen({ client, onBack, profile }: SymptomFormScreen
             onToggleExpanded={toggleExpanded}
           />
           <div className="form-actions">
+            <button className="secondary-button" onClick={onBack} type="button">
+              {t(locale, 'common.cancel')}
+            </button>
             <button className="primary-button" disabled={saving} type="submit">
               {t(locale, 'symptom.save')}
             </button>

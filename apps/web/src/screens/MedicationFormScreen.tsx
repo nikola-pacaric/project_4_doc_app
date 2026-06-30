@@ -65,9 +65,6 @@ export function MedicationFormScreen({
           subtitle={t(locale, 'medication.subtitle')}
           title={t(locale, 'medication.title')}
         />
-        <button className="secondary-button" onClick={onBack} type="button">
-          {t(locale, 'common.cancel')}
-        </button>
       </div>
 
       <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>

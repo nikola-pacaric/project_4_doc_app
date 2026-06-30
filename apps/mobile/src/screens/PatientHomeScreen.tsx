@@ -4,7 +4,12 @@ import {
   type PatientEntry,
   type UserProfile,
 } from '@project4/contracts';
-import type { DailyFormField } from '@project4/forms';
+import {
+  formatDailyFormMissingFields,
+  getDailyFormMissingFields,
+  toDailyFormDraft,
+  type DailyFormField,
+} from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import {
   completePatientDailyForm,
@@ -25,11 +30,6 @@ import { PatientMenstruationScreen } from './PatientMenstruationScreen';
 import { PatientNoteScreen } from './PatientNoteScreen';
 import { PatientSymptomsScreen } from './PatientSymptomsScreen';
 import { PatientStoolScreen } from './PatientStoolScreen';
-import {
-  formatDailyFormMissingFields,
-  getDailyFormMissingFields,
-  toDailyFormDraft,
-} from '../utils/dailyFormCompletion';
 import { PatientTimelineScreen } from './PatientTimelineScreen';
 
 interface PatientHomeScreenProps {

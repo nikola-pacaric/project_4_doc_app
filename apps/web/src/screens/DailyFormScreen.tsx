@@ -1,8 +1,11 @@
-import type { DailyFormDetails, UserProfile } from '@project4/contracts';
+import type { UserProfile } from '@project4/contracts';
 import {
   dailyFormDefaults,
+  formatDailyFormMissingFields,
+  getDailyFormMissingFields,
   hasDailyFormProgress,
   isCompleteDailyForm,
+  toDailyFormDraft,
   type DailyFormDraft,
 } from '@project4/forms';
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
@@ -47,29 +50,6 @@ function dayRange(day: string): { start: string; end: string; occurredAt: string
   };
 }
 
-function toDraft(details: DailyFormDetails | null): DailyFormDraft {
-  if (!details) return { ...dailyFormDefaults };
-  return {
-    wakeTime: details.wakeTime ?? undefined,
-    sleepDuration: details.sleepDuration ?? undefined,
-    appetite: details.appetite ?? undefined,
-    hadPhysicalActivity: details.hadPhysicalActivity ?? Boolean(details.activityNotes?.trim()),
-    activityNotes: details.activityNotes ?? '',
-    stressLevel: details.stressLevel ?? undefined,
-    dayDescription: details.dayDescription ?? '',
-    tookChronicTherapy: details.tookChronicTherapy ?? undefined,
-    tookMedicationOutsideChronicTherapy:
-      details.tookMedicationOutsideChronicTherapy ??
-      Boolean(details.medicationOutsideChronicTherapy?.trim()),
-    medicationOutsideChronicTherapy: details.medicationOutsideChronicTherapy ?? '',
-    hadMenstruation: details.hadMenstruation ?? undefined,
-    menstruationNotes: '',
-    energyLevel: details.energyLevel ?? undefined,
-    hadNaps: details.hadNaps ?? Boolean(details.naps?.trim()),
-    naps: details.naps ?? '',
-  };
-}
-
 export function DailyFormScreen({
   client,
   onActivityAnswerChange,
@@ -106,7 +86,7 @@ export function DailyFormScreen({
         setHasChronicTherapy(nextHasChronicTherapy);
         setExistingEntryId(record?.entryId);
         setCompletedAt(record?.details.completedAt ?? undefined);
-        const nextDraft = toDraft(record?.details ?? null);
+        const nextDraft = toDailyFormDraft(record?.details ?? null);
         if (!nextHasChronicTherapy) nextDraft.tookChronicTherapy = false;
         setDraft(nextDraft);
         onActivityAnswerChange(nextDraft.hadPhysicalActivity);
@@ -163,7 +143,7 @@ export function DailyFormScreen({
       const saved = await getPatientDailyForm(client, profile.id, range.start, range.end);
       setExistingEntryId(saved?.entryId);
       setCompletedAt(saved?.details.completedAt ?? undefined);
-      setDraft(toDraft(saved?.details ?? null));
+      setDraft(toDailyFormDraft(saved?.details ?? null));
       setMessage(t(locale, mode === 'complete' ? 'daily.completed' : 'daily.saved'));
       onSaved();
     } catch {
@@ -225,29 +205,63 @@ export function DailyFormScreen({
     );
   }
 
+  function optionField<T extends string>({
+    id,
+    labelKey,
+    onChange,
+    options,
+    value,
+  }: {
+    id: string;
+    labelKey: TranslationKey;
+    onChange: (value: T) => void;
+    options: Array<{ value: T; label: string }>;
+    value: T | undefined;
+  }) {
+    return (
+      <div className="full-width choice-field daily-option-field">
+        <span className="choice-label" id={`${id}-label`}>
+          {t(locale, labelKey)}
+        </span>
+        <div aria-labelledby={`${id}-label`} className="choice-row three-options" role="radiogroup">
+          {options.map((option) => (
+            <button
+              aria-checked={value === option.value}
+              className={value === option.value ? 'selected' : ''}
+              key={option.value}
+              onClick={() => onChange(option.value)}
+              role="radio"
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const missingFields = getDailyFormMissingFields(draft, includeMenstruation, hasChronicTherapy);
+  const draftStatusTitle = missingFields.length
+    ? t(locale, 'daily.statusDraft')
+    : t(locale, 'home.action.completed');
+  const draftStatusHelp = missingFields.length
+    ? formatDailyFormMissingFields(locale, missingFields)
+    : t(locale, 'daily.readyForHomeSubmit');
+
   return (
     <main className="baseline-layout">
       <div className="baseline-toolbar">
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'daily.title')} />
         <p className="summary">{t(locale, 'daily.subtitle')}</p>
-        <button className="secondary-button" onClick={onBack} type="button">
-          {t(locale, 'common.cancel')}
-        </button>
       </div>
-
-      <label className="tracked-day-field">
-        <span>{t(locale, 'daily.trackedDay')}</span>
-        <input readOnly type="text" value={day} />
-      </label>
 
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading ? (
         <form className="baseline-form daily-form">
           <div className={`full-width daily-status ${completedAt ? 'complete' : 'draft'}`}>
-            <strong>{t(locale, completedAt ? 'daily.statusComplete' : 'daily.statusDraft')}</strong>
-            <span>
-              {t(locale, completedAt ? 'daily.statusCompleteHelp' : 'daily.statusDraftHelp')}
-            </span>
+            <strong>{completedAt ? t(locale, 'daily.statusComplete') : draftStatusTitle}</strong>
+            <span>{completedAt ? t(locale, 'daily.statusCompleteHelp') : draftStatusHelp}</span>
           </div>
           <div className="full-width time-field-row">
             <label>
@@ -283,34 +297,23 @@ export function DailyFormScreen({
               />
             </label>
           </div>
-          <label>
-            <span>{t(locale, 'daily.appetite')}</span>
-            <select
-              onChange={(event) =>
-                setDraft((value) => ({
-                  ...value,
-                  appetite: event.target.value as DailyFormDraft['appetite'],
-                }))
-              }
-              required
-              value={draft.appetite ?? ''}
-            >
-              <option disabled value="">
-                —
-              </option>
-              {(['low', 'usual', 'high'] as const).map((appetite) => (
-                <option key={appetite} value={appetite}>
-                  {t(locale, `daily.appetite.${appetite}`)}
-                </option>
-              ))}
-            </select>
-          </label>
+          {optionField({
+            id: 'appetite',
+            labelKey: 'daily.appetite',
+            onChange: (appetite: NonNullable<DailyFormDraft['appetite']>) =>
+              setDraft((value) => ({ ...value, appetite })),
+            options: (['low', 'usual', 'high'] as const).map((appetite) => ({
+              value: appetite,
+              label: t(locale, `daily.appetite.${appetite}`),
+            })),
+            value: draft.appetite,
+          })}
           <div className="full-width choice-field activity-choice">
             <span className="choice-label" id="physical-activity-label">
               {t(locale, 'daily.activityNotes')}
             </span>
             <div aria-labelledby="physical-activity-label" className="choice-row" role="radiogroup">
-              {([false, true] as const).map((answer) => (
+              {([true, false] as const).map((answer) => (
                 <button
                   aria-checked={draft.hadPhysicalActivity === answer}
                   className={draft.hadPhysicalActivity === answer ? 'selected' : ''}
@@ -433,21 +436,16 @@ export function DailyFormScreen({
           <div className="full-width form-actions">
             {error ? <p className="notice error">{error}</p> : null}
             {message ? <p className="notice success">{message}</p> : null}
+            <button className="secondary-button" onClick={onBack} type="button">
+              {t(locale, 'common.cancel')}
+            </button>
             <button
               className="primary-button"
               disabled={saving}
               onClick={() => void save('progress')}
               type="button"
             >
-              {t(locale, 'daily.saveProgress')}
-            </button>
-            <button
-              className="primary-button"
-              disabled={saving || Boolean(completedAt)}
-              onClick={() => void save('complete')}
-              type="button"
-            >
-              {t(locale, completedAt ? 'daily.statusComplete' : 'home.submit')}
+              {t(locale, 'common.save')}
             </button>
           </div>
         </form>
