@@ -7,8 +7,9 @@ import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { TimePickerField } from '../components/TimePickerField';
 import { colors, sharedStyles } from '../theme';
-import { formatTimeInput, toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
+import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
 interface NoteFormScreenProps {
   busy?: boolean;
@@ -82,12 +83,9 @@ export function NoteFormScreen({
           label={t(locale, 'note.date')}
           value={date}
         />
-        <FormField
-          autoCapitalize="none"
-          keyboardType="numbers-and-punctuation"
+        <TimePickerField
           label={t(locale, 'note.time')}
-          maxLength={5}
-          onChangeText={(value) => updateDateTime(date, formatTimeInput(value, time, 23))}
+          onChange={(value) => updateDateTime(date, value)}
           placeholder={t(locale, 'note.timePlaceholder')}
           value={time}
         />

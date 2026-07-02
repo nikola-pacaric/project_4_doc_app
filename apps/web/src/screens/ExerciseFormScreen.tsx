@@ -9,7 +9,6 @@ import {
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
-import { formatTimeInput } from '../utils/timeInput';
 
 interface ExerciseFormScreenProps {
   client: AppSupabaseClient;
@@ -36,6 +35,13 @@ function toDraft(record: ExerciseRecord): ExerciseDraft {
   };
 }
 
+function createInitialDraft(): ExerciseDraft {
+  return {
+    ...exerciseDraftDefaults,
+    occurredAt: toLocalDateTime(new Date()),
+  };
+}
+
 export function ExerciseFormScreen({
   client,
   entryToEdit,
@@ -44,17 +50,16 @@ export function ExerciseFormScreen({
   profile,
 }: ExerciseFormScreenProps) {
   const locale = DEFAULT_LOCALE;
-  const [draft, setDraft] = useState<ExerciseDraft>({
-    ...exerciseDraftDefaults,
-    occurredAt: toLocalDateTime(new Date()),
-  });
+  const [draft, setDraft] = useState<ExerciseDraft>(createInitialDraft);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedExercise, setSavedExercise] = useState<ExerciseRecord | null>(null);
 
   useEffect(() => {
     if (!entryToEdit) {
-      setDraft({ ...exerciseDraftDefaults, occurredAt: toLocalDateTime(new Date()) });
+      setDraft(createInitialDraft());
+      setSavedExercise(null);
       setLoading(false);
       return;
     }
@@ -102,8 +107,8 @@ export function ExerciseFormScreen({
     setSaving(true);
     setError(null);
     try {
-      await createPatientExercise(client, profile.id, draft);
-      onSaved();
+      const saved = await createPatientExercise(client, profile.id, draft);
+      setSavedExercise(saved);
     } catch {
       setError(t(locale, 'exercise.saveError'));
     } finally {
@@ -113,6 +118,34 @@ export function ExerciseFormScreen({
 
   const date = draft.occurredAt?.slice(0, 10) ?? '';
   const time = draft.occurredAt?.slice(11, 16) ?? '';
+
+  if (savedExercise) {
+    return (
+      <main className="baseline-layout structured-entry-layout">
+        <section className="save-confirmation-card">
+          <div className="save-confirmation-icon">✓</div>
+          <h1>{t(locale, 'exercise.savedTitle')}</h1>
+          <strong>{savedExercise.activity}</strong>
+          <p>{t(locale, 'exercise.savedDetail')}</p>
+          <div className="button-row form-actions-row">
+            <button
+              className="primary-button"
+              onClick={() => {
+                setSavedExercise(null);
+                setDraft(createInitialDraft());
+              }}
+              type="button"
+            >
+              {t(locale, 'exercise.addAnother')}
+            </button>
+            <button className="secondary-button" onClick={onSaved} type="button">
+              {t(locale, 'exercise.done')}
+            </button>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="baseline-layout structured-entry-layout">
@@ -183,12 +216,9 @@ export function ExerciseFormScreen({
             <legend>{t(locale, 'exercise.time')}</legend>
             <input
               aria-label={t(locale, 'exercise.time')}
-              inputMode="numeric"
-              maxLength={5}
-              onChange={(event) =>
-                updateDateTime(date, formatTimeInput(event.target.value, time, 23))
-              }
+              onChange={(event) => updateDateTime(date, event.target.value)}
               placeholder={t(locale, 'exercise.timePlaceholder')}
+              type="time"
               value={time}
             />
           </fieldset>

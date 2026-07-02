@@ -658,6 +658,11 @@ button:focus-visible {
   color: #e84f70;
 }
 
+.choice-row button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .conditional-field-bubble {
   overflow: hidden;
   border: 1px solid #f0dfe1;
@@ -833,6 +838,15 @@ button:focus-visible {
   gap: 10px;
   border-top: 1px solid #f2e5e7;
   padding-top: 16px;
+}
+
+.conditional-question.disabled {
+  opacity: 0.72;
+}
+
+.conditional-question.disabled legend,
+.conditional-question.disabled p {
+  color: #806c73;
 }
 
 .conditional-question .conditional-field-bubble {
@@ -1234,6 +1248,50 @@ button:focus-visible {
   font-weight: 850;
 }
 
+.save-confirmation-card {
+  width: min(520px, 100%);
+  display: grid;
+  justify-self: center;
+  gap: 14px;
+  margin: auto 0;
+  border: 1px solid #f0dfe1;
+  border-radius: 18px;
+  background: #fffafb;
+  padding: 24px;
+  text-align: center;
+}
+
+.save-confirmation-icon {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  border-radius: 999px;
+  background: #f45b7a;
+  color: #ffffff;
+  font-size: 38px;
+  font-weight: 900;
+}
+
+.save-confirmation-card h1 {
+  margin: 0;
+  color: #34292d;
+  font-size: 28px;
+}
+
+.save-confirmation-card strong {
+  color: #e84f70;
+  font-size: 20px;
+}
+
+.save-confirmation-card p {
+  margin: 0;
+  color: #806c73;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
 .bristol-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -1575,7 +1633,8 @@ button:focus-visible {
   padding: 10px;
 }
 
-.web-recent-entry > button {
+.web-recent-entry > button,
+.web-recent-entry-content {
   min-height: 58px;
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr);

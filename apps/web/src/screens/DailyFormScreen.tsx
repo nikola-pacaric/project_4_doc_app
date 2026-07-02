@@ -17,7 +17,6 @@ import {
 } from '@project4/supabase-client';
 import { useEffect, useState } from 'react';
 
-import { formatTimeInput } from '../utils/timeInput';
 import { ScreenHeader } from '../components/ScreenHeader';
 
 interface DailyFormScreenProps {
@@ -263,13 +262,11 @@ export function DailyFormScreen({
                 onChange={(event) =>
                   setDraft((value) => ({
                     ...value,
-                    wakeTime: formatTimeInput(event.target.value, value.wakeTime, 23),
+                    wakeTime: event.target.value,
                   }))
                 }
-                inputMode="numeric"
-                maxLength={5}
                 required
-                type="text"
+                type="time"
                 value={draft.wakeTime ?? ''}
               />
             </label>
@@ -279,13 +276,11 @@ export function DailyFormScreen({
                 onChange={(event) =>
                   setDraft((value) => ({
                     ...value,
-                    sleepDuration: formatTimeInput(event.target.value, value.sleepDuration),
+                    sleepDuration: event.target.value,
                   }))
                 }
-                inputMode="numeric"
-                maxLength={5}
                 required
-                type="text"
+                type="time"
                 value={draft.sleepDuration ?? ''}
               />
             </label>
@@ -331,7 +326,11 @@ export function DailyFormScreen({
           </fieldset>
           {scaleField('stressLevel', 'daily.stressLevel')}
           {scaleField('energyLevel', 'daily.energyLevel')}
-          <fieldset className="structured-fieldset conditional-question">
+          <fieldset
+            className={`structured-fieldset conditional-question ${
+              hasChronicTherapy ? '' : 'disabled'
+            }`}
+          >
             <legend>{t(locale, 'daily.chronicTherapyTaken')}</legend>
             <div className="choice-row" role="radiogroup">
               {([true, false] as const).map((answer) => (

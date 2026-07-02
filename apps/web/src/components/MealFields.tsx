@@ -1,4 +1,4 @@
-import type { MealDraft, MealType } from '@project4/forms';
+import { isMealDraftStarted, type MealDraft, type MealType } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 
 interface MealFieldsProps {
@@ -14,6 +14,11 @@ export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
 
   function updateMeal(index: number, update: Partial<MealDraft>) {
     onChange(meals.map((meal, mealIndex) => (mealIndex === index ? { ...meal, ...update } : meal)));
+  }
+
+  function removeMeal(index: number) {
+    const remainingMeals = meals.filter((_, mealIndex) => mealIndex !== index);
+    onChange(remainingMeals.length ? remainingMeals : [createMeal()]);
   }
 
   return (
@@ -71,10 +76,10 @@ export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
                   value={meal.description ?? ''}
                 />
               </label>
-              {meals.length > 1 ? (
+              {meals.length > 1 || isMealDraftStarted(meal) ? (
                 <button
                   className="text-button danger"
-                  onClick={() => onChange(meals.filter((_, mealIndex) => mealIndex !== index))}
+                  onClick={() => removeMeal(index)}
                   type="button"
                 >
                   {t(locale, 'meal.remove')}

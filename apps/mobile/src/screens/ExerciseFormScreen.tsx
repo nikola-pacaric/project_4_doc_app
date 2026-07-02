@@ -8,8 +8,9 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { TimePickerField } from '../components/TimePickerField';
 import { colors, sharedStyles } from '../theme';
-import { formatTimeInput, toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
+import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
 interface ExerciseFormScreenProps {
   busy?: boolean;
@@ -115,12 +116,9 @@ export function ExerciseFormScreen({
           label={t(locale, 'exercise.date')}
           value={date}
         />
-        <FormField
-          autoCapitalize="none"
-          keyboardType="numbers-and-punctuation"
+        <TimePickerField
           label={t(locale, 'exercise.time')}
-          maxLength={5}
-          onChangeText={(value) => updateDateTime(date, formatTimeInput(value, time, 23))}
+          onChange={(value) => updateDateTime(date, value)}
           placeholder={t(locale, 'exercise.timePlaceholder')}
           value={time}
         />

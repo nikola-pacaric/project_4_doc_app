@@ -18,15 +18,16 @@ interface MedicationFormScreenProps {
   profile: UserProfile;
 }
 
-function toDatetimeLocal(value: Date): string {
+function toLocalDateTime(value: Date): string {
   const offset = value.getTimezoneOffset() * 60_000;
-  return new Date(value.getTime() - offset).toISOString().slice(0, 16);
+  const localValue = new Date(value.getTime() - offset).toISOString();
+  return `${localValue.slice(0, 10)} ${localValue.slice(11, 16)}`;
 }
 
 function createInitialDraft(): MedicationDraft {
   return {
     ...medicationDraftDefaults,
-    takenAt: toDatetimeLocal(new Date()),
+    takenAt: toLocalDateTime(new Date()),
     isChronicTherapy: false,
   };
 }
@@ -36,7 +37,7 @@ function toDraft(record: MedicationRecord): MedicationDraft {
     entryId: record.entryId,
     name: record.name,
     dose: record.dose,
-    takenAt: toDatetimeLocal(new Date(record.occurredAt)),
+    takenAt: toLocalDateTime(new Date(record.occurredAt)),
     reason: record.reason ?? '',
     isChronicTherapy: record.isChronicTherapy,
   };
@@ -91,6 +92,11 @@ export function MedicationFormScreen({
     setDraft((current) => ({ ...current, [field]: value }));
   }
 
+  function updateTime(value: string) {
+    const date = draft.takenAt?.slice(0, 10) ?? toLocalDateTime(new Date()).slice(0, 10);
+    update('takenAt', `${date} ${value}`);
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!validateMedication(draft).valid) {
@@ -109,6 +115,8 @@ export function MedicationFormScreen({
       setSaving(false);
     }
   }
+
+  const time = draft.takenAt?.slice(11, 16) ?? '';
 
   return (
     <main className="baseline-layout structured-entry-layout">
@@ -147,9 +155,10 @@ export function MedicationFormScreen({
           <legend>{t(locale, 'medication.timeTaken')}</legend>
           <input
             aria-label={t(locale, 'medication.timeTaken')}
-            onChange={(event) => update('takenAt', event.target.value)}
-            type="datetime-local"
-            value={draft.takenAt ?? ''}
+            onChange={(event) => updateTime(event.target.value)}
+            placeholder={t(locale, 'medication.timePlaceholder')}
+            type="time"
+            value={time}
           />
         </fieldset>
         <fieldset className="structured-fieldset">

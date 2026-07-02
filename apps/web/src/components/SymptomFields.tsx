@@ -18,6 +18,11 @@ interface SymptomFieldsProps {
   onToggleExpanded: (type: SymptomType) => void;
 }
 
+function localDateValue(value: Date): string {
+  const offset = value.getTimezoneOffset() * 60_000;
+  return new Date(value.getTime() - offset).toISOString().slice(0, 10);
+}
+
 export function SymptomFields({
   drafts,
   expanded,
@@ -27,11 +32,27 @@ export function SymptomFields({
   onToggleExpanded,
 }: SymptomFieldsProps) {
   const locale = DEFAULT_LOCALE;
+  const today = localDateValue(new Date());
+
+  function datePart(value: string | undefined): string {
+    return value?.trim().split(/[ T]/)[0] ?? '';
+  }
+
+  function timePart(value: string | undefined): string {
+    return value?.trim().split(/[ T]/).at(-1) ?? '';
+  }
 
   function details(draft: SymptomDraft) {
     if (!draft.type) return null;
     const type = draft.type;
     const update = (values: Partial<SymptomDraft>) => onChange(type, { ...draft, ...values });
+    const updateDateTime = (field: 'startedAt' | 'endedAt', date?: string, time?: string) => {
+      const nextDate = date ?? datePart(draft[field]);
+      const nextTime = time ?? timePart(draft[field]);
+      update({ [field]: `${nextDate} ${nextTime}`.trim() });
+    };
+    const startDate = datePart(draft.startedAt);
+    const endDate = datePart(draft.endedAt) || startDate;
 
     return (
       <div className={`symptom-detail-card ${invalid.includes(type) ? 'invalid' : ''}`}>
@@ -50,23 +71,43 @@ export function SymptomFields({
         ) : null}
         <div className="time-field-row">
           <label>
-            <span>{t(locale, 'symptom.startDateTime')}</span>
+            <span>{t(locale, 'symptom.startDate')}</span>
             <input
-              onChange={(event) => update({ startedAt: event.target.value })}
-              type="datetime-local"
-              value={draft.startedAt ?? ''}
+              max={today}
+              onChange={(event) => updateDateTime('startedAt', event.target.value)}
+              type="date"
+              value={startDate}
             />
           </label>
           <label>
-            <span>{t(locale, 'symptom.endDateTime')}</span>
+            <span>{t(locale, 'symptom.startTime')}</span>
             <input
-              onChange={(event) => update({ endedAt: event.target.value })}
-              type="datetime-local"
-              value={draft.endedAt ?? ''}
+              onChange={(event) => updateDateTime('startedAt', undefined, event.target.value)}
+              type="time"
+              value={timePart(draft.startedAt)}
             />
           </label>
         </div>
         <p className="field-help">{t(locale, 'symptom.endHelp')}</p>
+        <div className="time-field-row">
+          <label>
+            <span>{t(locale, 'symptom.endDate')}</span>
+            <input
+              max={today}
+              onChange={(event) => updateDateTime('endedAt', event.target.value)}
+              type="date"
+              value={endDate}
+            />
+          </label>
+          <label>
+            <span>{t(locale, 'symptom.endTime')}</span>
+            <input
+              onChange={(event) => updateDateTime('endedAt', endDate, event.target.value)}
+              type="time"
+              value={timePart(draft.endedAt)}
+            />
+          </label>
+        </div>
         <div className="choice-field">
           <span className="choice-label">{t(locale, 'symptom.intensity')}</span>
           <div className="symptom-intensity-grid" role="radiogroup">

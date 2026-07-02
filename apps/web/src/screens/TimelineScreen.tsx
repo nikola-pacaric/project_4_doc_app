@@ -579,7 +579,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
               : entry.text?.trim() || kindLabel;
             return (
               <article className="web-recent-entry" key={entry.id}>
-                <button onClick={() => openEntry(entry)} type="button">
+                <div className="web-recent-entry-content">
                   <span className="web-entry-icon">{entryIcons[entry.kind]}</span>
                   <span>
                     <strong>{title}</strong>
@@ -592,7 +592,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
                       }).format(new Date(entry.occurredAt))}
                     </small>
                   </span>
-                </button>
+                </div>
               </article>
             );
           })}

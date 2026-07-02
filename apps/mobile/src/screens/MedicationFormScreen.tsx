@@ -7,8 +7,9 @@ import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { TimePickerField } from '../components/TimePickerField';
 import { colors, sharedStyles } from '../theme';
-import { formatTimeInput, toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
+import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
 interface MedicationFormScreenProps {
   busy?: boolean;
@@ -45,8 +46,7 @@ export function MedicationFormScreen({
 
   function updateTime(value: string) {
     const date = draft.takenAt?.slice(0, 10) ?? toLocalDateInput(new Date());
-    const currentTime = draft.takenAt?.slice(11, 16) ?? '';
-    update('takenAt', `${date} ${formatTimeInput(value, currentTime, 23)}`);
+    update('takenAt', `${date} ${value}`);
   }
 
   function save() {
@@ -80,12 +80,9 @@ export function MedicationFormScreen({
           placeholder={t(locale, 'medication.dosePlaceholder')}
           value={draft.dose ?? ''}
         />
-        <FormField
-          autoCapitalize="none"
-          keyboardType="numbers-and-punctuation"
+        <TimePickerField
           label={t(locale, 'medication.timeTaken')}
-          maxLength={5}
-          onChangeText={updateTime}
+          onChange={updateTime}
           placeholder={t(locale, 'medication.timePlaceholder')}
           value={draft.takenAt?.slice(11, 16) ?? ''}
         />

@@ -12,6 +12,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { TimePickerField } from '../components/TimePickerField';
 import { colors, sharedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
@@ -130,11 +131,9 @@ export function MenstruationFormScreen({
           label={t(locale, 'menstruation.date')}
           value={date}
         />
-        <FormField
-          autoCapitalize="none"
-          keyboardType="numbers-and-punctuation"
+        <TimePickerField
           label={t(locale, 'menstruation.time')}
-          onChangeText={(value) => updateDateTime(date, value)}
+          onChange={(value) => updateDateTime(date, value)}
           placeholder={t(locale, 'menstruation.timePlaceholder')}
           value={time}
         />

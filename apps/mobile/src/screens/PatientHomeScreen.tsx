@@ -45,11 +45,6 @@ function hasTodayEntry(entries: PatientEntry[], kind: PatientEntry['kind']): boo
   );
 }
 
-function filterEntriesForToday(entries: PatientEntry[]): PatientEntry[] {
-  const today = toLocalDateInput(new Date());
-  return entries.filter((entry) => toLocalDateInput(new Date(entry.occurredAt)) === today);
-}
-
 function hasTodayNoStoolEntry(entries: PatientEntry[]): boolean {
   const today = toLocalDateInput(new Date());
   return entries.some(
@@ -156,7 +151,7 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
         getPatientBaseline(client, profile.id),
         getPatientDailyForm(client, profile.id, range.start, range.end),
       ]);
-      setEntries(filterEntriesForToday(filterPatientTimelineEntries(nextEntries, baseline?.sex)));
+      setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
       setDailyEntryId(dailyForm?.entryId ?? null);
       setDailyCompleted(Boolean(dailyForm?.details.completedAt));
       setDailyMissingFields(
@@ -194,7 +189,7 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
     ])
       .then(([nextEntries, baseline, dailyForm]) => {
         if (active) {
-          setEntries(filterEntriesForToday(filterPatientTimelineEntries(nextEntries, baseline?.sex)));
+          setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
           setDailyEntryId(dailyForm?.entryId ?? null);
           setDailyCompleted(Boolean(dailyForm?.details.completedAt));
           setDailyMissingFields(

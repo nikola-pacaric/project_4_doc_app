@@ -100,6 +100,10 @@ export function MenstruationFormScreen({
     setDraft((current) => ({ ...current, [field]: value }));
   }
 
+  function updateDateTime(date: string, time: string) {
+    update('occurredAt', `${date} ${time}`);
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!validateMenstruation(draft).valid) {
@@ -118,6 +122,9 @@ export function MenstruationFormScreen({
       setSaving(false);
     }
   }
+
+  const date = draft.occurredAt?.slice(0, 10) ?? '';
+  const time = draft.occurredAt?.slice(11, 16) ?? '';
 
   return (
     <main className="baseline-layout structured-entry-layout">
@@ -168,15 +175,26 @@ export function MenstruationFormScreen({
           </div>
         </fieldset>
 
-        <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'menstruation.date')}</legend>
-          <input
-            aria-label={t(locale, 'menstruation.date')}
-            onChange={(event) => update('occurredAt', event.target.value)}
-            type="datetime-local"
-            value={draft.occurredAt ?? ''}
-          />
-        </fieldset>
+        <div className="exercise-field-grid">
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'menstruation.date')}</legend>
+            <input
+              aria-label={t(locale, 'menstruation.date')}
+              readOnly
+              value={date}
+            />
+          </fieldset>
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'menstruation.time')}</legend>
+            <input
+              aria-label={t(locale, 'menstruation.time')}
+              onChange={(event) => updateDateTime(date, event.target.value)}
+              placeholder={t(locale, 'menstruation.timePlaceholder')}
+              type="time"
+              value={time}
+            />
+          </fieldset>
+        </div>
         <fieldset className="structured-fieldset">
           <legend>{t(locale, 'menstruation.notes')}</legend>
           <textarea

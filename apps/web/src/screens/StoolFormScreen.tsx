@@ -69,11 +69,15 @@ export function StoolFormScreen({
   const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedStool, setSavedStool] = useState<StoolRecord | null>(null);
+  const [savedNoStool, setSavedNoStool] = useState(false);
 
   useEffect(() => {
     if (!entryToEdit) {
       setDraft(initialDraft);
       setOccurredAt(undefined);
+      setSavedStool(null);
+      setSavedNoStool(false);
       setLoading(false);
       return;
     }
@@ -118,8 +122,8 @@ export function StoolFormScreen({
     setSaving(true);
     setError(null);
     try {
-      await createPatientStool(client, profile.id, draft, occurredAt);
-      onSaved();
+      const saved = await createPatientStool(client, profile.id, draft, occurredAt);
+      setSavedStool(saved);
     } catch {
       setError(t(locale, 'stool.saveError'));
     } finally {
@@ -132,12 +136,49 @@ export function StoolFormScreen({
     setError(null);
     try {
       await createPatientNoStoolMarker(client, profile.id, localDateTime(new Date()));
-      onSaved();
+      setSavedNoStool(true);
     } catch {
       setError(t(locale, 'stool.noStoolSaveError'));
     } finally {
       setSaving(false);
     }
+  }
+
+  if (savedStool || savedNoStool) {
+    return (
+      <main className="baseline-layout structured-entry-layout">
+        <section className="save-confirmation-card">
+          <div className="save-confirmation-icon">✓</div>
+          <h1>{t(locale, savedNoStool ? 'stool.noStoolSavedTitle' : 'stool.savedTitle')}</h1>
+          <strong>
+            {savedNoStool
+              ? t(locale, 'stool.noStoolToday')
+              : t(locale, 'stool.bristolSelected').replace(
+                  '{type}',
+                  String(savedStool?.bristolType),
+                )}
+          </strong>
+          <p>{t(locale, savedNoStool ? 'stool.noStoolSavedDetail' : 'stool.savedDetail')}</p>
+          <div className="button-row form-actions-row">
+            <button
+              className="primary-button"
+              onClick={() => {
+                setSavedStool(null);
+                setSavedNoStool(false);
+                setDraft(initialDraft);
+                setOccurredAt(undefined);
+              }}
+              type="button"
+            >
+              {t(locale, savedNoStool ? 'stool.recordBowelMovement' : 'stool.addAnother')}
+            </button>
+            <button className="secondary-button" onClick={onSaved} type="button">
+              {t(locale, 'stool.done')}
+            </button>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (

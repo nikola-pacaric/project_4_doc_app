@@ -51,6 +51,10 @@ export function NoteFormScreen({
     setDraft((current) => ({ ...current, [field]: value }));
   }
 
+  function updateDateTime(date: string, time: string) {
+    update('occurredAt', `${date} ${time}`);
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!validateNote(draft).valid) {
@@ -69,6 +73,9 @@ export function NoteFormScreen({
       setSaving(false);
     }
   }
+
+  const date = draft.occurredAt?.slice(0, 10) ?? '';
+  const time = draft.occurredAt?.slice(11, 16) ?? '';
 
   return (
     <main className="baseline-layout structured-entry-layout">
@@ -93,16 +100,28 @@ export function NoteFormScreen({
             value={draft.text ?? ''}
           />
         </fieldset>
-        <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'note.dateTime')}</legend>
-          <input
-            aria-label={t(locale, 'note.dateTime')}
-            onChange={(event) => update('occurredAt', event.target.value)}
-            required
-            type="datetime-local"
-            value={draft.occurredAt ?? ''}
-          />
-        </fieldset>
+        <div className="exercise-field-grid">
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'note.date')}</legend>
+            <input
+              aria-label={t(locale, 'note.date')}
+              readOnly
+              required
+              value={date}
+            />
+          </fieldset>
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'note.time')}</legend>
+            <input
+              aria-label={t(locale, 'note.time')}
+              onChange={(event) => updateDateTime(date, event.target.value)}
+              placeholder={t(locale, 'note.timePlaceholder')}
+              required
+              type="time"
+              value={time}
+            />
+          </fieldset>
+        </div>
 
         {error ? <p className="notice error">{error}</p> : null}
         <div className="button-row form-actions-row">

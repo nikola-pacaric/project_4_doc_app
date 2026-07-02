@@ -4,10 +4,11 @@ import { spacing } from '@project4/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../theme';
-import { formatTimeInput, toLocalDateInput } from '../utils/dateTime';
+import { toLocalDateInput } from '../utils/dateTime';
 import { FormField } from './FormField';
 import { PrimaryButton } from './PrimaryButton';
 import { SelectField } from './SelectField';
+import { TimePickerField } from './TimePickerField';
 
 interface MealFieldsProps {
   createMeal: () => MealDraft;
@@ -32,8 +33,7 @@ export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
   function updateMealTime(index: number, value: string) {
     const current = meals[index];
     const date = current?.occurredAt?.slice(0, 10) ?? toLocalDateInput(new Date());
-    const time = current?.occurredAt?.slice(11, 16) ?? '';
-    updateMeal(index, { occurredAt: `${date} ${formatTimeInput(value, time, 23)}` });
+    updateMeal(index, { occurredAt: `${date} ${value}` });
   }
 
   return (
@@ -42,12 +42,9 @@ export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
       <Text style={styles.help}>{t(locale, 'meal.sectionHelp')}</Text>
       {meals.map((meal, index) => (
         <View style={styles.card} key={meal.entryId ?? `new-${index}`}>
-          <FormField
-            autoCapitalize="none"
-            keyboardType="numbers-and-punctuation"
+          <TimePickerField
             label={t(locale, 'meal.time')}
-            maxLength={5}
-            onChangeText={(value) => updateMealTime(index, value)}
+            onChange={(value) => updateMealTime(index, value)}
             placeholder={t(locale, 'meal.timePlaceholder')}
             value={meal.occurredAt?.slice(11, 16) ?? ''}
           />

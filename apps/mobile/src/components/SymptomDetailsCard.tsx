@@ -13,8 +13,9 @@ import { DatePickerField } from './DatePickerField';
 import { FormField } from './FormField';
 import { OptionButtons } from './OptionButtons';
 import { SelectField } from './SelectField';
+import { TimePickerField } from './TimePickerField';
 import { colors, sharedStyles } from '../theme';
-import { formatTimeInput, toLocalDateInput } from '../utils/dateTime';
+import { toLocalDateInput } from '../utils/dateTime';
 
 interface SymptomDetailsCardProps {
   draft: SymptomDraft;
@@ -42,7 +43,7 @@ export function SymptomDetailsCard({ draft, invalid, onChange }: SymptomDetailsC
   function updateDateTime(field: 'startedAt' | 'endedAt', date?: string, time?: string) {
     const nextDate = date ?? datePart(draft[field]);
     const currentTime = timePart(draft[field]);
-    const nextTime = time === undefined ? currentTime : formatTimeInput(time, currentTime, 23);
+    const nextTime = time === undefined ? currentTime : time;
     update(field, `${nextDate} ${nextTime}`.trim());
   }
 
@@ -76,12 +77,9 @@ export function SymptomDetailsCard({ draft, invalid, onChange }: SymptomDetailsC
           />
         </View>
         <View style={styles.inputColumn}>
-          <FormField
-            autoCapitalize="none"
-            keyboardType="number-pad"
+          <TimePickerField
             label={t(locale, 'symptom.startTime')}
-            maxLength={5}
-            onChangeText={(value) => updateDateTime('startedAt', undefined, value)}
+            onChange={(value) => updateDateTime('startedAt', undefined, value)}
             value={timePart(draft.startedAt)}
           />
         </View>
@@ -97,12 +95,9 @@ export function SymptomDetailsCard({ draft, invalid, onChange }: SymptomDetailsC
           />
         </View>
         <View style={styles.inputColumn}>
-          <FormField
-            autoCapitalize="none"
-            keyboardType="number-pad"
+          <TimePickerField
             label={t(locale, 'symptom.endTime')}
-            maxLength={5}
-            onChangeText={(value) => updateDateTime('endedAt', endDate, value)}
+            onChange={(value) => updateDateTime('endedAt', endDate, value)}
             value={timePart(draft.endedAt)}
           />
         </View>

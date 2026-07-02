@@ -24,8 +24,9 @@ import { FormField } from '../components/FormField';
 import { OptionButtons } from '../components/OptionButtons';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { TimePickerField } from '../components/TimePickerField';
 import { colors, sharedStyles } from '../theme';
-import { formatTimeInput, localDayRange, toLocalDateInput } from '../utils/dateTime';
+import { localDayRange, toLocalDateInput } from '../utils/dateTime';
 
 interface DailyFormScreenProps {
   client: AppSupabaseClient;
@@ -200,27 +201,23 @@ export function DailyFormScreen({
                 {completedAt ? t(locale, 'daily.statusCompleteHelp') : draftStatusHelp}
               </Text>
             </View>
-            <FormField
-              keyboardType="number-pad"
+            <TimePickerField
               label={t(locale, 'daily.wakeTime')}
-              maxLength={5}
-              onChangeText={(value) =>
+              onChange={(value) =>
                 setDraft((current) => ({
                   ...current,
-                  wakeTime: formatTimeInput(value, current.wakeTime, 23),
+                  wakeTime: value,
                 }))
               }
               placeholder="07:30"
               value={draft.wakeTime ?? ''}
             />
-            <FormField
-              keyboardType="number-pad"
+            <TimePickerField
               label={t(locale, 'daily.sleepDuration')}
-              maxLength={5}
-              onChangeText={(value) =>
+              onChange={(value) =>
                 setDraft((current) => ({
                   ...current,
-                  sleepDuration: formatTimeInput(value, current.sleepDuration),
+                  sleepDuration: value,
                 }))
               }
               placeholder="08:00"

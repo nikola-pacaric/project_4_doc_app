@@ -4,9 +4,10 @@ import { spacing } from '@project4/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../theme';
-import { formatTimeInput, toLocalDateInput } from '../utils/dateTime';
+import { toLocalDateInput } from '../utils/dateTime';
 import { FormField } from './FormField';
 import { PrimaryButton } from './PrimaryButton';
+import { TimePickerField } from './TimePickerField';
 
 interface OtherFluidFieldsProps {
   createFluid: () => OtherFluidDraft;
@@ -31,9 +32,7 @@ export function OtherFluidFields({ createFluid, fluids, onChange }: OtherFluidFi
   function updateFluidTime(index: number, value: string) {
     const current = fluids[index];
     const date = current?.occurredAt?.slice(0, 10) ?? toLocalDateInput(new Date());
-    const time = current?.occurredAt?.slice(11, 16) ?? '';
-    const nextTime = formatTimeInput(value, time, 23);
-    updateFluid(index, { occurredAt: nextTime ? `${date} ${nextTime}` : undefined });
+    updateFluid(index, { occurredAt: `${date} ${value}` });
   }
 
   return (
@@ -42,12 +41,9 @@ export function OtherFluidFields({ createFluid, fluids, onChange }: OtherFluidFi
       <Text style={styles.help}>{t(locale, 'fluid.sectionHelp')}</Text>
       {fluids.map((fluid, index) => (
         <View style={styles.card} key={index}>
-          <FormField
-            autoCapitalize="none"
-            keyboardType="numbers-and-punctuation"
+          <TimePickerField
             label={t(locale, 'fluid.time')}
-            maxLength={5}
-            onChangeText={(value) => updateFluidTime(index, value)}
+            onChange={(value) => updateFluidTime(index, value)}
             placeholder={t(locale, 'fluid.timePlaceholder')}
             value={fluid.occurredAt?.slice(11, 16) ?? ''}
           />
