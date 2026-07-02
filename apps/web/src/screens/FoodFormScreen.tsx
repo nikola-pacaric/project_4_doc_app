@@ -220,11 +220,6 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
         <p className="summary">{t(locale, 'food.subtitle')}</p>
       </div>
 
-      <label className="tracked-day-field">
-        <span>{t(locale, 'daily.trackedDay')}</span>
-        <input readOnly type="text" value={day} />
-      </label>
-
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading ? (
         <form className="structured-entry-form food-form">

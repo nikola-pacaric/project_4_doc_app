@@ -9,6 +9,7 @@ import {
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { formatTimeInput } from '../utils/timeInput';
 
 interface ExerciseFormScreenProps {
   client: AppSupabaseClient;
@@ -18,9 +19,10 @@ interface ExerciseFormScreenProps {
   profile: UserProfile;
 }
 
-function toDatetimeLocal(value: Date): string {
+function toLocalDateTime(value: Date): string {
   const offset = value.getTimezoneOffset() * 60_000;
-  return new Date(value.getTime() - offset).toISOString().slice(0, 16);
+  const localValue = new Date(value.getTime() - offset).toISOString();
+  return `${localValue.slice(0, 10)} ${localValue.slice(11, 16)}`;
 }
 
 function toDraft(record: ExerciseRecord): ExerciseDraft {
@@ -29,7 +31,7 @@ function toDraft(record: ExerciseRecord): ExerciseDraft {
     activity: record.activity,
     durationMinutes: record.durationMinutes,
     intensity: record.intensity,
-    occurredAt: toDatetimeLocal(new Date(record.occurredAt)),
+    occurredAt: toLocalDateTime(new Date(record.occurredAt)),
     notes: record.notes ?? '',
   };
 }
@@ -44,7 +46,7 @@ export function ExerciseFormScreen({
   const locale = DEFAULT_LOCALE;
   const [draft, setDraft] = useState<ExerciseDraft>({
     ...exerciseDraftDefaults,
-    occurredAt: toDatetimeLocal(new Date()),
+    occurredAt: toLocalDateTime(new Date()),
   });
   const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);
@@ -52,7 +54,7 @@ export function ExerciseFormScreen({
 
   useEffect(() => {
     if (!entryToEdit) {
-      setDraft({ ...exerciseDraftDefaults, occurredAt: toDatetimeLocal(new Date()) });
+      setDraft({ ...exerciseDraftDefaults, occurredAt: toLocalDateTime(new Date()) });
       setLoading(false);
       return;
     }
@@ -86,6 +88,10 @@ export function ExerciseFormScreen({
     setDraft((current) => ({ ...current, [field]: value }));
   }
 
+  function updateDateTime(date: string, time: string) {
+    update('occurredAt', `${date} ${time}`);
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!validateExercise(draft).valid) {
@@ -104,6 +110,9 @@ export function ExerciseFormScreen({
       setSaving(false);
     }
   }
+
+  const date = draft.occurredAt?.slice(0, 10) ?? '';
+  const time = draft.occurredAt?.slice(11, 16) ?? '';
 
   return (
     <main className="baseline-layout structured-entry-layout">
@@ -165,15 +174,25 @@ export function ExerciseFormScreen({
           </div>
         </fieldset>
 
-        <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'exercise.date')}</legend>
-          <input
-            aria-label={t(locale, 'exercise.date')}
-            onChange={(event) => update('occurredAt', event.target.value)}
-            type="datetime-local"
-            value={draft.occurredAt ?? ''}
-          />
-        </fieldset>
+        <div className="baseline-field-pair">
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'exercise.date')}</legend>
+            <input aria-label={t(locale, 'exercise.date')} readOnly value={date} />
+          </fieldset>
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'exercise.time')}</legend>
+            <input
+              aria-label={t(locale, 'exercise.time')}
+              inputMode="numeric"
+              maxLength={5}
+              onChange={(event) =>
+                updateDateTime(date, formatTimeInput(event.target.value, time, 23))
+              }
+              placeholder={t(locale, 'exercise.timePlaceholder')}
+              value={time}
+            />
+          </fieldset>
+        </div>
         <fieldset className="structured-fieldset">
           <legend>{t(locale, 'exercise.notes')}</legend>
           <textarea

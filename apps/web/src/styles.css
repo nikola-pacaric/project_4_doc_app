@@ -746,31 +746,6 @@ button:focus-visible {
   gap: 10px;
 }
 
-.tracked-day-field {
-  display: grid;
-  gap: 7px;
-  padding-top: 18px;
-  color: #4e3b42;
-  font-size: 14px;
-  font-weight: 750;
-}
-
-.tracked-day-field input {
-  width: 100%;
-  min-height: 48px;
-  border: 1px solid #eadadd;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #34292d;
-  padding: 10px 12px;
-}
-
-.tracked-day-field input[readonly] {
-  background: #f7f2f3;
-  color: #806c73;
-  cursor: default;
-}
-
 .activity-choice {
   display: grid;
   gap: 10px;
@@ -1219,11 +1194,6 @@ button:focus-visible {
 
 .structured-entry-layout .baseline-toolbar > .summary {
   grid-column: auto;
-}
-
-.food-form-layout .tracked-day-field {
-  width: min(920px, 100%);
-  margin: 18px auto 0;
 }
 
 .baseline-field-pair {
