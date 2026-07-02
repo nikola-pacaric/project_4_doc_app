@@ -166,7 +166,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
   }
 
   return (
-    <main className="baseline-layout">
+    <main className="baseline-layout structured-entry-layout">
       <div className="baseline-toolbar">
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'baseline.title')} />
         <p className="summary">{t(locale, 'baseline.subtitle')}</p>
@@ -174,16 +174,13 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
 
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading ? (
-        <form className="baseline-form" onSubmit={(event) => void submit(event)}>
-          <div className="full-width choice-field">
-            <span className="choice-label" id="baseline-sex-label">
-              {t(locale, 'baseline.sex')}
-            </span>
-            <div
-              aria-labelledby="baseline-sex-label"
-              className="choice-row four-options"
-              role="radiogroup"
-            >
+        <form
+          className="structured-entry-form baseline-profile-form"
+          onSubmit={(event) => void submit(event)}
+        >
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'baseline.sex')}</legend>
+            <div className="choice-row four-options" role="radiogroup">
               {sexOptions.map((option) => (
                 <button
                   aria-checked={draft.sex === option.value}
@@ -197,67 +194,72 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
                 </button>
               ))}
             </div>
+          </fieldset>
+          <div className="baseline-field-pair">
+            <fieldset className="structured-fieldset">
+              <legend>{t(locale, 'baseline.birthYear')}</legend>
+              <input
+                aria-label={t(locale, 'baseline.birthYear')}
+                max={new Date().getFullYear()}
+                min="1900"
+                onChange={(event) =>
+                  setDraft((value) => ({
+                    ...value,
+                    birthYear: optionalNumber(event.target.value),
+                  }))
+                }
+                required
+                type="number"
+                value={draft.birthYear ?? ''}
+              />
+            </fieldset>
+            <fieldset className="structured-fieldset">
+              <legend>{t(locale, 'baseline.occupation')}</legend>
+              <input
+                aria-label={t(locale, 'baseline.occupation')}
+                onChange={(event) =>
+                  setDraft((value) => ({ ...value, occupation: event.target.value }))
+                }
+                required
+                value={draft.occupation ?? ''}
+              />
+            </fieldset>
           </div>
-          <label>
-            <span>{t(locale, 'baseline.birthYear')}</span>
-            <input
-              max={new Date().getFullYear()}
-              min="1900"
-              onChange={(event) =>
-                setDraft((value) => ({ ...value, birthYear: optionalNumber(event.target.value) }))
-              }
-              required
-              type="number"
-              value={draft.birthYear ?? ''}
-            />
-          </label>
-          <label className="full-width">
-            <span>{t(locale, 'baseline.occupation')}</span>
-            <input
-              onChange={(event) =>
-                setDraft((value) => ({ ...value, occupation: event.target.value }))
-              }
-              required
-              value={draft.occupation ?? ''}
-            />
-          </label>
-          <label>
-            <span>{t(locale, 'baseline.weightKg')}</span>
-            <input
-              max="500"
-              min="0.1"
-              onChange={(event) =>
-                setDraft((value) => ({ ...value, weightKg: optionalNumber(event.target.value) }))
-              }
-              required
-              step="0.1"
-              type="number"
-              value={draft.weightKg ?? ''}
-            />
-          </label>
-          <label>
-            <span>{t(locale, 'baseline.heightCm')}</span>
-            <input
-              max="250"
-              min="50"
-              onChange={(event) =>
-                setDraft((value) => ({ ...value, heightCm: optionalNumber(event.target.value) }))
-              }
-              required
-              step="0.1"
-              type="number"
-              value={draft.heightCm ?? ''}
-            />
-          </label>
-          <div className="full-width choice-field">
-            <span className="choice-label" id="recent-weight-change-label">
-              {t(locale, 'baseline.recentWeightChange')}
-            </span>
-            <div
-              aria-labelledby="recent-weight-change-label"
-              className="choice-row"
-              role="radiogroup"
-            >
+          <div className="baseline-field-pair">
+            <fieldset className="structured-fieldset">
+              <legend>{t(locale, 'baseline.weightKg')}</legend>
+              <input
+                aria-label={t(locale, 'baseline.weightKg')}
+                max="500"
+                min="0.1"
+                onChange={(event) =>
+                  setDraft((value) => ({ ...value, weightKg: optionalNumber(event.target.value) }))
+                }
+                required
+                step="0.1"
+                type="number"
+                value={draft.weightKg ?? ''}
+              />
+            </fieldset>
+            <fieldset className="structured-fieldset">
+              <legend>{t(locale, 'baseline.heightCm')}</legend>
+              <input
+                aria-label={t(locale, 'baseline.heightCm')}
+                max="250"
+                min="50"
+                onChange={(event) =>
+                  setDraft((value) => ({ ...value, heightCm: optionalNumber(event.target.value) }))
+                }
+                required
+                step="0.1"
+                type="number"
+                value={draft.heightCm ?? ''}
+              />
+            </fieldset>
+          </div>
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'baseline.recentWeightChange')}</legend>
+            <div className="choice-row" role="radiogroup">
               {(['yes', 'no'] as const).map((answer) => (
                 <button
                   aria-checked={draft.recentMajorWeightChange === answer}
@@ -278,34 +280,28 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
                 </button>
               ))}
             </div>
-          </div>
-          {draft.recentMajorWeightChange === 'yes' ? (
-            <div className="full-width conditional-field-bubble">
-              <label>
-                <span>{t(locale, 'baseline.recentWeightChangeDescription')}</span>
-                <textarea
-                  onChange={(event) =>
-                    setDraft((value) => ({
-                      ...value,
-                      recentMajorWeightChangeDescription: event.target.value,
-                    }))
-                  }
-                  required
-                  rows={3}
-                  value={draft.recentMajorWeightChangeDescription ?? ''}
-                />
-              </label>
-            </div>
-          ) : null}
-          <div className="full-width choice-field">
-            <span className="choice-label" id="chronic-diseases-label">
-              {t(locale, 'baseline.chronicDiseases')}
-            </span>
-            <div
-              aria-labelledby="chronic-diseases-label"
-              className="choice-row"
-              role="radiogroup"
-            >
+            {draft.recentMajorWeightChange === 'yes' ? (
+              <div className="conditional-field-bubble">
+                <label>
+                  <span>{t(locale, 'baseline.recentWeightChangeDescription')}</span>
+                  <textarea
+                    onChange={(event) =>
+                      setDraft((value) => ({
+                        ...value,
+                        recentMajorWeightChangeDescription: event.target.value,
+                      }))
+                    }
+                    required
+                    rows={3}
+                    value={draft.recentMajorWeightChangeDescription ?? ''}
+                  />
+                </label>
+              </div>
+            ) : null}
+          </fieldset>
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'baseline.chronicDiseases')}</legend>
+            <div className="choice-row" role="radiogroup">
               {([true, false] as const).map((answer) => (
                 <button
                   aria-checked={hasChronicDiseases === answer}
@@ -331,66 +327,60 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
                 </button>
               ))}
             </div>
-          </div>
-          {hasChronicDiseases ? (
-            <div className="full-width conditional-field-bubble repeatable-field">
-              {chronicDiseaseNames.map((name, index) => (
-                <div className="repeatable-item" key={index}>
-                  <label>
-                    <span>{t(locale, 'baseline.chronicDiseaseName')}</span>
-                    <input
-                      onChange={(event) => {
-                        const next = chronicDiseaseNames.map((current, currentIndex) =>
-                          currentIndex === index ? event.target.value : current,
-                        );
-                        setChronicDiseaseNames(next);
-                        setDraft((value) => ({
-                          ...value,
-                          chronicDiseases: serializeDiseaseNames(next),
-                        }));
-                      }}
-                      required
-                      value={name}
-                    />
-                  </label>
-                  {chronicDiseaseNames.length > 1 ? (
-                    <button
-                      className="remove-inline-button"
-                      onClick={() => {
-                        const next = chronicDiseaseNames.filter(
-                          (_current, currentIndex) => currentIndex !== index,
-                        );
-                        setChronicDiseaseNames(next);
-                        setDraft((value) => ({
-                          ...value,
-                          chronicDiseases: serializeDiseaseNames(next),
-                        }));
-                      }}
-                      type="button"
-                    >
-                      {t(locale, 'common.remove')}
-                    </button>
-                  ) : null}
-                </div>
-              ))}
-              <button
-                className="add-inline-button"
-                onClick={() => setChronicDiseaseNames((current) => [...current, ''])}
-                type="button"
-              >
-                + {t(locale, 'baseline.addChronicDisease')}
-              </button>
-            </div>
-          ) : null}
-          <div className="full-width choice-field">
-            <span className="choice-label" id="chronic-therapy-label">
-              {t(locale, 'baseline.chronicTherapy')}
-            </span>
-            <div
-              aria-labelledby="chronic-therapy-label"
-              className="choice-row"
-              role="radiogroup"
-            >
+            {hasChronicDiseases ? (
+              <div className="conditional-field-bubble repeatable-field">
+                {chronicDiseaseNames.map((name, index) => (
+                  <div className="repeatable-item" key={index}>
+                    <label>
+                      <span>{t(locale, 'baseline.chronicDiseaseName')}</span>
+                      <input
+                        onChange={(event) => {
+                          const next = chronicDiseaseNames.map((current, currentIndex) =>
+                            currentIndex === index ? event.target.value : current,
+                          );
+                          setChronicDiseaseNames(next);
+                          setDraft((value) => ({
+                            ...value,
+                            chronicDiseases: serializeDiseaseNames(next),
+                          }));
+                        }}
+                        required
+                        value={name}
+                      />
+                    </label>
+                    {chronicDiseaseNames.length > 1 ? (
+                      <button
+                        className="remove-inline-button"
+                        onClick={() => {
+                          const next = chronicDiseaseNames.filter(
+                            (_current, currentIndex) => currentIndex !== index,
+                          );
+                          setChronicDiseaseNames(next);
+                          setDraft((value) => ({
+                            ...value,
+                            chronicDiseases: serializeDiseaseNames(next),
+                          }));
+                        }}
+                        type="button"
+                      >
+                        {t(locale, 'common.remove')}
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+                <button
+                  className="add-inline-button"
+                  onClick={() => setChronicDiseaseNames((current) => [...current, ''])}
+                  type="button"
+                >
+                  + {t(locale, 'baseline.addChronicDisease')}
+                </button>
+              </div>
+            ) : null}
+          </fieldset>
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'baseline.chronicTherapy')}</legend>
+            <div className="choice-row" role="radiogroup">
               {([true, false] as const).map((answer) => (
                 <button
                   aria-checked={hasChronicTherapy === answer}
@@ -410,94 +400,95 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
                 </button>
               ))}
             </div>
-          </div>
-          {hasChronicTherapy ? (
-            <div className="full-width conditional-field-bubble repeatable-field">
-              {chronicTherapies.map((therapy, index) => (
-                <div className="repeatable-item" key={index}>
-                  <label>
-                    <span>{t(locale, 'baseline.chronicTherapyName')}</span>
-                    <input
-                      autoCapitalize="words"
-                      onChange={(event) => {
-                        const next = chronicTherapies.map((current, currentIndex) =>
-                          currentIndex === index
-                            ? { ...current, name: event.target.value }
-                            : current,
-                        );
-                        setChronicTherapies(next);
-                        setDraft((value) => ({
-                          ...value,
-                          chronicTherapy: serializeChronicTherapies(next),
-                        }));
-                      }}
-                      required
-                      value={therapy.name}
-                    />
-                  </label>
-                  <label>
-                    <span>{t(locale, 'baseline.chronicTherapyDose')}</span>
-                    <input
-                      onChange={(event) => {
-                        const next = chronicTherapies.map((current, currentIndex) =>
-                          currentIndex === index
-                            ? { ...current, dose: event.target.value }
-                            : current,
-                        );
-                        setChronicTherapies(next);
-                        setDraft((value) => ({
-                          ...value,
-                          chronicTherapy: serializeChronicTherapies(next),
-                        }));
-                      }}
-                      required
-                      value={therapy.dose}
-                    />
-                  </label>
-                  {chronicTherapies.length > 1 ? (
-                    <button
-                      className="remove-inline-button"
-                      onClick={() => {
-                        const next = chronicTherapies.filter(
-                          (_current, currentIndex) => currentIndex !== index,
-                        );
-                        setChronicTherapies(next);
-                        setDraft((value) => ({
-                          ...value,
-                          chronicTherapy: serializeChronicTherapies(next),
-                        }));
-                      }}
-                      type="button"
-                    >
-                      {t(locale, 'common.remove')}
-                    </button>
-                  ) : null}
-                </div>
-              ))}
-              <button
-                className="add-inline-button"
-                onClick={() =>
-                  setChronicTherapies((current) => [...current, { name: '', dose: '' }])
-                }
-                type="button"
-              >
-                + {t(locale, 'baseline.addChronicTherapy')}
-              </button>
-            </div>
-          ) : null}
+            {hasChronicTherapy ? (
+              <div className="conditional-field-bubble repeatable-field">
+                {chronicTherapies.map((therapy, index) => (
+                  <div className="repeatable-item" key={index}>
+                    <label>
+                      <span>{t(locale, 'baseline.chronicTherapyName')}</span>
+                      <input
+                        autoCapitalize="words"
+                        onChange={(event) => {
+                          const next = chronicTherapies.map((current, currentIndex) =>
+                            currentIndex === index
+                              ? { ...current, name: event.target.value }
+                              : current,
+                          );
+                          setChronicTherapies(next);
+                          setDraft((value) => ({
+                            ...value,
+                            chronicTherapy: serializeChronicTherapies(next),
+                          }));
+                        }}
+                        required
+                        value={therapy.name}
+                      />
+                    </label>
+                    <label>
+                      <span>{t(locale, 'baseline.chronicTherapyDose')}</span>
+                      <input
+                        onChange={(event) => {
+                          const next = chronicTherapies.map((current, currentIndex) =>
+                            currentIndex === index
+                              ? { ...current, dose: event.target.value }
+                              : current,
+                          );
+                          setChronicTherapies(next);
+                          setDraft((value) => ({
+                            ...value,
+                            chronicTherapy: serializeChronicTherapies(next),
+                          }));
+                        }}
+                        required
+                        value={therapy.dose}
+                      />
+                    </label>
+                    {chronicTherapies.length > 1 ? (
+                      <button
+                        className="remove-inline-button"
+                        onClick={() => {
+                          const next = chronicTherapies.filter(
+                            (_current, currentIndex) => currentIndex !== index,
+                          );
+                          setChronicTherapies(next);
+                          setDraft((value) => ({
+                            ...value,
+                            chronicTherapy: serializeChronicTherapies(next),
+                          }));
+                        }}
+                        type="button"
+                      >
+                        {t(locale, 'common.remove')}
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+                <button
+                  className="add-inline-button"
+                  onClick={() =>
+                    setChronicTherapies((current) => [...current, { name: '', dose: '' }])
+                  }
+                  type="button"
+                >
+                  + {t(locale, 'baseline.addChronicTherapy')}
+                </button>
+              </div>
+            ) : null}
+          </fieldset>
           {draft.sex === 'female' ? (
-            <label className="full-width">
-              <span>{t(locale, 'baseline.menstrualHistory')}</span>
+            <fieldset className="structured-fieldset">
+              <legend>{t(locale, 'baseline.menstrualHistory')}</legend>
               <textarea
+                aria-label={t(locale, 'baseline.menstrualHistory')}
                 onChange={(event) =>
                   setDraft((value) => ({ ...value, menstrualHistory: event.target.value }))
                 }
                 rows={3}
                 value={draft.menstrualHistory ?? ''}
               />
-            </label>
+            </fieldset>
           ) : null}
-          <div className="full-width form-actions">
+          <div className="button-row form-actions-row">
             <button className="secondary-button" onClick={onBack} type="button">
               {t(locale, 'common.cancel')}
             </button>

@@ -17,7 +17,7 @@ export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
   }
 
   return (
-    <fieldset className="full-width meal-section">
+    <fieldset className="structured-fieldset meal-section">
       <legend>{t(locale, 'meal.sectionTitle')}</legend>
       <p className="field-help">{t(locale, 'meal.sectionHelp')}</p>
       {meals.map((meal, index) => (

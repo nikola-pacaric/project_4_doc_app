@@ -142,30 +142,30 @@ export function SymptomFormScreen({ client, onBack, profile }: SymptomFormScreen
   }
 
   return (
-    <main className="baseline-layout symptom-layout">
+    <main className="baseline-layout structured-entry-layout symptom-layout">
       <div className="baseline-toolbar">
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'symptom.title')} />
         <p className="summary">{t(locale, 'symptom.subtitle')}</p>
       </div>
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading ? (
-        <form className="symptom-form" onSubmit={(event) => void submit(event)}>
-          <div className="symptom-section-heading">
-            <strong>{t(locale, 'symptom.selectTitle')}</strong>
+        <form className="structured-entry-form symptom-form" onSubmit={(event) => void submit(event)}>
+          <fieldset className="structured-fieldset symptom-section-heading">
+            <legend>{t(locale, 'symptom.selectTitle')}</legend>
             <p>{t(locale, 'symptom.selectHelp')}</p>
-          </div>
-          <SymptomFields
-            drafts={drafts}
-            expanded={expanded}
-            invalid={invalid}
-            onChange={(type, draft) =>
-              setDrafts((current) =>
-                current.map((candidate) => (candidate.type === type ? draft : candidate)),
-              )
-            }
-            onToggle={toggle}
-            onToggleExpanded={toggleExpanded}
-          />
+            <SymptomFields
+              drafts={drafts}
+              expanded={expanded}
+              invalid={invalid}
+              onChange={(type, draft) =>
+                setDrafts((current) =>
+                  current.map((candidate) => (candidate.type === type ? draft : candidate)),
+                )
+              }
+              onToggle={toggle}
+              onToggleExpanded={toggleExpanded}
+            />
+          </fieldset>
           <div className="form-actions">
             <button className="secondary-button" onClick={onBack} type="button">
               {t(locale, 'common.cancel')}

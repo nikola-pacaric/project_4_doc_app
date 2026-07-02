@@ -113,23 +113,25 @@ export function MenstruationFormScreen({
           </div>
         </fieldset>
 
-        <label>
-          <span>{t(locale, 'menstruation.date')}</span>
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'menstruation.date')}</legend>
           <input
+            aria-label={t(locale, 'menstruation.date')}
             onChange={(event) => update('occurredAt', event.target.value)}
             type="datetime-local"
             value={draft.occurredAt ?? ''}
           />
-        </label>
-        <label>
-          <span>{t(locale, 'menstruation.notes')}</span>
+        </fieldset>
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'menstruation.notes')}</legend>
           <textarea
+            aria-label={t(locale, 'menstruation.notes')}
             onChange={(event) => update('notes', event.target.value)}
             placeholder={t(locale, 'menstruation.notesPlaceholder')}
             rows={4}
             value={draft.notes ?? ''}
           />
-        </label>
+        </fieldset>
 
         {error ? <p className="notice error">{error}</p> : null}
         <div className="button-row form-actions-row">

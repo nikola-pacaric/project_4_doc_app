@@ -62,33 +62,34 @@ export function ExerciseFormScreen({ client, onBack, onSaved, profile }: Exercis
       </div>
 
       <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
-        <div className="exercise-field-grid">
-          <label>
-            <span>{t(locale, 'exercise.activity')}</span>
-            <input
-              autoComplete="off"
-              onChange={(event) => update('activity', event.target.value)}
-              placeholder={t(locale, 'exercise.activityPlaceholder')}
-              value={draft.activity ?? ''}
-            />
-          </label>
-          <label>
-            <span>{t(locale, 'exercise.duration')}</span>
-            <input
-              inputMode="numeric"
-              max={1440}
-              min={1}
-              onChange={(event) => {
-                const value = event.target.valueAsNumber;
-                update('durationMinutes', Number.isFinite(value) ? value : undefined);
-              }}
-              placeholder={t(locale, 'exercise.durationPlaceholder')}
-              step={1}
-              type="number"
-              value={draft.durationMinutes ?? ''}
-            />
-          </label>
-        </div>
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'exercise.activity')}</legend>
+          <input
+            aria-label={t(locale, 'exercise.activity')}
+            autoComplete="off"
+            onChange={(event) => update('activity', event.target.value)}
+            placeholder={t(locale, 'exercise.activityPlaceholder')}
+            value={draft.activity ?? ''}
+          />
+        </fieldset>
+
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'exercise.duration')}</legend>
+          <input
+            aria-label={t(locale, 'exercise.duration')}
+            inputMode="numeric"
+            max={1440}
+            min={1}
+            onChange={(event) => {
+              const value = event.target.valueAsNumber;
+              update('durationMinutes', Number.isFinite(value) ? value : undefined);
+            }}
+            placeholder={t(locale, 'exercise.durationPlaceholder')}
+            step={1}
+            type="number"
+            value={draft.durationMinutes ?? ''}
+          />
+        </fieldset>
 
         <fieldset className="structured-fieldset">
           <legend>{t(locale, 'exercise.intensity')}</legend>
@@ -108,23 +109,25 @@ export function ExerciseFormScreen({ client, onBack, onSaved, profile }: Exercis
           </div>
         </fieldset>
 
-        <label>
-          <span>{t(locale, 'exercise.date')}</span>
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'exercise.date')}</legend>
           <input
+            aria-label={t(locale, 'exercise.date')}
             onChange={(event) => update('occurredAt', event.target.value)}
             type="datetime-local"
             value={draft.occurredAt ?? ''}
           />
-        </label>
-        <label>
-          <span>{t(locale, 'exercise.notes')}</span>
+        </fieldset>
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'exercise.notes')}</legend>
           <textarea
+            aria-label={t(locale, 'exercise.notes')}
             onChange={(event) => update('notes', event.target.value)}
             placeholder={t(locale, 'exercise.notesPlaceholder')}
             rows={4}
             value={draft.notes ?? ''}
           />
-        </label>
+        </fieldset>
 
         {error ? <p className="notice error">{error}</p> : null}
         <div className="button-row form-actions-row">

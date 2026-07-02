@@ -62,9 +62,10 @@ export function NoteFormScreen({ client, onBack, onSaved, profile }: NoteFormScr
       </div>
 
       <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
-        <label>
-          <span>{t(locale, 'note.text')}</span>
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'note.text')}</legend>
           <textarea
+            aria-label={t(locale, 'note.text')}
             autoFocus
             onChange={(event) => update('text', event.target.value)}
             placeholder={t(locale, 'note.textPlaceholder')}
@@ -72,16 +73,17 @@ export function NoteFormScreen({ client, onBack, onSaved, profile }: NoteFormScr
             rows={7}
             value={draft.text ?? ''}
           />
-        </label>
-        <label>
-          <span>{t(locale, 'note.dateTime')}</span>
+        </fieldset>
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'note.dateTime')}</legend>
           <input
+            aria-label={t(locale, 'note.dateTime')}
             onChange={(event) => update('occurredAt', event.target.value)}
             required
             type="datetime-local"
             value={draft.occurredAt ?? ''}
           />
-        </label>
+        </fieldset>
 
         {error ? <p className="notice error">{error}</p> : null}
         <div className="button-row form-actions-row">

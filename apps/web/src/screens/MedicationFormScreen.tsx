@@ -68,53 +68,59 @@ export function MedicationFormScreen({
       </div>
 
       <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
-        <label>
-          <span>{t(locale, 'medication.name')}</span>
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'medication.name')}</legend>
           <input
+            aria-label={t(locale, 'medication.name')}
             autoComplete="off"
             onChange={(event) => update('name', event.target.value)}
             placeholder={t(locale, 'medication.namePlaceholder')}
             value={draft.name ?? ''}
           />
-        </label>
-        <label>
-          <span>{t(locale, 'medication.dose')}</span>
+        </fieldset>
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'medication.dose')}</legend>
           <input
+            aria-label={t(locale, 'medication.dose')}
             autoComplete="off"
             onChange={(event) => update('dose', event.target.value)}
             placeholder={t(locale, 'medication.dosePlaceholder')}
             value={draft.dose ?? ''}
           />
-        </label>
-        <label>
-          <span>{t(locale, 'medication.timeTaken')}</span>
+        </fieldset>
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'medication.timeTaken')}</legend>
           <input
+            aria-label={t(locale, 'medication.timeTaken')}
             onChange={(event) => update('takenAt', event.target.value)}
             type="datetime-local"
             value={draft.takenAt ?? ''}
           />
-        </label>
-        <label>
-          <span>{t(locale, 'medication.reason')}</span>
+        </fieldset>
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'medication.reason')}</legend>
           <textarea
+            aria-label={t(locale, 'medication.reason')}
             onChange={(event) => update('reason', event.target.value)}
             placeholder={t(locale, 'medication.reasonPlaceholder')}
             rows={4}
             value={draft.reason ?? ''}
           />
-        </label>
+        </fieldset>
 
-        <label className="switch-field">
-          <span className="switch-copy">
-            <strong>{t(locale, 'medication.chronicTherapy')}</strong>
-            <small>{t(locale, 'medication.chronicTherapyHelp')}</small>
-          </span>
-          <input
-            checked={draft.isChronicTherapy ?? false}
-            onChange={(event) => update('isChronicTherapy', event.target.checked)}
-            type="checkbox"
-          />
-        </label>
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'medication.chronicTherapy')}</legend>
+          <label className="switch-field">
+            <span className="switch-copy">
+              <small>{t(locale, 'medication.chronicTherapyHelp')}</small>
+            </span>
+            <input
+              checked={draft.isChronicTherapy ?? false}
+              onChange={(event) => update('isChronicTherapy', event.target.checked)}
+              type="checkbox"
+            />
+          </label>
+        </fieldset>
 
         {error ? <p className="notice error">{error}</p> : null}
         <div className="button-row form-actions-row">

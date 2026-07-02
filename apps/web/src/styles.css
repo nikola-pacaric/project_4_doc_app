@@ -893,13 +893,17 @@ button:focus-visible {
   font-weight: 700;
 }
 
+.daily-form .structured-fieldset {
+  align-content: start;
+}
+
+.daily-form .form-actions {
+  border-top: 1px solid #f0dfe1;
+  padding-top: 16px;
+}
+
 .meal-section {
   min-width: 0;
-  margin: 0;
-  border: 1px solid #f0dfe1;
-  border-radius: 18px;
-  background: #fffafb;
-  padding: 16px;
 }
 
 .meal-section legend,
@@ -907,7 +911,7 @@ button:focus-visible {
 .hydration-section legend {
   padding: 0 6px;
   color: #34292d;
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 850;
 }
 
@@ -963,11 +967,6 @@ button:focus-visible {
 .fluid-section,
 .hydration-section {
   min-width: 0;
-  margin: 0;
-  border: 1px solid #f0dfe1;
-  border-radius: 18px;
-  background: #fffafb;
-  padding: 16px;
 }
 
 .fluid-card + .fluid-card {
@@ -1148,6 +1147,30 @@ button:focus-visible {
   display: grid;
   gap: 16px;
   padding-top: 18px;
+}
+
+.structured-entry-layout .baseline-toolbar {
+  width: min(920px, 100%);
+  margin: 0 auto;
+}
+
+.structured-entry-layout .baseline-toolbar > .summary {
+  grid-column: auto;
+}
+
+.food-form-layout .tracked-day-field {
+  width: min(920px, 100%);
+  margin: 18px auto 0;
+}
+
+.baseline-field-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.baseline-field-pair .structured-fieldset {
+  min-width: 0;
 }
 
 .exercise-field-grid {
@@ -1857,6 +1880,10 @@ button:focus-visible {
   }
 
   .web-app-content .baseline-form {
+    grid-template-columns: 1fr;
+  }
+
+  .baseline-field-pair {
     grid-template-columns: 1fr;
   }
 

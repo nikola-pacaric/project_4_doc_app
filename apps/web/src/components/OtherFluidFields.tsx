@@ -22,7 +22,7 @@ export function OtherFluidFields({ createFluid, fluids, onChange }: OtherFluidFi
   }
 
   return (
-    <fieldset className="full-width fluid-section">
+    <fieldset className="structured-fieldset fluid-section">
       <legend>{t(locale, 'fluid.sectionTitle')}</legend>
       <p className="field-help">{t(locale, 'fluid.sectionHelp')}</p>
       {fluids.map((fluid, index) => (

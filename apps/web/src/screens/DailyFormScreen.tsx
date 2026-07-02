@@ -17,9 +17,8 @@ import {
 } from '@project4/supabase-client';
 import { useEffect, useState } from 'react';
 
-import { ScreenHeader } from '../components/ScreenHeader';
-import { ConditionalTextField } from '../components/ConditionalTextField';
 import { formatTimeInput } from '../utils/timeInput';
+import { ScreenHeader } from '../components/ScreenHeader';
 
 interface DailyFormScreenProps {
   client: AppSupabaseClient;
@@ -155,29 +154,23 @@ export function DailyFormScreen({
 
   function textField(field: keyof DailyFormDraft, key: TranslationKey, rows = 3) {
     return (
-      <label className="full-width">
-        <span>{t(locale, key)}</span>
+      <fieldset className="structured-fieldset">
+        <legend>{t(locale, key)}</legend>
         <textarea
           onChange={(event) => setDraft((value) => ({ ...value, [field]: event.target.value }))}
           required
           rows={rows}
           value={String(draft[field] ?? '')}
         />
-      </label>
+      </fieldset>
     );
   }
 
   function scaleField(field: 'stressLevel' | 'energyLevel', key: TranslationKey) {
     return (
-      <div className="full-width choice-field scale-field-card">
-        <span className="choice-label" id={`${field}-label`}>
-          {t(locale, key)}
-        </span>
-        <div
-          aria-labelledby={`${field}-label`}
-          className="choice-row three-options"
-          role="radiogroup"
-        >
+      <fieldset className="structured-fieldset scale-field-card">
+        <legend>{t(locale, key)}</legend>
+        <div className="choice-row three-options" role="radiogroup">
           {([1, 2, 3] as const).map((level) => (
             <button
               aria-checked={draft[field] === level}
@@ -201,7 +194,7 @@ export function DailyFormScreen({
             </button>
           ))}
         </div>
-      </div>
+      </fieldset>
     );
   }
 
@@ -219,11 +212,9 @@ export function DailyFormScreen({
     value: T | undefined;
   }) {
     return (
-      <div className="full-width choice-field daily-option-field">
-        <span className="choice-label" id={`${id}-label`}>
-          {t(locale, labelKey)}
-        </span>
-        <div aria-labelledby={`${id}-label`} className="choice-row three-options" role="radiogroup">
+      <fieldset className="structured-fieldset daily-option-field">
+        <legend>{t(locale, labelKey)}</legend>
+        <div className="choice-row three-options" role="radiogroup">
           {options.map((option) => (
             <button
               aria-checked={value === option.value}
@@ -237,7 +228,7 @@ export function DailyFormScreen({
             </button>
           ))}
         </div>
-      </div>
+      </fieldset>
     );
   }
 
@@ -250,7 +241,7 @@ export function DailyFormScreen({
     : t(locale, 'daily.readyForHomeSubmit');
 
   return (
-    <main className="baseline-layout">
+    <main className="baseline-layout structured-entry-layout">
       <div className="baseline-toolbar">
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'daily.title')} />
         <p className="summary">{t(locale, 'daily.subtitle')}</p>
@@ -258,12 +249,14 @@ export function DailyFormScreen({
 
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading ? (
-        <form className="baseline-form daily-form">
-          <div className={`full-width daily-status ${completedAt ? 'complete' : 'draft'}`}>
+        <form className="structured-entry-form daily-form">
+          <div className={`daily-status ${completedAt ? 'complete' : 'draft'}`}>
             <strong>{completedAt ? t(locale, 'daily.statusComplete') : draftStatusTitle}</strong>
             <span>{completedAt ? t(locale, 'daily.statusCompleteHelp') : draftStatusHelp}</span>
           </div>
-          <div className="full-width time-field-row">
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'daily.sleepNotes')}</legend>
+            <div className="time-field-row">
             <label>
               <span>{t(locale, 'daily.wakeTime')}</span>
               <input
@@ -296,7 +289,8 @@ export function DailyFormScreen({
                 value={draft.sleepDuration ?? ''}
               />
             </label>
-          </div>
+            </div>
+          </fieldset>
           {optionField({
             id: 'appetite',
             labelKey: 'daily.appetite',
@@ -308,11 +302,9 @@ export function DailyFormScreen({
             })),
             value: draft.appetite,
           })}
-          <div className="full-width choice-field activity-choice">
-            <span className="choice-label" id="physical-activity-label">
-              {t(locale, 'daily.activityNotes')}
-            </span>
-            <div aria-labelledby="physical-activity-label" className="choice-row" role="radiogroup">
+          <fieldset className="structured-fieldset activity-choice">
+            <legend>{t(locale, 'daily.activityNotes')}</legend>
+            <div className="choice-row" role="radiogroup">
               {([true, false] as const).map((answer) => (
                 <button
                   aria-checked={draft.hadPhysicalActivity === answer}
@@ -336,14 +328,12 @@ export function DailyFormScreen({
             {draft.hadPhysicalActivity ? (
               <p className="exercise-requirement">{t(locale, 'daily.exerciseRequiredHelp')}</p>
             ) : null}
-          </div>
+          </fieldset>
           {scaleField('stressLevel', 'daily.stressLevel')}
           {scaleField('energyLevel', 'daily.energyLevel')}
-          <div className="full-width choice-field conditional-question">
-            <span className="choice-label" id="chronic-therapy-label">
-              {t(locale, 'daily.chronicTherapyTaken')}
-            </span>
-            <div aria-labelledby="chronic-therapy-label" className="choice-row" role="radiogroup">
+          <fieldset className="structured-fieldset conditional-question">
+            <legend>{t(locale, 'daily.chronicTherapyTaken')}</legend>
+            <div className="choice-row" role="radiogroup">
               {([true, false] as const).map((answer) => (
                 <button
                   aria-checked={draft.tookChronicTherapy === answer}
@@ -359,12 +349,10 @@ export function DailyFormScreen({
               ))}
             </div>
             {!hasChronicTherapy ? <p>{t(locale, 'daily.noChronicTherapyHelp')}</p> : null}
-          </div>
-          <div className="full-width choice-field conditional-question">
-            <span className="choice-label" id="medication-label">
-              {t(locale, 'daily.medication')}
-            </span>
-            <div aria-labelledby="medication-label" className="choice-row" role="radiogroup">
+          </fieldset>
+          <fieldset className="structured-fieldset conditional-question">
+            <legend>{t(locale, 'daily.medication')}</legend>
+            <div className="choice-row" role="radiogroup">
               {([true, false] as const).map((answer) => (
                 <button
                   aria-checked={draft.tookMedicationOutsideChronicTherapy === answer}
@@ -388,13 +376,11 @@ export function DailyFormScreen({
             {draft.tookMedicationOutsideChronicTherapy ? (
               <p className="exercise-requirement">{t(locale, 'daily.medicationRequiredHelp')}</p>
             ) : null}
-          </div>
+          </fieldset>
           {includeMenstruation ? (
-            <div className="full-width choice-field conditional-question">
-              <span className="choice-label" id="menstruation-label">
-                {t(locale, 'daily.menstruation')}
-              </span>
-              <div aria-labelledby="menstruation-label" className="choice-row" role="radiogroup">
+            <fieldset className="structured-fieldset conditional-question">
+              <legend>{t(locale, 'daily.menstruation')}</legend>
+              <div className="choice-row" role="radiogroup">
                 {([true, false] as const).map((answer) => (
                   <button
                     aria-checked={draft.hadMenstruation === answer}
@@ -415,25 +401,48 @@ export function DailyFormScreen({
                   </button>
                 ))}
               </div>
-            </div>
+            </fieldset>
           ) : null}
-          <ConditionalTextField
-            answer={draft.hadNaps}
-            detailKey="daily.napsDetails"
-            id="naps"
-            onAnswerChange={(answer) =>
-              setDraft((value) => ({
-                ...value,
-                hadNaps: answer,
-                naps: answer ? value.naps : '',
-              }))
-            }
-            onTextChange={(text) => setDraft((value) => ({ ...value, naps: text }))}
-            questionKey="daily.naps"
-            text={draft.naps ?? ''}
-          />
+          <fieldset className="structured-fieldset conditional-question">
+            <legend>{t(locale, 'daily.naps')}</legend>
+            <div className="choice-row" role="radiogroup">
+              {([true, false] as const).map((answer) => (
+                <button
+                  aria-checked={draft.hadNaps === answer}
+                  className={draft.hadNaps === answer ? 'selected' : ''}
+                  key={String(answer)}
+                  onClick={() =>
+                    setDraft((value) => ({
+                      ...value,
+                      hadNaps: answer,
+                      naps: answer ? value.naps : '',
+                    }))
+                  }
+                  role="radio"
+                  type="button"
+                >
+                  {t(locale, answer ? 'common.yes' : 'common.no')}
+                </button>
+              ))}
+            </div>
+            {draft.hadNaps ? (
+              <div className="conditional-field-bubble">
+                <label>
+                  <span>{t(locale, 'daily.napsDetails')}</span>
+                  <textarea
+                    onChange={(event) =>
+                      setDraft((value) => ({ ...value, naps: event.target.value }))
+                    }
+                    required
+                    rows={3}
+                    value={draft.naps ?? ''}
+                  />
+                </label>
+              </div>
+            ) : null}
+          </fieldset>
           {textField('dayDescription', 'daily.dayDescription')}
-          <div className="full-width form-actions">
+          <div className="form-actions">
             {error ? <p className="notice error">{error}</p> : null}
             {message ? <p className="notice success">{message}</p> : null}
             <button className="secondary-button" onClick={onBack} type="button">

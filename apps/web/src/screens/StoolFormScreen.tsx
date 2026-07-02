@@ -129,15 +129,16 @@ export function StoolFormScreen({ client, onBack, onSaved, profile }: StoolFormS
           </div>
         </fieldset>
 
-        <label>
-          <span>{t(locale, 'stool.notes')}</span>
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'stool.notes')}</legend>
           <textarea
+            aria-label={t(locale, 'stool.notes')}
             onChange={(event) => update('notes', event.target.value)}
             placeholder={t(locale, 'stool.notesPlaceholder')}
             rows={4}
             value={draft.notes ?? ''}
           />
-        </label>
+        </fieldset>
 
         <p className="tracking-disclaimer">△ {t(locale, 'stool.disclaimer')}</p>
         {error ? <p className="notice error">{error}</p> : null}

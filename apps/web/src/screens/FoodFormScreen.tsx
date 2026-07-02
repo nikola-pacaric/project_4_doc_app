@@ -214,7 +214,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
   }
 
   return (
-    <main className="baseline-layout food-form-layout">
+    <main className="baseline-layout structured-entry-layout food-form-layout">
       <div className="baseline-toolbar">
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'food.title')} />
         <p className="summary">{t(locale, 'food.subtitle')}</p>
@@ -227,10 +227,10 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
 
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading ? (
-        <form className="baseline-form food-form">
+        <form className="structured-entry-form food-form">
           <MealFields createMeal={createEmptyMealDraft} meals={meals} onChange={setMeals} />
 
-          <fieldset className="full-width hydration-section">
+          <fieldset className="structured-fieldset hydration-section">
             <legend>{t(locale, 'food.waterTitle')}</legend>
             <label>
               <span>{t(locale, 'food.waterAmountLiters')}</span>
@@ -251,11 +251,9 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
             </label>
           </fieldset>
 
-          <div className="full-width choice-field conditional-question">
-            <span className="choice-label" id="other-fluids-label">
-              {t(locale, 'food.otherFluids')}
-            </span>
-            <div aria-labelledby="other-fluids-label" className="choice-row" role="radiogroup">
+          <fieldset className="structured-fieldset conditional-question">
+            <legend>{t(locale, 'food.otherFluids')}</legend>
+            <div className="choice-row" role="radiogroup">
               {([true, false] as const).map((answer) => (
                 <button
                   aria-checked={hydration.hasOtherFluids === answer}
@@ -275,7 +273,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
                 </button>
               ))}
             </div>
-          </div>
+          </fieldset>
 
           {hydration.hasOtherFluids ? (
             <OtherFluidFields
@@ -285,7 +283,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
             />
           ) : null}
 
-          <div className="full-width form-actions">
+          <div className="form-actions form-actions-row">
             {error ? <p className="notice error">{error}</p> : null}
             {message ? <p className="notice success">{message}</p> : null}
             <button className="secondary-button" onClick={onBack} type="button">
