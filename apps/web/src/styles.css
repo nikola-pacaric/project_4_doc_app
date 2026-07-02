@@ -926,6 +926,69 @@ button:focus-visible {
   margin-top: 12px;
 }
 
+.meal-type-selector {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.meal-type-selector legend {
+  margin-bottom: 7px;
+  padding: 0;
+  color: #4b3a41;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.meal-type-selector p {
+  margin: 0;
+  color: #8a767d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.meal-type-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.meal-type-grid button {
+  min-width: 0;
+  min-height: 52px;
+  border: 1px solid #eadadd;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #59434a;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.15;
+  text-align: center;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.meal-type-grid button:hover {
+  border-color: #f9a9ba;
+  box-shadow: 0 8px 18px rgba(232, 79, 112, 0.1);
+  transform: translateY(-1px);
+}
+
+.meal-type-grid button.selected {
+  border-color: #f45b7a;
+  background: #f45b7a;
+  color: #ffffff;
+  box-shadow: 0 10px 24px rgba(244, 91, 122, 0.22);
+}
+
 .meal-card > label,
 .meal-details label,
 .fluid-card label,
@@ -1616,6 +1679,7 @@ button:focus-visible {
   }
 
   .choice-row.four-options,
+  .meal-type-grid,
   .check-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1897,6 +1961,10 @@ button:focus-visible {
 
   .exercise-field-grid {
     grid-template-columns: 1fr;
+  }
+
+  .meal-type-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .web-app-content .baseline-toolbar > .summary {

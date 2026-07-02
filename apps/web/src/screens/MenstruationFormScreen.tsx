@@ -1,5 +1,6 @@
 import {
   menstruationFlows,
+  type MenstruationRecord,
   type MenstruationPainLevel,
   type UserProfile,
 } from '@project4/contracts';
@@ -9,13 +10,18 @@ import {
   type MenstruationDraft,
 } from '@project4/forms';
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
-import { createPatientMenstruation, type AppSupabaseClient } from '@project4/supabase-client';
-import { useState, type FormEvent } from 'react';
+import {
+  createPatientMenstruation,
+  getPatientMenstruation,
+  type AppSupabaseClient,
+} from '@project4/supabase-client';
+import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
 
 interface MenstruationFormScreenProps {
   client: AppSupabaseClient;
+  entryToEdit?: { id: string; occurredAt: string } | null;
   onBack: () => void;
   onSaved: () => void;
   profile: UserProfile;
@@ -28,19 +34,66 @@ function toDatetimeLocal(value: Date): string {
   return new Date(value.getTime() - offset).toISOString().slice(0, 16);
 }
 
+function createInitialDraft(): MenstruationDraft {
+  return {
+    ...menstruationDraftDefaults,
+    occurredAt: toDatetimeLocal(new Date()),
+  };
+}
+
+function toDraft(record: MenstruationRecord): MenstruationDraft {
+  return {
+    entryId: record.entryId,
+    flow: record.flow,
+    painLevel: record.painLevel,
+    occurredAt: toDatetimeLocal(new Date(record.occurredAt)),
+    notes: record.notes ?? '',
+  };
+}
+
 export function MenstruationFormScreen({
   client,
+  entryToEdit,
   onBack,
   onSaved,
   profile,
 }: MenstruationFormScreenProps) {
   const locale = DEFAULT_LOCALE;
-  const [draft, setDraft] = useState<MenstruationDraft>({
-    ...menstruationDraftDefaults,
-    occurredAt: toDatetimeLocal(new Date()),
-  });
+  const [draft, setDraft] = useState<MenstruationDraft>(createInitialDraft);
+  const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!entryToEdit) {
+      setDraft(createInitialDraft());
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    setLoading(true);
+    setError(null);
+    void getPatientMenstruation(client, entryToEdit.id, entryToEdit.occurredAt)
+      .then((record) => {
+        if (!active) return;
+        if (!record) {
+          setError(t(locale, 'menstruation.loadError'));
+          return;
+        }
+        setDraft(toDraft(record));
+      })
+      .catch(() => {
+        if (active) setError(t(locale, 'menstruation.loadError'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [client, entryToEdit, locale]);
 
   function update<K extends keyof MenstruationDraft>(field: K, value: MenstruationDraft[K]) {
     setError(null);
@@ -76,6 +129,8 @@ export function MenstruationFormScreen({
         />
       </div>
 
+      {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
+      {!loading ? (
       <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
         <fieldset className="structured-fieldset">
           <legend>{t(locale, 'menstruation.flow')}</legend>
@@ -143,6 +198,7 @@ export function MenstruationFormScreen({
           </button>
         </div>
       </form>
+      ) : null}
     </main>
   );
 }

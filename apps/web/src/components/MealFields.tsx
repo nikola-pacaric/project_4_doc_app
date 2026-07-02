@@ -22,25 +22,24 @@ export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
       <p className="field-help">{t(locale, 'meal.sectionHelp')}</p>
       {meals.map((meal, index) => (
         <div className="meal-card" key={meal.entryId ?? `new-${index}`}>
-          <label>
-            <span>{t(locale, 'meal.type')}</span>
-            <select
-              onChange={(event) =>
-                updateMeal(index, { type: event.target.value as MealType, name: meal.name ?? '' })
-              }
-              required
-              value={meal.type ?? ''}
-            >
-              <option disabled value="">
-                {t(locale, 'meal.selectType')}
-              </option>
+          <fieldset className="meal-type-selector">
+            <legend>{t(locale, 'meal.type')}</legend>
+            <div className="meal-type-grid" role="radiogroup">
               {mealTypes.map((type) => (
-                <option key={type} value={type}>
+                <button
+                  aria-checked={meal.type === type}
+                  className={meal.type === type ? 'selected' : ''}
+                  key={type}
+                  onClick={() => updateMeal(index, { type, name: meal.name ?? '' })}
+                  role="radio"
+                  type="button"
+                >
                   {t(locale, `meal.type.${type}`)}
-                </option>
+                </button>
               ))}
-            </select>
-          </label>
+            </div>
+            {!meal.type ? <p>{t(locale, 'meal.selectType')}</p> : null}
+          </fieldset>
           {meal.type ? (
             <div className="meal-details conditional-field-bubble">
               <label>

@@ -1,4 +1,4 @@
-import type { UserProfile } from '@project4/contracts';
+import type { PatientEntry, UserProfile } from '@project4/contracts';
 import { noteDraftDefaults, validateNote, type NoteDraft } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import { createPatientNote, type AppSupabaseClient } from '@project4/supabase-client';
@@ -8,6 +8,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 
 interface NoteFormScreenProps {
   client: AppSupabaseClient;
+  entryToEdit?: PatientEntry | null;
   onBack: () => void;
   onSaved: () => void;
   profile: UserProfile;
@@ -18,12 +19,30 @@ function toDatetimeLocal(value: Date): string {
   return new Date(value.getTime() - offset).toISOString().slice(0, 16);
 }
 
-export function NoteFormScreen({ client, onBack, onSaved, profile }: NoteFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
-  const [draft, setDraft] = useState<NoteDraft>({
+function createInitialDraft(entryToEdit?: PatientEntry | null): NoteDraft {
+  if (entryToEdit) {
+    return {
+      entryId: entryToEdit.kind === 'note' ? entryToEdit.id : undefined,
+      text: entryToEdit.text ?? '',
+      occurredAt: toDatetimeLocal(new Date(entryToEdit.occurredAt)),
+    };
+  }
+
+  return {
     ...noteDraftDefaults,
     occurredAt: toDatetimeLocal(new Date()),
-  });
+  };
+}
+
+export function NoteFormScreen({
+  client,
+  entryToEdit,
+  onBack,
+  onSaved,
+  profile,
+}: NoteFormScreenProps) {
+  const locale = DEFAULT_LOCALE;
+  const [draft, setDraft] = useState<NoteDraft>(() => createInitialDraft(entryToEdit));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

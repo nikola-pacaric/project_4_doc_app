@@ -19,6 +19,7 @@ import { SymptomFields } from '../components/SymptomFields';
 interface SymptomFormScreenProps {
   client: AppSupabaseClient;
   onBack: () => void;
+  onSaved?: () => void;
   profile: UserProfile;
 }
 
@@ -60,7 +61,7 @@ function toDraft(record: SymptomRecord): SymptomDraft {
   };
 }
 
-export function SymptomFormScreen({ client, onBack, profile }: SymptomFormScreenProps) {
+export function SymptomFormScreen({ client, onBack, onSaved, profile }: SymptomFormScreenProps) {
   const locale = DEFAULT_LOCALE;
   const [drafts, setDrafts] = useState<SymptomDraft[]>([]);
   const [expanded, setExpanded] = useState<SymptomType[]>([]);
@@ -134,6 +135,7 @@ export function SymptomFormScreen({ client, onBack, profile }: SymptomFormScreen
       setDrafts(saved);
       setInvalid([]);
       setMessage(t(locale, 'symptom.saved'));
+      onSaved?.();
     } catch {
       setError(t(locale, 'symptom.saveError'));
     } finally {

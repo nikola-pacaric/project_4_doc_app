@@ -6,15 +6,19 @@ import {
   type UserProfile,
 } from '@project4/contracts';
 import type { DailyFormDetails } from '@project4/contracts';
-import { isCompleteDailyForm, type DailyFormDraft } from '@project4/forms';
+import {
+  formatDailyFormMissingFields,
+  getDailyFormMissingFields,
+  isCompleteDailyForm,
+  type DailyFormDraft,
+  type DailyFormField,
+} from '@project4/forms';
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
 import {
   completePatientDailyForm,
-  deletePatientEntry,
   getPatientBaseline,
   getPatientDailyForm,
   listRecentPatientEntries,
-  updateEntryTimestamp,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
@@ -35,20 +39,9 @@ interface TimelineScreenProps {
   onSignOut: () => Promise<void>;
 }
 
-function toDatetimeLocal(value: Date): string {
-  const offset = value.getTimezoneOffset() * 60_000;
-  return new Date(value.getTime() - offset).toISOString().slice(0, 16);
-}
-
 function localDateValue(value: Date): string {
   const offset = value.getTimezoneOffset() * 60_000;
   return new Date(value.getTime() - offset).toISOString().slice(0, 10);
-}
-
-function sortEntries(entries: PatientEntry[]): PatientEntry[] {
-  return [...entries].sort(
-    (left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime(),
-  );
 }
 
 function hasTodayEntry(entries: PatientEntry[], kind: PatientEntry['kind']): boolean {
@@ -133,8 +126,6 @@ const entryIcons: Record<EntryKind, string> = {
 export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenProps) {
   const locale = DEFAULT_LOCALE;
   const [entries, setEntries] = useState<PatientEntry[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingTimestamp, setEditingTimestamp] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -142,9 +133,12 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [showDailyForm, setShowDailyForm] = useState(false);
   const [showSymptomForm, setShowSymptomForm] = useState(false);
   const [showStoolForm, setShowStoolForm] = useState(false);
+  const [stoolEntryToEdit, setStoolEntryToEdit] = useState<PatientEntry | null>(null);
   const [showFoodForm, setShowFoodForm] = useState(false);
   const [showMedicationForm, setShowMedicationForm] = useState(false);
+  const [medicationEntryToEdit, setMedicationEntryToEdit] = useState<PatientEntry | null>(null);
   const [showExerciseForm, setShowExerciseForm] = useState(false);
+  const [exerciseEntryToEdit, setExerciseEntryToEdit] = useState<PatientEntry | null>(null);
   const [exerciseRequired, setExerciseRequired] = useState(false);
   const [exerciseCompleted, setExerciseCompleted] = useState(false);
   const [medicationRequired, setMedicationRequired] = useState(false);
@@ -154,10 +148,15 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [dailyEntryId, setDailyEntryId] = useState<string | null>(null);
   const [dailyCompleted, setDailyCompleted] = useState(false);
   const [dailyReadyToSubmit, setDailyReadyToSubmit] = useState(false);
+  const [dailyMissingFields, setDailyMissingFields] = useState<DailyFormField[]>([]);
   const [submittingDay, setSubmittingDay] = useState(false);
   const [showTimelineList, setShowTimelineList] = useState(false);
   const [showMenstruationForm, setShowMenstruationForm] = useState(false);
+  const [menstruationEntryToEdit, setMenstruationEntryToEdit] = useState<PatientEntry | null>(
+    null,
+  );
   const [showNoteForm, setShowNoteForm] = useState(false);
+  const [noteEntryToEdit, setNoteEntryToEdit] = useState<PatientEntry | null>(null);
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
 
   const handleActivityAnswerChange = useCallback((answer: boolean | undefined) => {
@@ -195,6 +194,15 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
               nextHasChronicTherapy,
             )
           : false,
+      );
+      setDailyMissingFields(
+        dailyForm
+          ? getDailyFormMissingFields(
+              toDailyDraft(dailyForm.details),
+              includeMenstruation,
+              nextHasChronicTherapy,
+            )
+          : [],
       );
       setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
       setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
@@ -235,6 +243,15 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
                 )
               : false,
           );
+          setDailyMissingFields(
+            dailyForm
+              ? getDailyFormMissingFields(
+                  toDailyDraft(dailyForm.details),
+                  includeMenstruation,
+                  nextHasChronicTherapy,
+                )
+              : [],
+          );
           setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
           setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
           setPeriodRequired(dailyForm?.details.hadMenstruation === true);
@@ -255,38 +272,6 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     };
   }, [client, locale, profile.id]);
 
-  async function saveTimestamp(entryId: string) {
-    const parsedTimestamp = new Date(editingTimestamp);
-    if (Number.isNaN(parsedTimestamp.getTime())) {
-      setError(t(locale, 'entry.timestampError'));
-      return;
-    }
-
-    setError(null);
-    try {
-      const updated = await updateEntryTimestamp(client, entryId, parsedTimestamp.toISOString());
-      setEntries((current) =>
-        sortEntries(current.map((entry) => (entry.id === entryId ? updated : entry))),
-      );
-      setEditingId(null);
-      setMessage(t(locale, 'entry.updated'));
-    } catch {
-      setError(t(locale, 'entry.updateError'));
-    }
-  }
-
-  async function removeEntry(entryId: string) {
-    if (!window.confirm(t(locale, 'entry.deleteConfirm'))) return;
-
-    setError(null);
-    try {
-      await deletePatientEntry(client, entryId);
-      setEntries((current) => current.filter((entry) => entry.id !== entryId));
-    } catch {
-      setError(t(locale, 'entry.saveError'));
-    }
-  }
-
   function openEntry(entry: PatientEntry) {
     if (entry.kind === 'daily') {
       setShowDailyForm(true);
@@ -301,26 +286,37 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
       return;
     }
     if (entry.kind === 'stool') {
+      setStoolEntryToEdit(entry);
+      setShowStoolForm(true);
+      return;
+    }
+    if (isNoStoolTodayEntry(entry)) {
+      setStoolEntryToEdit(null);
       setShowStoolForm(true);
       return;
     }
     if (entry.kind === 'medication') {
+      setMedicationEntryToEdit(entry);
       setShowMedicationForm(true);
       return;
     }
     if (entry.kind === 'exercise') {
+      setExerciseEntryToEdit(entry);
       setShowExerciseForm(true);
       return;
     }
     if (entry.kind === 'menstruation') {
+      setMenstruationEntryToEdit(entry);
       setShowMenstruationForm(true);
       return;
     }
     if (entry.kind === 'note') {
+      setNoteEntryToEdit(entry);
       setShowNoteForm(true);
       return;
     }
-    setShowTimelineList(true);
+    setNoteEntryToEdit(entry);
+    setShowNoteForm(true);
   }
 
   async function submitDay() {
@@ -364,6 +360,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
         onMenstruationAnswerChange={handleMenstruationAnswerChange}
         onBack={() => setShowDailyForm(false)}
         onSaved={() => {
+          setShowDailyForm(false);
           void loadEntries();
         }}
         profile={profile}
@@ -390,6 +387,10 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
       <SymptomFormScreen
         client={client}
         onBack={() => setShowSymptomForm(false)}
+        onSaved={() => {
+          setShowSymptomForm(false);
+          void loadEntries();
+        }}
         profile={profile}
       />
     );
@@ -399,9 +400,14 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     return (
       <StoolFormScreen
         client={client}
-        onBack={() => setShowStoolForm(false)}
+        entryToEdit={stoolEntryToEdit}
+        onBack={() => {
+          setShowStoolForm(false);
+          setStoolEntryToEdit(null);
+        }}
         onSaved={() => {
           setShowStoolForm(false);
+          setStoolEntryToEdit(null);
           void loadEntries();
         }}
         profile={profile}
@@ -413,10 +419,15 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     return (
       <MedicationFormScreen
         client={client}
-        onBack={() => setShowMedicationForm(false)}
+        entryToEdit={medicationEntryToEdit}
+        onBack={() => {
+          setShowMedicationForm(false);
+          setMedicationEntryToEdit(null);
+        }}
         onSaved={() => {
           setMedicationCompleted(true);
           setShowMedicationForm(false);
+          setMedicationEntryToEdit(null);
           void loadEntries();
         }}
         profile={profile}
@@ -428,10 +439,15 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     return (
       <ExerciseFormScreen
         client={client}
-        onBack={() => setShowExerciseForm(false)}
+        entryToEdit={exerciseEntryToEdit}
+        onBack={() => {
+          setShowExerciseForm(false);
+          setExerciseEntryToEdit(null);
+        }}
         onSaved={() => {
           setExerciseCompleted(true);
           setShowExerciseForm(false);
+          setExerciseEntryToEdit(null);
           void loadEntries();
         }}
         profile={profile}
@@ -443,10 +459,15 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     return (
       <MenstruationFormScreen
         client={client}
-        onBack={() => setShowMenstruationForm(false)}
+        entryToEdit={menstruationEntryToEdit}
+        onBack={() => {
+          setShowMenstruationForm(false);
+          setMenstruationEntryToEdit(null);
+        }}
         onSaved={() => {
           setPeriodCompleted(true);
           setShowMenstruationForm(false);
+          setMenstruationEntryToEdit(null);
           void loadEntries();
         }}
         profile={profile}
@@ -458,9 +479,14 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     return (
       <NoteFormScreen
         client={client}
-        onBack={() => setShowNoteForm(false)}
+        entryToEdit={noteEntryToEdit}
+        onBack={() => {
+          setShowNoteForm(false);
+          setNoteEntryToEdit(null);
+        }}
         onSaved={() => {
           setShowNoteForm(false);
+          setNoteEntryToEdit(null);
           setMessage(t(locale, 'note.saved'));
           void loadEntries();
         }}
@@ -510,9 +536,70 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     ? t(locale, 'home.submitCompletedHelp')
     : !dailyEntryId
       ? t(locale, 'home.submitDailyFirst')
-      : dailyReadyToSubmit
+      : dailyMissingFields.length
+        ? formatDailyFormMissingFields(locale, dailyMissingFields)
+        : dailyReadyToSubmit
         ? t(locale, 'home.submitHelp')
         : t(locale, 'daily.statusDraftHelp');
+
+  if (showTimelineList) {
+    return (
+      <main className="baseline-layout structured-entry-layout web-timeline-view">
+        <div className="baseline-toolbar">
+          <div>
+            <p className="eyebrow">{t(locale, 'role.patient')}</p>
+            <h1>{t(locale, 'timeline.title')}</h1>
+          </div>
+          <div className="button-row">
+            <button
+              className="secondary-button"
+              onClick={() => setShowTimelineList(false)}
+              type="button"
+            >
+              {t(locale, 'common.back')}
+            </button>
+            <button className="secondary-button" onClick={() => void loadEntries()} type="button">
+              {t(locale, 'timeline.refresh')}
+            </button>
+          </div>
+        </div>
+
+        {error ? <p className="notice error">{error}</p> : null}
+        {message ? <p className="notice success">{message}</p> : null}
+        {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
+        {!loading && entries.length === 0 ? (
+          <p className="empty-state">{t(locale, 'entry.empty')}</p>
+        ) : null}
+
+        <div className="web-recent-list web-timeline-list">
+          {entries.map((entry) => {
+            const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
+            const title = isNoStoolTodayEntry(entry)
+              ? t(locale, 'stool.noStoolToday')
+              : entry.text?.trim() || kindLabel;
+            return (
+              <article className="web-recent-entry" key={entry.id}>
+                <button onClick={() => openEntry(entry)} type="button">
+                  <span className="web-entry-icon">{entryIcons[entry.kind]}</span>
+                  <span>
+                    <strong>{title}</strong>
+                    <small>
+                      {new Intl.DateTimeFormat(locale, {
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        month: 'short',
+                      }).format(new Date(entry.occurredAt))}
+                    </small>
+                  </span>
+                </button>
+              </article>
+            );
+          })}
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="web-home-layout">
@@ -604,16 +691,31 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
                 : action.id === 'food'
                   ? () => setShowFoodForm(true)
                   : action.id === 'symptoms'
-                    ? () => setShowSymptomForm(true)
-                    : action.id === 'exercise'
-                      ? () => setShowExerciseForm(true)
+                      ? () => setShowSymptomForm(true)
+                      : action.id === 'exercise'
+                      ? () => {
+                          setExerciseEntryToEdit(null);
+                          setShowExerciseForm(true);
+                        }
                       : action.id === 'stool'
-                        ? () => setShowStoolForm(true)
+                        ? () => {
+                            setStoolEntryToEdit(null);
+                            setShowStoolForm(true);
+                          }
                         : action.id === 'medication'
-                          ? () => setShowMedicationForm(true)
+                          ? () => {
+                              setMedicationEntryToEdit(null);
+                              setShowMedicationForm(true);
+                            }
                           : action.id === 'period'
-                            ? () => setShowMenstruationForm(true)
-                            : () => setShowNoteForm(true);
+                            ? () => {
+                                setMenstruationEntryToEdit(null);
+                                setShowMenstruationForm(true);
+                              }
+                            : () => {
+                                setNoteEntryToEdit(null);
+                                setShowNoteForm(true);
+                              };
 
             return (
               <button
@@ -665,46 +767,6 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
                     </small>
                   </span>
                 </button>
-                {showTimelineList ? (
-                  <div className="web-entry-actions">
-                    <button
-                      onClick={() => {
-                        setEditingId(entry.id);
-                        setEditingTimestamp(toDatetimeLocal(new Date(entry.occurredAt)));
-                      }}
-                      type="button"
-                    >
-                      {t(locale, 'common.edit')}
-                    </button>
-                    <button onClick={() => void removeEntry(entry.id)} type="button">
-                      {t(locale, 'common.delete')}
-                    </button>
-                  </div>
-                ) : null}
-                {editingId === entry.id ? (
-                  <div className="timestamp-editor">
-                    <input
-                      aria-label={t(locale, 'entry.time')}
-                      onChange={(event) => setEditingTimestamp(event.target.value)}
-                      type="datetime-local"
-                      value={editingTimestamp}
-                    />
-                    <button
-                      className="primary-button"
-                      onClick={() => void saveTimestamp(entry.id)}
-                      type="button"
-                    >
-                      {t(locale, 'common.save')}
-                    </button>
-                    <button
-                      className="secondary-button"
-                      onClick={() => setEditingId(null)}
-                      type="button"
-                    >
-                      {t(locale, 'common.cancel')}
-                    </button>
-                  </div>
-                ) : null}
               </article>
             );
           })}

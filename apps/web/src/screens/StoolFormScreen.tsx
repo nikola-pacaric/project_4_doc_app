@@ -1,13 +1,24 @@
-import type { BristolStoolType, StoolUrgencyLevel, UserProfile } from '@project4/contracts';
+import type {
+  BristolStoolType,
+  StoolRecord,
+  StoolUrgencyLevel,
+  UserProfile,
+} from '@project4/contracts';
 import { stoolDraftDefaults, validateStool, type StoolDraft } from '@project4/forms';
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
-import { createPatientStool, type AppSupabaseClient } from '@project4/supabase-client';
-import { useState, type FormEvent } from 'react';
+import {
+  createPatientNoStoolMarker,
+  createPatientStool,
+  getPatientStool,
+  type AppSupabaseClient,
+} from '@project4/supabase-client';
+import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
 
 interface StoolFormScreenProps {
   client: AppSupabaseClient;
+  entryToEdit?: { id: string; occurredAt: string } | null;
   onBack: () => void;
   onSaved: () => void;
   profile: UserProfile;
@@ -26,11 +37,71 @@ const initialDraft: StoolDraft = {
   blackStool: false,
 };
 
-export function StoolFormScreen({ client, onBack, onSaved, profile }: StoolFormScreenProps) {
+function localDateTime(value: Date): string {
+  const offset = value.getTimezoneOffset() * 60_000;
+  return new Date(value.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function toDraft(record: StoolRecord): StoolDraft {
+  return {
+    entryId: record.entryId,
+    bristolType: record.bristolType,
+    urgencyLevel: record.urgencyLevel,
+    pain: record.pain,
+    mucus: record.mucus,
+    blood: record.blood,
+    fattyStool: record.fattyStool,
+    blackStool: record.blackStool,
+    notes: record.notes ?? '',
+  };
+}
+
+export function StoolFormScreen({
+  client,
+  entryToEdit,
+  onBack,
+  onSaved,
+  profile,
+}: StoolFormScreenProps) {
   const locale = DEFAULT_LOCALE;
   const [draft, setDraft] = useState<StoolDraft>(initialDraft);
+  const [occurredAt, setOccurredAt] = useState<string | undefined>(entryToEdit?.occurredAt);
+  const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!entryToEdit) {
+      setDraft(initialDraft);
+      setOccurredAt(undefined);
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    setLoading(true);
+    setError(null);
+    void getPatientStool(client, entryToEdit.id, entryToEdit.occurredAt)
+      .then((record) => {
+        if (!active) return;
+        if (!record) {
+          setError(t(locale, 'stool.loadError'));
+          return;
+        }
+        setDraft(toDraft(record));
+        setOccurredAt(record.occurredAt);
+      })
+      .catch(() => {
+        if (active) setError(t(locale, 'stool.loadError'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [client, entryToEdit, locale]);
 
   function update<K extends keyof StoolDraft>(field: K, value: StoolDraft[K]) {
     setError(null);
@@ -47,10 +118,23 @@ export function StoolFormScreen({ client, onBack, onSaved, profile }: StoolFormS
     setSaving(true);
     setError(null);
     try {
-      await createPatientStool(client, profile.id, draft);
+      await createPatientStool(client, profile.id, draft, occurredAt);
       onSaved();
     } catch {
       setError(t(locale, 'stool.saveError'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveNoStool() {
+    setSaving(true);
+    setError(null);
+    try {
+      await createPatientNoStoolMarker(client, profile.id, localDateTime(new Date()));
+      onSaved();
+    } catch {
+      setError(t(locale, 'stool.noStoolSaveError'));
     } finally {
       setSaving(false);
     }
@@ -66,7 +150,22 @@ export function StoolFormScreen({ client, onBack, onSaved, profile }: StoolFormS
         />
       </div>
 
+      {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
+      {!loading ? (
       <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'stool.noStoolToday')}</legend>
+          <p>{t(locale, 'stool.noStoolDetail')}</p>
+          <button
+            className="secondary-button"
+            disabled={saving}
+            onClick={() => void saveNoStool()}
+            type="button"
+          >
+            {t(locale, 'stool.saveNoStool')}
+          </button>
+        </fieldset>
+
         <fieldset className="structured-fieldset">
           <legend>{t(locale, 'stool.bristolType')}</legend>
           <div className="bristol-grid" role="radiogroup">
@@ -151,6 +250,7 @@ export function StoolFormScreen({ client, onBack, onSaved, profile }: StoolFormS
           </button>
         </div>
       </form>
+      ) : null}
     </main>
   );
 }

@@ -1,13 +1,18 @@
-import { exerciseIntensities, type UserProfile } from '@project4/contracts';
+import { exerciseIntensities, type ExerciseRecord, type UserProfile } from '@project4/contracts';
 import { exerciseDraftDefaults, validateExercise, type ExerciseDraft } from '@project4/forms';
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
-import { createPatientExercise, type AppSupabaseClient } from '@project4/supabase-client';
-import { useState, type FormEvent } from 'react';
+import {
+  createPatientExercise,
+  getPatientExercise,
+  type AppSupabaseClient,
+} from '@project4/supabase-client';
+import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
 
 interface ExerciseFormScreenProps {
   client: AppSupabaseClient;
+  entryToEdit?: { id: string; occurredAt: string } | null;
   onBack: () => void;
   onSaved: () => void;
   profile: UserProfile;
@@ -18,14 +23,63 @@ function toDatetimeLocal(value: Date): string {
   return new Date(value.getTime() - offset).toISOString().slice(0, 16);
 }
 
-export function ExerciseFormScreen({ client, onBack, onSaved, profile }: ExerciseFormScreenProps) {
+function toDraft(record: ExerciseRecord): ExerciseDraft {
+  return {
+    entryId: record.entryId,
+    activity: record.activity,
+    durationMinutes: record.durationMinutes,
+    intensity: record.intensity,
+    occurredAt: toDatetimeLocal(new Date(record.occurredAt)),
+    notes: record.notes ?? '',
+  };
+}
+
+export function ExerciseFormScreen({
+  client,
+  entryToEdit,
+  onBack,
+  onSaved,
+  profile,
+}: ExerciseFormScreenProps) {
   const locale = DEFAULT_LOCALE;
   const [draft, setDraft] = useState<ExerciseDraft>({
     ...exerciseDraftDefaults,
     occurredAt: toDatetimeLocal(new Date()),
   });
+  const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!entryToEdit) {
+      setDraft({ ...exerciseDraftDefaults, occurredAt: toDatetimeLocal(new Date()) });
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    setLoading(true);
+    setError(null);
+    void getPatientExercise(client, entryToEdit.id, entryToEdit.occurredAt)
+      .then((record) => {
+        if (!active) return;
+        if (!record) {
+          setError(t(locale, 'exercise.loadError'));
+          return;
+        }
+        setDraft(toDraft(record));
+      })
+      .catch(() => {
+        if (active) setError(t(locale, 'exercise.loadError'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [client, entryToEdit, locale]);
 
   function update<K extends keyof ExerciseDraft>(field: K, value: ExerciseDraft[K]) {
     setError(null);
@@ -61,6 +115,8 @@ export function ExerciseFormScreen({ client, onBack, onSaved, profile }: Exercis
         />
       </div>
 
+      {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
+      {!loading ? (
       <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
         <fieldset className="structured-fieldset">
           <legend>{t(locale, 'exercise.activity')}</legend>
@@ -139,6 +195,7 @@ export function ExerciseFormScreen({ client, onBack, onSaved, profile }: Exercis
           </button>
         </div>
       </form>
+      ) : null}
     </main>
   );
 }

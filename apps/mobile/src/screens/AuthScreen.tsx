@@ -92,7 +92,7 @@ export function AuthScreen({ client }: AuthScreenProps) {
   ];
 
   return (
-    <SafeAreaView style={sharedStyles.screen}>
+    <SafeAreaView style={sharedStyles.formScreen}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}

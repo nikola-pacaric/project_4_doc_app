@@ -1,13 +1,18 @@
-import type { UserProfile } from '@project4/contracts';
+import type { MedicationRecord, UserProfile } from '@project4/contracts';
 import { medicationDraftDefaults, validateMedication, type MedicationDraft } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
-import { createPatientMedication, type AppSupabaseClient } from '@project4/supabase-client';
-import { useState, type FormEvent } from 'react';
+import {
+  createPatientMedication,
+  getPatientMedication,
+  type AppSupabaseClient,
+} from '@project4/supabase-client';
+import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
 
 interface MedicationFormScreenProps {
   client: AppSupabaseClient;
+  entryToEdit?: { id: string; occurredAt: string } | null;
   onBack: () => void;
   onSaved: () => void;
   profile: UserProfile;
@@ -18,20 +23,68 @@ function toDatetimeLocal(value: Date): string {
   return new Date(value.getTime() - offset).toISOString().slice(0, 16);
 }
 
+function createInitialDraft(): MedicationDraft {
+  return {
+    ...medicationDraftDefaults,
+    takenAt: toDatetimeLocal(new Date()),
+    isChronicTherapy: false,
+  };
+}
+
+function toDraft(record: MedicationRecord): MedicationDraft {
+  return {
+    entryId: record.entryId,
+    name: record.name,
+    dose: record.dose,
+    takenAt: toDatetimeLocal(new Date(record.occurredAt)),
+    reason: record.reason ?? '',
+    isChronicTherapy: record.isChronicTherapy,
+  };
+}
+
 export function MedicationFormScreen({
   client,
+  entryToEdit,
   onBack,
   onSaved,
   profile,
 }: MedicationFormScreenProps) {
   const locale = DEFAULT_LOCALE;
-  const [draft, setDraft] = useState<MedicationDraft>({
-    ...medicationDraftDefaults,
-    takenAt: toDatetimeLocal(new Date()),
-    isChronicTherapy: false,
-  });
+  const [draft, setDraft] = useState<MedicationDraft>(createInitialDraft);
+  const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!entryToEdit) {
+      setDraft(createInitialDraft());
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    setLoading(true);
+    setError(null);
+    void getPatientMedication(client, entryToEdit.id, entryToEdit.occurredAt)
+      .then((record) => {
+        if (!active) return;
+        if (!record) {
+          setError(t(locale, 'medication.loadError'));
+          return;
+        }
+        setDraft(toDraft(record));
+      })
+      .catch(() => {
+        if (active) setError(t(locale, 'medication.loadError'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [client, entryToEdit, locale]);
 
   function update<K extends keyof MedicationDraft>(field: K, value: MedicationDraft[K]) {
     setError(null);
@@ -67,6 +120,8 @@ export function MedicationFormScreen({
         />
       </div>
 
+      {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
+      {!loading ? (
       <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
         <fieldset className="structured-fieldset">
           <legend>{t(locale, 'medication.name')}</legend>
@@ -108,20 +163,6 @@ export function MedicationFormScreen({
           />
         </fieldset>
 
-        <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'medication.chronicTherapy')}</legend>
-          <label className="switch-field">
-            <span className="switch-copy">
-              <small>{t(locale, 'medication.chronicTherapyHelp')}</small>
-            </span>
-            <input
-              checked={draft.isChronicTherapy ?? false}
-              onChange={(event) => update('isChronicTherapy', event.target.checked)}
-              type="checkbox"
-            />
-          </label>
-        </fieldset>
-
         {error ? <p className="notice error">{error}</p> : null}
         <div className="button-row form-actions-row">
           <button className="secondary-button" onClick={onBack} type="button">
@@ -132,6 +173,7 @@ export function MedicationFormScreen({
           </button>
         </div>
       </form>
+      ) : null}
     </main>
   );
 }
