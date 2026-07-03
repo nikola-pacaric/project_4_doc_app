@@ -21,6 +21,7 @@ interface PatientTimelineScreenProps {
   loading: boolean;
   onBack: () => void;
   onRefresh: () => void | Promise<void>;
+  pendingEntryIds?: string[];
 }
 
 const entryIcons: Record<PatientEntry['kind'], string> = {
@@ -42,8 +43,10 @@ export function PatientTimelineScreen({
   loading,
   onBack,
   onRefresh,
+  pendingEntryIds = [],
 }: PatientTimelineScreenProps) {
   const locale = DEFAULT_LOCALE;
+  const pendingIds = new Set(pendingEntryIds);
 
   return (
     <SafeAreaView style={sharedStyles.formScreen}>
@@ -82,9 +85,10 @@ export function PatientTimelineScreen({
             const title = isNoStoolTodayEntry(entry)
               ? t(locale, 'stool.noStoolToday')
               : entry.text?.trim() || kindLabel;
+            const pending = pendingIds.has(entry.id);
 
             return (
-              <View key={entry.id} style={styles.card}>
+              <View key={entry.id} style={[styles.card, pending && styles.pendingCard]}>
                 <View style={styles.iconContainer}>
                   <Text style={styles.icon}>{entryIcons[entry.kind]}</Text>
                 </View>
@@ -97,6 +101,7 @@ export function PatientTimelineScreen({
                   {entry.text && !isNoStoolTodayEntry(entry) ? (
                     <Text style={styles.kind}>{kindLabel}</Text>
                   ) : null}
+                  {pending ? <Text style={styles.pending}>{t(locale, 'sync.pending')}</Text> : null}
                 </View>
               </View>
             );
@@ -139,4 +144,6 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: 16, fontWeight: '800', lineHeight: 22 },
   meta: { color: colors.mutedText, fontSize: 13, fontWeight: '600' },
   kind: { color: colors.accent, fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+  pending: { color: '#a15c00', fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+  pendingCard: { borderColor: '#d97706' },
 });

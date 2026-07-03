@@ -15,14 +15,32 @@ import {
 } from '@project4/forms';
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
 import {
+  isPendingEntryId,
+  mergePendingTextEntries,
+  pendingTimelineEntryIds,
+  removePendingEntry,
+  type LocalPendingEntry,
+  type PendingTextEntryPayload,
+  type PendingTimestampUpdatePayload,
+} from '@project4/sync';
+import {
   completePatientDailyForm,
+  createPatientNote,
   getPatientBaseline,
   getPatientDailyForm,
   listRecentPatientEntries,
+  updateEntryTimestamp,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 
+import {
+  appendPendingEntry,
+  loadCachedRecentEntries,
+  loadPendingEntries,
+  saveCachedRecentEntries,
+  savePendingEntries,
+} from '../offline/pendingEntries';
 import { BaselineScreen } from './BaselineScreen';
 import { DailyFormScreen } from './DailyFormScreen';
 import { ExerciseFormScreen } from './ExerciseFormScreen';
@@ -158,6 +176,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [noteEntryToEdit, setNoteEntryToEdit] = useState<PatientEntry | null>(null);
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
+  const [pendingEntries, setPendingEntries] = useState<LocalPendingEntry[]>([]);
 
   const handleActivityAnswerChange = useCallback((answer: boolean | undefined) => {
     setExerciseRequired(answer === true);
@@ -171,15 +190,48 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     setPeriodRequired(answer === true);
   }, []);
 
-  async function loadEntries() {
+  const loadPendingQueue = useCallback(() => {
+    setPendingEntries(loadPendingEntries(profile.id));
+  }, [profile.id]);
+
+  const syncPendingQueue = useCallback(async () => {
+    const queuedEntries = loadPendingEntries(profile.id);
+    let remainingEntries = queuedEntries;
+
+    for (const pendingEntry of queuedEntries) {
+      try {
+        if (pendingEntry.operation === 'create_text_entry') {
+          const payload = pendingEntry.payload as PendingTextEntryPayload;
+          await createPatientNote(client, profile.id, {
+            occurredAt: payload.occurredAt,
+            text: payload.text,
+          });
+        } else {
+          const payload = pendingEntry.payload as PendingTimestampUpdatePayload;
+          await updateEntryTimestamp(client, payload.entryId, payload.occurredAt);
+        }
+        remainingEntries = removePendingEntry(remainingEntries, pendingEntry.id);
+        savePendingEntries(profile.id, remainingEntries);
+      } catch {
+        break;
+      }
+    }
+
+    setPendingEntries(remainingEntries);
+    return remainingEntries;
+  }, [client, profile.id]);
+
+  const loadEntries = useCallback(async () => {
     setError(null);
     try {
+      await syncPendingQueue();
       const range = dayRange(localDateValue(new Date()));
       const [nextEntries, baseline, dailyForm] = await Promise.all([
         listRecentPatientEntries(client, profile.id),
         getPatientBaseline(client, profile.id),
         getPatientDailyForm(client, profile.id, range.start, range.end),
       ]);
+      saveCachedRecentEntries(profile.id, nextEntries);
       const nextHasChronicTherapy = Boolean(baseline?.chronicTherapy?.trim());
       const includeMenstruation = baseline?.sex === 'female';
       setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
@@ -211,68 +263,42 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
       setMedicationCompleted(hasTodayEntry(nextEntries, 'medication'));
       setPeriodCompleted(hasTodayEntry(nextEntries, 'menstruation'));
     } catch {
-      setError(t(locale, 'entry.loadError'));
+      const cachedEntries = loadCachedRecentEntries(profile.id);
+      if (cachedEntries.length) {
+        setEntries(filterPatientTimelineEntries(cachedEntries, null));
+        setError(t(locale, 'entry.offlineCached'));
+      } else {
+        setError(t(locale, 'entry.loadError'));
+      }
     } finally {
       setLoading(false);
     }
-  }
+  }, [client, locale, profile.id, syncPendingQueue]);
 
   useEffect(() => {
     let active = true;
-    const range = dayRange(localDateValue(new Date()));
-
-    void Promise.all([
-      listRecentPatientEntries(client, profile.id),
-      getPatientBaseline(client, profile.id),
-      getPatientDailyForm(client, profile.id, range.start, range.end),
-    ])
-      .then(([nextEntries, baseline, dailyForm]) => {
-        if (active) {
-          const nextHasChronicTherapy = Boolean(baseline?.chronicTherapy?.trim());
-          const includeMenstruation = baseline?.sex === 'female';
-          setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
-          setCanTrackMenstruation(includeMenstruation);
-          setDailyEntryId(dailyForm?.entryId ?? null);
-          setDailyCompleted(Boolean(dailyForm?.details.completedAt));
-          setDailyReadyToSubmit(
-            dailyForm
-              ? isCompleteDailyForm(
-                  toDailyDraft(dailyForm.details),
-                  includeMenstruation,
-                  nextHasChronicTherapy,
-                )
-              : false,
-          );
-          setDailyMissingFields(
-            dailyForm
-              ? getDailyFormMissingFields(
-                  toDailyDraft(dailyForm.details),
-                  includeMenstruation,
-                  nextHasChronicTherapy,
-                )
-              : [],
-          );
-          setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
-          setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
-          setPeriodRequired(dailyForm?.details.hadMenstruation === true);
-          setExerciseCompleted(hasTodayEntry(nextEntries, 'exercise'));
-          setMedicationCompleted(hasTodayEntry(nextEntries, 'medication'));
-          setPeriodCompleted(hasTodayEntry(nextEntries, 'menstruation'));
-        }
-      })
-      .catch(() => {
-        if (active) setError(t(locale, 'entry.loadError'));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+    loadPendingQueue();
+    void loadEntries().finally(() => {
+      if (!active) return;
+    });
 
     return () => {
       active = false;
     };
-  }, [client, locale, profile.id]);
+  }, [loadEntries, loadPendingQueue]);
+
+  useEffect(() => {
+    function handleFocus() {
+      void loadEntries();
+    }
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [loadEntries]);
 
   function openEntry(entry: PatientEntry) {
+    if (isPendingEntryId(entry.id)) return;
+
     if (entry.kind === 'daily') {
       setShowDailyForm(true);
       return;
@@ -484,6 +510,9 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
           setShowNoteForm(false);
           setNoteEntryToEdit(null);
         }}
+        onPendingSaved={(entry) => {
+          setPendingEntries(appendPendingEntry(profile.id, entry));
+        }}
         onSaved={() => {
           setShowNoteForm(false);
           setNoteEntryToEdit(null);
@@ -497,7 +526,9 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
 
   const now = new Date();
   const today = localDateValue(now);
-  const todayEntries = entries.filter(
+  const visibleEntries = mergePendingTextEntries(entries, pendingEntries);
+  const pendingIds = new Set(pendingTimelineEntryIds(pendingEntries));
+  const todayEntries = visibleEntries.filter(
     (entry) => localDateValue(new Date(entry.occurredAt)) === today,
   );
   const visibleActions = canTrackMenstruation
@@ -510,8 +541,8 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     if (action.id === 'period') return periodRequired;
     return true;
   });
-  const completedKinds = new Set(todayEntries.map((entry) => entry.kind));
-  const stoolCompleted = hasTodayEntry(entries, 'stool') || hasTodayNoStoolEntry(entries);
+  const completedKinds = new Set(todayEntries.filter((entry) => !pendingIds.has(entry.id)).map((entry) => entry.kind));
+  const stoolCompleted = hasTodayEntry(visibleEntries, 'stool') || hasTodayNoStoolEntry(visibleEntries);
   const completedItems = progressActions.filter((action) => {
     if (action.id === 'daily') return dailyCompleted || dailyReadyToSubmit;
     if (action.id === 'stool') return stoolCompleted;
@@ -567,18 +598,19 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
         {error ? <p className="notice error">{error}</p> : null}
         {message ? <p className="notice success">{message}</p> : null}
         {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
-        {!loading && entries.length === 0 ? (
+        {!loading && visibleEntries.length === 0 ? (
           <p className="empty-state">{t(locale, 'entry.empty')}</p>
         ) : null}
 
         <div className="web-recent-list web-timeline-list">
-          {entries.map((entry) => {
+          {visibleEntries.map((entry) => {
             const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
             const title = isNoStoolTodayEntry(entry)
               ? t(locale, 'stool.noStoolToday')
               : entry.text?.trim() || kindLabel;
+            const pending = pendingIds.has(entry.id);
             return (
-              <article className="web-recent-entry" key={entry.id}>
+              <article className={`web-recent-entry ${pending ? 'pending' : ''}`} key={entry.id}>
                 <div className="web-recent-entry-content">
                   <span className="web-entry-icon">{entryIcons[entry.kind]}</span>
                   <span>
@@ -591,6 +623,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
                         month: 'short',
                       }).format(new Date(entry.occurredAt))}
                     </small>
+                    {pending ? <small className="web-entry-pending">{t(locale, 'sync.pending')}</small> : null}
                   </span>
                 </div>
               </article>
@@ -753,9 +786,10 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
         <div className="web-recent-list">
           {todayEntries.slice(0, showTimelineList ? undefined : 8).map((entry) => {
             const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
+            const pending = pendingIds.has(entry.id);
             return (
-              <article className="web-recent-entry" key={entry.id}>
-                <button onClick={() => openEntry(entry)} type="button">
+              <article className={`web-recent-entry ${pending ? 'pending' : ''}`} key={entry.id}>
+                <button disabled={pending} onClick={() => openEntry(entry)} type="button">
                   <span className="web-entry-icon">{entryIcons[entry.kind]}</span>
                   <span>
                     <strong>{entry.text?.trim() || kindLabel}</strong>
@@ -765,6 +799,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
                         minute: '2-digit',
                       }).format(new Date(entry.occurredAt))}
                     </small>
+                    {pending ? <small className="web-entry-pending">{t(locale, 'sync.pending')}</small> : null}
                   </span>
                 </button>
               </article>

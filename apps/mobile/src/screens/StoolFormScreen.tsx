@@ -174,12 +174,6 @@ export function StoolFormScreen({
           value={draft.notes ?? ''}
         />
 
-        <View style={styles.disclaimer}>
-          <Text selectable style={styles.disclaimerText}>
-            △ {t(locale, 'stool.disclaimer')}
-          </Text>
-        </View>
-
         {showErrors ? (
           <Text selectable style={sharedStyles.error}>
             {t(locale, 'stool.requiredError')}
@@ -284,14 +278,6 @@ const styles = StyleSheet.create({
   checkboxSelected: { backgroundColor: colors.accent, borderColor: colors.accent },
   checkmark: { color: '#ffffff', fontSize: 16, fontWeight: '900' },
   checkLabel: { color: colors.text, flex: 1, fontSize: 14, lineHeight: 19 },
-  disclaimer: {
-    backgroundColor: '#fff1f1',
-    borderColor: '#ffc9cf',
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: spacing.md,
-  },
-  disclaimerText: { color: colors.danger, fontSize: 13, lineHeight: 19 },
   actions: {
     borderTopColor: colors.border,
     borderTopWidth: 1,

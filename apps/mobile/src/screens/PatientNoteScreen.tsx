@@ -1,6 +1,11 @@
 import type { PatientEntry, UserProfile } from '@project4/contracts';
-import type { NoteDraft } from '@project4/forms';
+import { normalizeNoteDateTime, type NoteDraft } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import {
+  createPendingTextEntry,
+  createPendingTimestampUpdate,
+  type LocalPendingEntry,
+} from '@project4/sync';
 import { createPatientNote, type AppSupabaseClient } from '@project4/supabase-client';
 import { useState } from 'react';
 
@@ -10,6 +15,7 @@ interface PatientNoteScreenProps {
   client: AppSupabaseClient;
   entryToEdit?: PatientEntry | null;
   onBack: () => void;
+  onPendingSaved: (entry: LocalPendingEntry) => void | Promise<void>;
   onSaved: () => void;
   profile: UserProfile;
 }
@@ -32,6 +38,7 @@ export function PatientNoteScreen({
   client,
   entryToEdit,
   onBack,
+  onPendingSaved,
   onSaved,
   profile,
 }: PatientNoteScreenProps) {
@@ -46,6 +53,29 @@ export function PatientNoteScreen({
       await createPatientNote(client, profile.id, draft);
       onSaved();
     } catch {
+      const occurredAt = normalizeNoteDateTime(draft.occurredAt);
+      const text = draft.text?.trim();
+      if (entryToEdit && occurredAt && occurredAt !== entryToEdit.occurredAt) {
+        await onPendingSaved(
+          createPendingTimestampUpdate({
+            entryId: entryToEdit.id,
+            occurredAt,
+          }),
+        );
+        onSaved();
+        return;
+      }
+      if (!entryToEdit && occurredAt && text) {
+        await onPendingSaved(
+          createPendingTextEntry({
+            patientId: profile.id,
+            text,
+            occurredAt,
+          }),
+        );
+        onSaved();
+        return;
+      }
       setError(t(locale, 'note.saveError'));
     } finally {
       setSaving(false);

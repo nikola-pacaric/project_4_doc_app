@@ -45,6 +45,7 @@ interface DailyProgressHomeScreenProps {
   stoolCompleted: boolean;
   symptomsCompleted: boolean;
   profile: UserProfile;
+  pendingEntryIds?: string[];
   recentEntries: PatientEntry[];
   error: string | null;
   loading: boolean;
@@ -126,6 +127,7 @@ export function DailyProgressHomeScreen({
   stoolCompleted,
   symptomsCompleted,
   profile,
+  pendingEntryIds = [],
   recentEntries,
   error,
   loading,
@@ -151,6 +153,7 @@ export function DailyProgressHomeScreen({
     (entry) => toLocalDateInput(new Date(entry.occurredAt)) === today,
   );
   const todayEntries = allTodayEntries.slice(0, 8);
+  const pendingIds = new Set(pendingEntryIds);
   const completedKinds = new Set(allTodayEntries.map((entry) => entry.kind));
   const completedItems = progressActions.filter((action) =>
     action.id === 'daily'
@@ -363,9 +366,12 @@ export function DailyProgressHomeScreen({
               {todayEntries.map((entry) => {
                 const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
                 const dailyEntryReady = entry.kind === 'daily' && dailyReadyToSubmit;
+                const entryPending = pendingIds.has(entry.id);
                 const entryCompleted = entry.kind !== 'daily' || dailyCompleted;
                 const statusKey =
-                  entryCompleted || dailyEntryReady
+                  entryPending
+                    ? 'sync.pending'
+                    : entryCompleted || dailyEntryReady
                     ? 'home.action.completed'
                     : 'daily.statusDraft';
                 return (
@@ -373,7 +379,9 @@ export function DailyProgressHomeScreen({
                     accessibilityHint={t(locale, 'home.entryOpenHint')}
                     accessibilityRole="button"
                     key={entry.id}
-                    onPress={() => onOpenEntry(entry)}
+                    onPress={() => {
+                      if (!entryPending) onOpenEntry(entry);
+                    }}
                     style={({ pressed }) => [styles.entryCard, pressed && styles.pressed]}
                   >
                     <View style={styles.entryIconContainer}>
@@ -391,6 +399,7 @@ export function DailyProgressHomeScreen({
                       <Text
                         style={[
                           styles.entryStatus,
+                          entryPending && styles.entryStatusPending,
                           !entryCompleted && !dailyEntryReady && styles.entryStatusDraft,
                         ]}
                       >
@@ -578,6 +587,7 @@ const styles = StyleSheet.create({
   entryTrailing: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   entryStatus: { color: '#16794b', fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
   entryStatusDraft: { color: '#a15c00' },
+  entryStatusPending: { color: '#a15c00' },
   emptyEntries: { color: colors.mutedText, fontSize: 14, lineHeight: 20 },
   submitBlock: { gap: spacing.sm, marginTop: 'auto' },
   submitHelp: {

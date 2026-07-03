@@ -124,6 +124,7 @@ Photo storage:
 - Done: guided acceptance can log in, consent, create a text entry, reload, and see it; online text save responds in under 2 seconds.
 
 ### Phase 4 - Full Patient Forms
+- Progress checkpoint (user/Codex-verified 2026-07-03): Web and Android/mobile Phase 4 form functionality was compared by the user and reported equivalent. Codex verified both clients use shared `@project4/supabase-client` form persistence paths, live Supabase metadata shows RLS enabled on Phase 4 tables with no anon DML/truncate access, Phase 4 write RPCs are `security invoker` with execute denied to anon and granted to authenticated, and local `npm test`/`npm run typecheck` passed. A grant-hardening migration removed excess authenticated table privileges such as `TRUNCATE`.
 - Progress checkpoint (user-verified 2026-06-22): The Android button-based patient home and exercise add-another/return-home flow were visually and interactively reviewed in an Android Studio Pixel 9 emulator and reported good.
 - Progress checkpoint (Codex-verified 2026-06-21): Daily completion is enforced in Supabase. Drafts remain saveable, final completion requires all applicable Daily fields, and a same-day Exercise entry is required only when physical activity is marked yes. Owner/other-patient/doctor/anonymous SQL coverage passed against the live project.
 - Progress checkpoint (user-verified 2026-06-19): stool and medication entry workflows are complete across shared contracts/validation, Supabase constraints and RLS, Android/mobile, and companion web. Browser smoke testing for create, save, reload, and timeline visibility passed multiple times. Visual polish and structured-detail editing are intentionally deferred.
@@ -139,6 +140,7 @@ Photo storage:
 - Done: baseline and daily medical/symptom forms save and reload without required field loss; form schema unit tests pass; mobile and web form layouts pass their required viewport review without horizontal clipping or overflow.
 
 ### Phase 5 - Offline-Lite
+- Progress checkpoint (Codex-verified 2026-07-03): First Android/mobile and companion web offline-lite slice added. Recent patient timeline entries are cached locally after successful loads and reused when loading fails, new note/text saves fall back to a local pending queue when online save fails, note/text timestamp edits fall back to a local pending queue when online save fails, pending items appear in recent/timeline lists with a pending-sync marker, and pending items retry on refresh/app resume/focus. Broader opened-day caching and offline smoke testing remain pending.
 - Cache own recent history/opened days, allow pending offline text entries, allow pending timestamp edits, show pending markers, sync on reconnect, and clear pending state.
 - Exclude offline photo upload, fresh exports, fresh doctor/patient fetches, and complex conflict handling.
 - Done: cached days open offline and pending text syncs within 60 seconds after connectivity returns.

@@ -280,7 +280,6 @@ export function StoolFormScreen({
           />
         </fieldset>
 
-        <p className="tracking-disclaimer">△ {t(locale, 'stool.disclaimer')}</p>
         {error ? <p className="notice error">{error}</p> : null}
         <div className="button-row form-actions-row">
           <button className="secondary-button" onClick={onBack} type="button">

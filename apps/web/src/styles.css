@@ -1371,17 +1371,6 @@ button:focus-visible {
   accent-color: #f45b7a;
 }
 
-.tracking-disclaimer {
-  margin: 0;
-  border: 1px solid #ffc9cf;
-  border-radius: 12px;
-  background: #fff1f1;
-  color: #b42318;
-  padding: 12px;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
 .switch-field {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -1633,6 +1622,11 @@ button:focus-visible {
   padding: 10px;
 }
 
+.web-recent-entry.pending {
+  border-color: #d97706;
+  background: #fff8ed;
+}
+
 .web-recent-entry > button,
 .web-recent-entry-content {
   min-height: 58px;
@@ -1645,6 +1639,10 @@ button:focus-visible {
   color: #34292d;
   padding: 0;
   text-align: left;
+}
+
+.web-recent-entry > button:disabled {
+  cursor: default;
 }
 
 .web-entry-icon {
@@ -1675,6 +1673,13 @@ button:focus-visible {
   color: #806c73;
   font-size: 13px;
   font-weight: 750;
+}
+
+.web-recent-entry .web-entry-pending {
+  color: #a15c00;
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
 }
 
 .web-entry-actions {
