@@ -41,13 +41,13 @@ on conflict (entry_id) do nothing;
 set local role anon;
 
 do $$
-declare
-  visible_events integer;
 begin
-  select count(*) into visible_events from public.menstruation_events;
-  if visible_events <> 0 then
-    raise exception 'unauthenticated users should see 0 menstruation events, saw %', visible_events;
-  end if;
+  begin
+    perform count(*) from public.menstruation_events;
+    raise exception 'unauthenticated users should not have table access to menstruation events';
+  exception
+    when insufficient_privilege then null;
+  end;
 end $$;
 
 reset role;

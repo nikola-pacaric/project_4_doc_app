@@ -32,13 +32,13 @@ on conflict (entry_id) do nothing;
 set local role anon;
 
 do $$
-declare
-  visible_medications integer;
 begin
-  select count(*) into visible_medications from public.medication_details;
-  if visible_medications <> 0 then
-    raise exception 'unauthenticated users should see 0 medications, saw %', visible_medications;
-  end if;
+  begin
+    perform count(*) from public.medication_details;
+    raise exception 'unauthenticated users should not have table access to medication details';
+  exception
+    when insufficient_privilege then null;
+  end;
 end $$;
 
 reset role;
@@ -83,7 +83,7 @@ begin
     values ('10000000-0000-4000-8000-000000000109', 'Incomplete medication');
     raise exception 'incomplete medication details should be rejected';
   exception
-    when check_violation then null;
+    when check_violation or not_null_violation then null;
   end;
 
   insert into public.medication_details (entry_id, name, dose, is_chronic_therapy)

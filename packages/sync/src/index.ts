@@ -1,6 +1,7 @@
 import type { PatientEntry } from '@project4/contracts';
 
 export type PendingEntryOperation = 'create_text_entry' | 'update_entry_timestamp';
+export type OpenedDayEntryCache = Record<string, PatientEntry[]>;
 
 export interface PendingTextEntryPayload {
   patientId: string;
@@ -111,4 +112,59 @@ export function removePendingEntry(
   entryId: string,
 ): LocalPendingEntry[] {
   return entries.filter((entry) => entry.id !== entryId);
+}
+
+export function dedupePendingEntries(
+  entries: readonly LocalPendingEntry[],
+): LocalPendingEntry[] {
+  const seen = new Set<string>();
+  const uniqueEntries: LocalPendingEntry[] = [];
+
+  for (const entry of entries) {
+    const key = pendingEntryDedupeKey(entry);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    uniqueEntries.push(entry);
+  }
+
+  return uniqueEntries;
+}
+
+function pendingEntryDedupeKey(entry: LocalPendingEntry): string {
+  if (entry.operation === 'create_text_entry') {
+    const payload = entry.payload as PendingTextEntryPayload;
+    return [entry.operation, payload.patientId, payload.occurredAt, payload.text.trim()].join('|');
+  }
+
+  const payload = entry.payload as PendingTimestampUpdatePayload;
+  return [entry.operation, payload.entryId, payload.occurredAt].join('|');
+}
+
+export function mergeOpenedDayEntryCache(
+  currentCache: OpenedDayEntryCache,
+  entries: readonly PatientEntry[],
+  getLocalDay: (entry: PatientEntry) => string,
+  maxDays = 30,
+): OpenedDayEntryCache {
+  const nextCache: OpenedDayEntryCache = { ...currentCache };
+
+  for (const entry of entries) {
+    const day = getLocalDay(entry);
+    const entriesForDay = (nextCache[day] ?? []).filter((candidate) => candidate.id !== entry.id);
+    nextCache[day] = [...entriesForDay, entry].sort(
+      (left, right) => Date.parse(right.occurredAt) - Date.parse(left.occurredAt),
+    );
+  }
+
+  return Object.fromEntries(
+    Object.entries(nextCache)
+      .sort(([leftDay], [rightDay]) => rightDay.localeCompare(leftDay))
+      .slice(0, Math.max(1, maxDays)),
+  );
+}
+
+export function cachedOpenedDayEntries(cache: OpenedDayEntryCache): PatientEntry[] {
+  return Object.values(cache)
+    .flat()
+    .sort((left, right) => Date.parse(right.occurredAt) - Date.parse(left.occurredAt));
 }

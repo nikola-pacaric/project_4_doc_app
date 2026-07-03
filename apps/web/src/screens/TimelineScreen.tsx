@@ -32,12 +32,14 @@ import {
   updateEntryTimestamp,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
-import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 
 import {
   appendPendingEntry,
+  loadCachedOpenedDayEntries,
   loadCachedRecentEntries,
   loadPendingEntries,
+  saveCachedOpenedDayEntries,
   saveCachedRecentEntries,
   savePendingEntries,
 } from '../offline/pendingEntries';
@@ -117,6 +119,10 @@ function greetingKey(hour: number): TranslationKey {
   return 'home.greeting.evening';
 }
 
+function isTodayDailyEntry(entry: PatientEntry, today: string): boolean {
+  return entry.kind === 'daily' && localDateValue(new Date(entry.occurredAt)) === today;
+}
+
 const quickActions = [
   { id: 'daily', icon: '☀️', labelKey: 'home.action.daily', kind: 'daily' },
   { id: 'food', icon: '🍽️', labelKey: 'home.action.food', kind: 'meal' },
@@ -177,6 +183,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [noteEntryToEdit, setNoteEntryToEdit] = useState<PatientEntry | null>(null);
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
   const [pendingEntries, setPendingEntries] = useState<LocalPendingEntry[]>([]);
+  const syncPendingPromiseRef = useRef<Promise<LocalPendingEntry[]> | null>(null);
 
   const handleActivityAnswerChange = useCallback((answer: boolean | undefined) => {
     setExerciseRequired(answer === true);
@@ -195,30 +202,41 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   }, [profile.id]);
 
   const syncPendingQueue = useCallback(async () => {
-    const queuedEntries = loadPendingEntries(profile.id);
-    let remainingEntries = queuedEntries;
+    if (syncPendingPromiseRef.current) return syncPendingPromiseRef.current;
 
-    for (const pendingEntry of queuedEntries) {
-      try {
-        if (pendingEntry.operation === 'create_text_entry') {
-          const payload = pendingEntry.payload as PendingTextEntryPayload;
-          await createPatientNote(client, profile.id, {
-            occurredAt: payload.occurredAt,
-            text: payload.text,
-          });
-        } else {
-          const payload = pendingEntry.payload as PendingTimestampUpdatePayload;
-          await updateEntryTimestamp(client, payload.entryId, payload.occurredAt);
+    const syncPromise = (async () => {
+      const queuedEntries = loadPendingEntries(profile.id);
+      let remainingEntries = queuedEntries;
+
+      for (const pendingEntry of queuedEntries) {
+        try {
+          if (pendingEntry.operation === 'create_text_entry') {
+            const payload = pendingEntry.payload as PendingTextEntryPayload;
+            await createPatientNote(client, profile.id, {
+              occurredAt: payload.occurredAt,
+              text: payload.text,
+            });
+          } else {
+            const payload = pendingEntry.payload as PendingTimestampUpdatePayload;
+            await updateEntryTimestamp(client, payload.entryId, payload.occurredAt);
+          }
+          remainingEntries = removePendingEntry(remainingEntries, pendingEntry.id);
+          savePendingEntries(profile.id, remainingEntries);
+        } catch {
+          break;
         }
-        remainingEntries = removePendingEntry(remainingEntries, pendingEntry.id);
-        savePendingEntries(profile.id, remainingEntries);
-      } catch {
-        break;
       }
-    }
 
-    setPendingEntries(remainingEntries);
-    return remainingEntries;
+      setPendingEntries(remainingEntries);
+      return remainingEntries;
+    })();
+
+    syncPendingPromiseRef.current = syncPromise;
+    try {
+      return await syncPromise;
+    } finally {
+      syncPendingPromiseRef.current = null;
+    }
   }, [client, profile.id]);
 
   const loadEntries = useCallback(async () => {
@@ -232,6 +250,9 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
         getPatientDailyForm(client, profile.id, range.start, range.end),
       ]);
       saveCachedRecentEntries(profile.id, nextEntries);
+      saveCachedOpenedDayEntries(profile.id, nextEntries, (entry) =>
+        localDateValue(new Date(entry.occurredAt)),
+      );
       const nextHasChronicTherapy = Boolean(baseline?.chronicTherapy?.trim());
       const includeMenstruation = baseline?.sex === 'female';
       setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
@@ -263,7 +284,10 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
       setMedicationCompleted(hasTodayEntry(nextEntries, 'medication'));
       setPeriodCompleted(hasTodayEntry(nextEntries, 'menstruation'));
     } catch {
-      const cachedEntries = loadCachedRecentEntries(profile.id);
+      const cachedOpenedDayEntries = loadCachedOpenedDayEntries(profile.id);
+      const cachedEntries = cachedOpenedDayEntries.length
+        ? cachedOpenedDayEntries
+        : loadCachedRecentEntries(profile.id);
       if (cachedEntries.length) {
         setEntries(filterPatientTimelineEntries(cachedEntries, null));
         setError(t(locale, 'entry.offlineCached'));
@@ -609,8 +633,16 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
               ? t(locale, 'stool.noStoolToday')
               : entry.text?.trim() || kindLabel;
             const pending = pendingIds.has(entry.id);
+            const todayDailyEntry = isTodayDailyEntry(entry, today);
+            const dailyStatusKey =
+              dailyCompleted || dailyReadyToSubmit ? 'home.action.completed' : 'daily.statusDraft';
             return (
-              <article className={`web-recent-entry ${pending ? 'pending' : ''}`} key={entry.id}>
+              <article
+                className={`web-recent-entry ${pending ? 'pending' : ''} ${
+                  todayDailyEntry && !dailyCompleted && !dailyReadyToSubmit ? 'draft' : ''
+                }`}
+                key={entry.id}
+              >
                 <div className="web-recent-entry-content">
                   <span className="web-entry-icon">{entryIcons[entry.kind]}</span>
                   <span>
@@ -623,7 +655,18 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
                         month: 'short',
                       }).format(new Date(entry.occurredAt))}
                     </small>
+                  </span>
+                  <span className="web-entry-trailing">
                     {pending ? <small className="web-entry-pending">{t(locale, 'sync.pending')}</small> : null}
+                    {!pending && todayDailyEntry ? (
+                      <small
+                        className={`web-entry-status ${
+                          dailyCompleted || dailyReadyToSubmit ? 'complete' : 'draft'
+                        }`}
+                      >
+                        {t(locale, dailyStatusKey)}
+                      </small>
+                    ) : null}
                   </span>
                 </div>
               </article>
@@ -787,8 +830,16 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
           {todayEntries.slice(0, showTimelineList ? undefined : 8).map((entry) => {
             const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
             const pending = pendingIds.has(entry.id);
+            const todayDailyEntry = isTodayDailyEntry(entry, today);
+            const dailyStatusKey =
+              dailyCompleted || dailyReadyToSubmit ? 'home.action.completed' : 'daily.statusDraft';
             return (
-              <article className={`web-recent-entry ${pending ? 'pending' : ''}`} key={entry.id}>
+              <article
+                className={`web-recent-entry ${pending ? 'pending' : ''} ${
+                  todayDailyEntry && !dailyCompleted && !dailyReadyToSubmit ? 'draft' : ''
+                }`}
+                key={entry.id}
+              >
                 <button disabled={pending} onClick={() => openEntry(entry)} type="button">
                   <span className="web-entry-icon">{entryIcons[entry.kind]}</span>
                   <span>
@@ -799,7 +850,18 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
                         minute: '2-digit',
                       }).format(new Date(entry.occurredAt))}
                     </small>
+                  </span>
+                  <span className="web-entry-trailing">
                     {pending ? <small className="web-entry-pending">{t(locale, 'sync.pending')}</small> : null}
+                    {!pending && todayDailyEntry ? (
+                      <small
+                        className={`web-entry-status ${
+                          dailyCompleted || dailyReadyToSubmit ? 'complete' : 'draft'
+                        }`}
+                      >
+                        {t(locale, dailyStatusKey)}
+                      </small>
+                    ) : null}
                   </span>
                 </button>
               </article>

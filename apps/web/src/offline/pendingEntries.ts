@@ -1,5 +1,11 @@
 import type { PatientEntry } from '@project4/contracts';
-import type { LocalPendingEntry } from '@project4/sync';
+import {
+  cachedOpenedDayEntries,
+  dedupePendingEntries,
+  mergeOpenedDayEntryCache,
+  type LocalPendingEntry,
+  type OpenedDayEntryCache,
+} from '@project4/sync';
 
 function keyForPatient(patientId: string): string {
   return `project4:pending-entries:${patientId}`;
@@ -9,13 +15,17 @@ function cacheKeyForPatient(patientId: string): string {
   return `project4:recent-entries:${patientId}`;
 }
 
+function openedDaysCacheKeyForPatient(patientId: string): string {
+  return `project4:opened-day-entries:${patientId}`;
+}
+
 export function loadPendingEntries(patientId: string): LocalPendingEntry[] {
   const raw = window.localStorage.getItem(keyForPatient(patientId));
   if (!raw) return [];
 
   const parsed = JSON.parse(raw) as unknown;
   if (!Array.isArray(parsed)) return [];
-  return parsed.filter(isLocalPendingEntry);
+  return dedupePendingEntries(parsed.filter(isLocalPendingEntry));
 }
 
 export function savePendingEntries(
@@ -26,7 +36,7 @@ export function savePendingEntries(
 }
 
 export function appendPendingEntry(patientId: string, entry: LocalPendingEntry): LocalPendingEntry[] {
-  const nextEntries = [...loadPendingEntries(patientId), entry];
+  const nextEntries = dedupePendingEntries([...loadPendingEntries(patientId), entry]);
   savePendingEntries(patientId, nextEntries);
   return nextEntries;
 }
@@ -45,6 +55,38 @@ export function saveCachedRecentEntries(
   entries: readonly PatientEntry[],
 ): void {
   window.localStorage.setItem(cacheKeyForPatient(patientId), JSON.stringify(entries));
+}
+
+export function loadCachedOpenedDayEntries(patientId: string): PatientEntry[] {
+  return cachedOpenedDayEntries(loadOpenedDayEntryCache(patientId));
+}
+
+export function saveCachedOpenedDayEntries(
+  patientId: string,
+  entries: readonly PatientEntry[],
+  getLocalDay: (entry: PatientEntry) => string,
+): void {
+  const nextCache = mergeOpenedDayEntryCache(
+    loadOpenedDayEntryCache(patientId),
+    entries,
+    getLocalDay,
+  );
+  window.localStorage.setItem(openedDaysCacheKeyForPatient(patientId), JSON.stringify(nextCache));
+}
+
+function loadOpenedDayEntryCache(patientId: string): OpenedDayEntryCache {
+  const raw = window.localStorage.getItem(openedDaysCacheKeyForPatient(patientId));
+  if (!raw) return {};
+
+  const parsed = JSON.parse(raw) as unknown;
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+
+  return Object.fromEntries(
+    Object.entries(parsed as Record<string, unknown>).flatMap(([day, value]) => {
+      if (!Array.isArray(value)) return [];
+      return [[day, value.filter(isPatientEntry)]];
+    }),
+  );
 }
 
 function isLocalPendingEntry(value: unknown): value is LocalPendingEntry {

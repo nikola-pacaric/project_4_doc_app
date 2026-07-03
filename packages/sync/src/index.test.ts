@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import type { PatientEntry } from '@project4/contracts';
 
 import {
   createPendingTimestampUpdate,
   createPendingTextEntry,
+  cachedOpenedDayEntries,
+  dedupePendingEntries,
   isPendingEntryId,
+  mergeOpenedDayEntryCache,
   mergePendingTextEntries,
   pendingTimelineEntryIds,
   pendingTextEntryToPatientEntry,
@@ -95,5 +99,83 @@ describe('offline-lite pending text entries', () => {
 
     expect(merged[0]?.occurredAt).toBe('2026-07-03T12:15:00.000Z');
     expect(pendingTimelineEntryIds([pending])).toEqual(['server-1']);
+  });
+
+  it('deduplicates pending entries with the same operation payload', () => {
+    const first = createPendingTextEntry(
+      { patientId: 'patient-1', text: 'Same note', occurredAt: '2026-07-03T08:00:00.000Z' },
+      new Date('2026-07-03T08:01:00.000Z'),
+    );
+    const second = createPendingTextEntry(
+      { patientId: 'patient-1', text: 'Same note', occurredAt: '2026-07-03T08:00:00.000Z' },
+      new Date('2026-07-03T08:02:00.000Z'),
+    );
+    const timestampUpdate = createPendingTimestampUpdate(
+      { entryId: 'server-1', occurredAt: '2026-07-03T08:00:00.000Z' },
+      new Date('2026-07-03T08:03:00.000Z'),
+    );
+
+    expect(dedupePendingEntries([first, second, timestampUpdate])).toEqual([
+      first,
+      timestampUpdate,
+    ]);
+  });
+});
+
+describe('offline-lite opened-day cache', () => {
+  const entry = (id: string, occurredAt: string): PatientEntry => ({
+    id,
+    patientId: 'patient-1',
+    kind: 'note',
+    occurredAt,
+    text: id,
+    createdAt: occurredAt,
+    updatedAt: occurredAt,
+  });
+
+  it('stores opened entries by local day and keeps days accumulated', () => {
+    const cache = mergeOpenedDayEntryCache(
+      {},
+      [entry('first', '2026-07-01T08:00:00.000Z'), entry('second', '2026-07-02T09:00:00.000Z')],
+      (candidate) => candidate.occurredAt.slice(0, 10),
+    );
+    const nextCache = mergeOpenedDayEntryCache(
+      cache,
+      [entry('third', '2026-07-03T10:00:00.000Z')],
+      (candidate) => candidate.occurredAt.slice(0, 10),
+    );
+
+    expect(Object.keys(nextCache)).toEqual(['2026-07-03', '2026-07-02', '2026-07-01']);
+    expect(cachedOpenedDayEntries(nextCache).map((candidate) => candidate.id)).toEqual([
+      'third',
+      'second',
+      'first',
+    ]);
+  });
+
+  it('replaces an already cached entry instead of duplicating it', () => {
+    const cache = mergeOpenedDayEntryCache(
+      { '2026-07-03': [entry('first', '2026-07-03T08:00:00.000Z')] },
+      [entry('first', '2026-07-03T11:00:00.000Z')],
+      (candidate) => candidate.occurredAt.slice(0, 10),
+    );
+
+    expect(cache['2026-07-03']?.map((candidate) => candidate.occurredAt)).toEqual([
+      '2026-07-03T11:00:00.000Z',
+    ]);
+  });
+
+  it('keeps the most recent opened-day buckets within the configured limit', () => {
+    const cache = mergeOpenedDayEntryCache(
+      {
+        '2026-07-01': [entry('first', '2026-07-01T08:00:00.000Z')],
+        '2026-07-02': [entry('second', '2026-07-02T08:00:00.000Z')],
+      },
+      [entry('third', '2026-07-03T08:00:00.000Z')],
+      (candidate) => candidate.occurredAt.slice(0, 10),
+      2,
+    );
+
+    expect(Object.keys(cache)).toEqual(['2026-07-03', '2026-07-02']);
   });
 });

@@ -5,6 +5,7 @@ coverage/
 .expo/
 .expo-shared/
 apps/supabase/.temp/
+supabase/.temp/
 .env
 .env.*
 !.env.example

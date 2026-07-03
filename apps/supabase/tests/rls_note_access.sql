@@ -26,12 +26,13 @@ on conflict (id) do nothing;
 set local role anon;
 
 do $$
-declare visible_notes integer;
 begin
-  select count(*) into visible_notes from public.patient_entries where kind = 'note';
-  if visible_notes <> 0 then
-    raise exception 'unauthenticated users should see 0 notes, saw %', visible_notes;
-  end if;
+  begin
+    perform count(*) from public.patient_entries;
+    raise exception 'unauthenticated users should not have table access to patient entries';
+  exception
+    when insufficient_privilege then null;
+  end;
 end $$;
 
 reset role;
