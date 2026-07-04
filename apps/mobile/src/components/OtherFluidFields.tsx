@@ -12,10 +12,18 @@ import { TimePickerField } from './TimePickerField';
 interface OtherFluidFieldsProps {
   createFluid: () => OtherFluidDraft;
   fluids: OtherFluidDraft[];
+  onAddPhoto?: (fluid: OtherFluidDraft, index: number) => void;
+  photoDisabled?: boolean;
   onChange: (fluids: OtherFluidDraft[]) => void;
 }
 
-export function OtherFluidFields({ createFluid, fluids, onChange }: OtherFluidFieldsProps) {
+export function OtherFluidFields({
+  createFluid,
+  fluids,
+  onAddPhoto,
+  photoDisabled = false,
+  onChange,
+}: OtherFluidFieldsProps) {
   const locale = DEFAULT_LOCALE;
 
   function updateFluid(index: number, update: Partial<OtherFluidDraft>) {
@@ -52,6 +60,16 @@ export function OtherFluidFields({ createFluid, fluids, onChange }: OtherFluidFi
             onChangeText={(value) => updateFluid(index, { name: value })}
             value={fluid.name ?? ''}
           />
+          {onAddPhoto ? (
+            <View style={styles.photoAction}>
+              <PrimaryButton
+                disabled={photoDisabled}
+                label={photoDisabled ? t(locale, 'photo.saveFirst') : t(locale, 'photo.add')}
+                onPress={() => onAddPhoto(fluid, index)}
+                variant="secondary"
+              />
+            </View>
+          ) : null}
           {fluids.length > 1 || isOtherFluidDraftStarted(fluid) ? (
             <PrimaryButton
               label={t(locale, 'fluid.remove')}
@@ -82,4 +100,5 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: 19, fontWeight: '800' },
   help: { color: colors.mutedText, fontSize: 15, lineHeight: 22 },
   card: { gap: spacing.sm },
+  photoAction: { marginTop: spacing.xs },
 });

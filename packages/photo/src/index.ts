@@ -1,9 +1,33 @@
 export const PHOTO_MAX_WIDTH_PX = 1280;
 export const PHOTO_JPEG_QUALITY = 0.8;
+export const PHOTO_BUCKET = 'patient-entry-photos';
+export const PHOTO_MIME_TYPE = 'image/jpeg';
+export const PHOTO_TARGET_MIN_BYTES = 250 * 1024;
+export const PHOTO_TARGET_MAX_BYTES = 500 * 1024;
+export const PHOTO_THUMBNAIL_TARGET_MIN_BYTES = 20 * 1024;
+export const PHOTO_THUMBNAIL_TARGET_MAX_BYTES = 60 * 1024;
 
 export interface PhotoStoragePaths {
   photoPath: string;
   thumbnailPath: string;
+}
+
+export interface PreparedPhotoDimensions {
+  widthPx: number;
+  heightPx: number;
+  sizeBytes: number;
+}
+
+export interface PreparedPhotoMetadata extends PreparedPhotoDimensions {
+  originalFilename?: string;
+  mimeType: typeof PHOTO_MIME_TYPE;
+  thumbnail: PreparedPhotoDimensions;
+}
+
+export interface PhotoValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
 }
 
 export function buildEntryPhotoPaths(
@@ -17,4 +41,75 @@ export function buildEntryPhotoPaths(
     photoPath: `${basePath}/photos/${photoId}.jpg`,
     thumbnailPath: `${basePath}/thumbs/${photoId}.jpg`,
   };
+}
+
+export function expectedEntryPhotoPrefix(patientId: string, entryId: string): string {
+  return `patients/${patientId}/entries/${entryId}`;
+}
+
+export function validateEntryPhotoPaths(
+  patientId: string,
+  entryId: string,
+  paths: PhotoStoragePaths,
+): string[] {
+  const prefix = expectedEntryPhotoPrefix(patientId, entryId);
+  const errors: string[] = [];
+
+  if (!paths.photoPath.startsWith(`${prefix}/photos/`) || !paths.photoPath.endsWith('.jpg')) {
+    errors.push('PHOTO_PATH_INVALID');
+  }
+  if (
+    !paths.thumbnailPath.startsWith(`${prefix}/thumbs/`) ||
+    !paths.thumbnailPath.endsWith('.jpg')
+  ) {
+    errors.push('THUMBNAIL_PATH_INVALID');
+  }
+  if (paths.photoPath.includes('base64') || paths.thumbnailPath.includes('base64')) {
+    errors.push('PHOTO_PATH_BASE64_FORBIDDEN');
+  }
+  if (paths.photoPath === paths.thumbnailPath) {
+    errors.push('PHOTO_PATHS_MUST_DIFFER');
+  }
+
+  return errors;
+}
+
+export function validatePreparedPhotoMetadata(
+  metadata: PreparedPhotoMetadata,
+): PhotoValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (metadata.mimeType !== PHOTO_MIME_TYPE) {
+    errors.push('PHOTO_MIME_TYPE_INVALID');
+  }
+  if (!Number.isInteger(metadata.widthPx) || metadata.widthPx < 1) {
+    errors.push('PHOTO_WIDTH_INVALID');
+  }
+  if (metadata.widthPx > PHOTO_MAX_WIDTH_PX) {
+    errors.push('PHOTO_WIDTH_TOO_LARGE');
+  }
+  if (!Number.isInteger(metadata.heightPx) || metadata.heightPx < 1) {
+    errors.push('PHOTO_HEIGHT_INVALID');
+  }
+  if (!Number.isInteger(metadata.sizeBytes) || metadata.sizeBytes < 1) {
+    errors.push('PHOTO_SIZE_INVALID');
+  }
+  if (!Number.isInteger(metadata.thumbnail.sizeBytes) || metadata.thumbnail.sizeBytes < 1) {
+    errors.push('THUMBNAIL_SIZE_INVALID');
+  }
+  if (
+    metadata.sizeBytes > PHOTO_TARGET_MAX_BYTES ||
+    metadata.sizeBytes < PHOTO_TARGET_MIN_BYTES
+  ) {
+    warnings.push('PHOTO_SIZE_OUTSIDE_TARGET');
+  }
+  if (
+    metadata.thumbnail.sizeBytes > PHOTO_THUMBNAIL_TARGET_MAX_BYTES ||
+    metadata.thumbnail.sizeBytes < PHOTO_THUMBNAIL_TARGET_MIN_BYTES
+  ) {
+    warnings.push('THUMBNAIL_SIZE_OUTSIDE_TARGET');
+  }
+
+  return { valid: errors.length === 0, errors, warnings };
 }

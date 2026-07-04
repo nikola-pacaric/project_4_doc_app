@@ -15,6 +15,7 @@ interface MedicationFormScreenProps {
   busy?: boolean;
   error?: string | null;
   initialDraft?: MedicationDraft;
+  onAddPhoto?: (draft: MedicationDraft) => void;
   onBack: () => void;
   onSave: (draft: MedicationDraft) => void | Promise<void>;
 }
@@ -32,6 +33,7 @@ export function MedicationFormScreen({
   busy = false,
   error,
   initialDraft,
+  onAddPhoto,
   onBack,
   onSave,
 }: MedicationFormScreenProps) {
@@ -93,6 +95,14 @@ export function MedicationFormScreen({
           placeholder={t(locale, 'medication.reasonPlaceholder')}
           value={draft.reason ?? ''}
         />
+        {onAddPhoto ? (
+          <PrimaryButton
+            disabled={!draft.entryId}
+            label={draft.entryId ? t(locale, 'photo.add') : t(locale, 'photo.saveFirst')}
+            onPress={() => onAddPhoto(draft)}
+            variant="secondary"
+          />
+        ) : null}
 
         {showErrors ? (
           <Text selectable style={sharedStyles.error}>

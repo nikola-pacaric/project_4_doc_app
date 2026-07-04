@@ -12,6 +12,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { colors, sharedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 import { MedicationFormScreen } from './MedicationFormScreen';
+import { PhotoUploadScreen } from './PhotoUploadScreen';
 
 interface PatientMedicationScreenProps {
   client: AppSupabaseClient;
@@ -45,6 +46,7 @@ export function PatientMedicationScreen({
   const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photoTarget, setPhotoTarget] = useState<MedicationDraft | null>(null);
 
   useEffect(() => {
     if (!entryToEdit) {
@@ -98,11 +100,26 @@ export function PatientMedicationScreen({
     );
   }
 
+  if (photoTarget?.entryId) {
+    return (
+      <PhotoUploadScreen
+        client={client}
+        contextLabel={photoTarget.name?.trim() || t(locale, 'photo.medicationFallback')}
+        contextType="medication"
+        entryId={photoTarget.entryId}
+        onBack={() => setPhotoTarget(null)}
+        onUploaded={() => setPhotoTarget(null)}
+        profile={profile}
+      />
+    );
+  }
+
   return (
     <MedicationFormScreen
       busy={saving}
       error={error}
       initialDraft={initialDraft ?? undefined}
+      onAddPhoto={(draft) => setPhotoTarget(draft)}
       onBack={onBack}
       onSave={save}
     />

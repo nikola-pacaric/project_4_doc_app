@@ -28,6 +28,7 @@ export * from './patientMeals';
 export * from './patientMedications';
 export * from './patientMenstruation';
 export * from './patientNotes';
+export * from './patientPhotos';
 export * from './patientSymptoms';
 export * from './patientStools';
 export * from './patientBaseline';

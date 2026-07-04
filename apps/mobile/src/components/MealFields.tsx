@@ -13,12 +13,13 @@ import { TimePickerField } from './TimePickerField';
 interface MealFieldsProps {
   createMeal: () => MealDraft;
   meals: MealDraft[];
+  onAddPhoto?: (meal: MealDraft, index: number) => void;
   onChange: (meals: MealDraft[]) => void;
 }
 
 const mealTypes: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack', 'other'];
 
-export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
+export function MealFields({ createMeal, meals, onAddPhoto, onChange }: MealFieldsProps) {
   const locale = DEFAULT_LOCALE;
 
   function updateMeal(index: number, update: Partial<MealDraft>) {
@@ -73,6 +74,16 @@ export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
               />
             </View>
           ) : null}
+          {onAddPhoto ? (
+            <View style={styles.photoAction}>
+              <PrimaryButton
+                disabled={!meal.entryId}
+                label={meal.entryId ? t(locale, 'photo.add') : t(locale, 'photo.saveFirst')}
+                onPress={() => onAddPhoto(meal, index)}
+                variant="secondary"
+              />
+            </View>
+          ) : null}
           {meals.length > 1 || isMealDraftStarted(meal) ? (
             <PrimaryButton
               label={t(locale, 'meal.remove')}
@@ -103,6 +114,7 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: 19, fontWeight: '800' },
   help: { color: colors.mutedText, fontSize: 15, lineHeight: 22 },
   card: { gap: spacing.sm },
+  photoAction: { marginTop: spacing.xs },
   details: {
     gap: spacing.md,
     borderWidth: 1,

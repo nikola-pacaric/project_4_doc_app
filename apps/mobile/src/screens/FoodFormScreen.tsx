@@ -33,6 +33,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { colors, sharedStyles } from '../theme';
 import { localDayRange, toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
+import { PhotoUploadScreen } from './PhotoUploadScreen';
 
 interface FoodFormScreenProps {
   client: AppSupabaseClient;
@@ -92,6 +93,12 @@ function toOtherFluidDrafts(value: string | null | undefined): OtherFluidDraft[]
   });
 }
 
+interface FoodPhotoTarget {
+  contextLabel: string;
+  contextType: 'meal' | 'fluid';
+  entryId: string;
+}
+
 function formatWaterLiters(value: number | undefined): string {
   return value === undefined ? '' : String(value);
 }
@@ -115,6 +122,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
   const today = toLocalDateInput(new Date());
   const day = today;
   const [hydration, setHydration] = useState<FoodHydrationDraft>({ ...foodHydrationDefaults });
+  const [foodEntryId, setFoodEntryId] = useState<string | null>(null);
   const [waterText, setWaterText] = useState('');
   const [meals, setMeals] = useState<MealDraft[]>([createEmptyMealDraft()]);
   const [otherFluids, setOtherFluids] = useState<OtherFluidDraft[]>([
@@ -124,6 +132,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [photoTarget, setPhotoTarget] = useState<FoodPhotoTarget | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -136,6 +145,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
       .then(([foodRecord, mealRecords]) => {
         if (!active) return;
         const nextHydration = toHydrationDraft(foodRecord?.details ?? null);
+        setFoodEntryId(foodRecord?.entryId ?? null);
         setHydration(nextHydration);
         setWaterText(formatWaterLiters(nextHydration.waterLiters));
         setMeals(toMealDrafts(mealRecords));
@@ -185,6 +195,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
         listPatientMeals(client, profile.id, range.start, range.end),
       ]);
       const nextHydration = toHydrationDraft(foodRecord?.details ?? null);
+      setFoodEntryId(foodRecord?.entryId ?? null);
       setHydration(nextHydration);
       setWaterText(formatWaterLiters(nextHydration.waterLiters));
       setMeals(toMealDrafts(mealRecords));
@@ -196,6 +207,20 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
     } finally {
       setSaving(false);
     }
+  }
+
+  if (photoTarget) {
+    return (
+      <PhotoUploadScreen
+        client={client}
+        contextLabel={photoTarget.contextLabel}
+        contextType={photoTarget.contextType}
+        entryId={photoTarget.entryId}
+        onBack={() => setPhotoTarget(null)}
+        onUploaded={() => setPhotoTarget(null)}
+        profile={profile}
+      />
+    );
   }
 
   return (
@@ -211,7 +236,21 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
         {loading ? <ActivityIndicator color={colors.accent} size="large" /> : null}
         {!loading ? (
           <View style={styles.form}>
-            <MealFields createMeal={createEmptyMealDraft} meals={meals} onChange={setMeals} />
+            <MealFields
+              createMeal={createEmptyMealDraft}
+              meals={meals}
+              onAddPhoto={(meal, index) => {
+                if (!meal.entryId) return;
+                setPhotoTarget({
+                  contextType: 'meal',
+                  contextLabel:
+                    meal.name?.trim() ||
+                    t(locale, 'photo.mealFallback').replace('{number}', String(index + 1)),
+                  entryId: meal.entryId,
+                });
+              }}
+              onChange={setMeals}
+            />
             <View style={styles.hydrationCard}>
               <Text style={styles.sectionTitle}>{t(locale, 'food.waterTitle')}</Text>
               <FormField
@@ -254,7 +293,18 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
               <OtherFluidFields
                 createFluid={createEmptyOtherFluidDraft}
                 fluids={otherFluids}
+                onAddPhoto={(fluid, index) => {
+                  if (!foodEntryId) return;
+                  setPhotoTarget({
+                    contextType: 'fluid',
+                    contextLabel:
+                      fluid.name?.trim() ||
+                      t(locale, 'photo.fluidFallback').replace('{number}', String(index + 1)),
+                    entryId: foodEntryId,
+                  });
+                }}
                 onChange={setOtherFluids}
+                photoDisabled={!foodEntryId}
               />
             ) : null}
 
