@@ -49,6 +49,7 @@ interface DailyProgressHomeScreenProps {
   recentEntries: PatientEntry[];
   error: string | null;
   loading: boolean;
+  offlineMode: boolean;
   submitDisabled: boolean;
   submitBusy: boolean;
   submitHelp: string;
@@ -131,6 +132,7 @@ export function DailyProgressHomeScreen({
   recentEntries,
   error,
   loading,
+  offlineMode,
   submitDisabled,
   submitBusy,
   submitHelp,
@@ -194,9 +196,16 @@ export function DailyProgressHomeScreen({
               </Pressable>
               <Pressable
                 accessibilityLabel={t(locale, 'baseline.open')}
+                accessibilityHint={offlineMode ? t(locale, 'offline.actionsDisabled') : undefined}
                 accessibilityRole="button"
+                accessibilityState={{ disabled: offlineMode }}
+                disabled={offlineMode}
                 onPress={onOpenBaseline}
-                style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.avatar,
+                  offlineMode && styles.avatarDisabled,
+                  pressed && !offlineMode && styles.pressed,
+                ]}
               >
                 <Text style={styles.avatarText}>{displayName.slice(0, 2).toUpperCase()}</Text>
               </Pressable>
@@ -273,18 +282,25 @@ export function DailyProgressHomeScreen({
                 (showExerciseStatus && exerciseRequired && !exerciseCompleted) ||
                 (showMedicationStatus && medicationRequired && !medicationCompleted) ||
                 (showPeriodStatus && periodRequired && !periodCompleted);
+              const offlineDisabled = offlineMode && action.id !== 'notes';
 
               return (
                 <Pressable
                   accessibilityLabel={t(locale, action.labelKey)}
+                  accessibilityHint={
+                    offlineDisabled ? t(locale, 'offline.actionsDisabled') : undefined
+                  }
                   accessibilityRole="button"
+                  accessibilityState={{ disabled: offlineDisabled }}
+                  disabled={offlineDisabled}
                   key={action.id}
                   onPress={onPress}
                   style={({ pressed }) => [
                     styles.actionCard,
                     styles.actionCardEnabled,
                     actionRequired && styles.actionCardRequired,
-                    pressed && styles.actionCardPressed,
+                    offlineDisabled && styles.actionCardDisabled,
+                    pressed && !offlineDisabled && styles.actionCardPressed,
                     { height: actionCardWidth, width: actionCardWidth },
                   ]}
                 >
@@ -342,6 +358,11 @@ export function DailyProgressHomeScreen({
                       {t(locale, 'home.action.completed')}
                     </Text>
                   ) : null}
+                  {offlineDisabled ? (
+                    <Text style={[styles.actionStatus, styles.actionStatusOffline]}>
+                      {t(locale, 'offline.onlyNotes')}
+                    </Text>
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -367,22 +388,35 @@ export function DailyProgressHomeScreen({
                 const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
                 const dailyEntryReady = entry.kind === 'daily' && dailyReadyToSubmit;
                 const entryPending = pendingIds.has(entry.id);
+                const entryOfflineDisabled = offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
                 const entryCompleted = entry.kind !== 'daily' || dailyCompleted;
                 const statusKey =
                   entryPending
                     ? 'sync.pending'
+                    : entryOfflineDisabled
+                    ? 'offline.onlyNotes'
                     : entryCompleted || dailyEntryReady
                     ? 'home.action.completed'
                     : 'daily.statusDraft';
                 return (
                   <Pressable
-                    accessibilityHint={t(locale, 'home.entryOpenHint')}
+                    accessibilityHint={
+                      entryOfflineDisabled
+                        ? t(locale, 'offline.actionsDisabled')
+                        : t(locale, 'home.entryOpenHint')
+                    }
                     accessibilityRole="button"
+                    accessibilityState={{ disabled: entryPending || entryOfflineDisabled }}
+                    disabled={entryPending || entryOfflineDisabled}
                     key={entry.id}
                     onPress={() => {
-                      if (!entryPending) onOpenEntry(entry);
+                      if (!entryPending && !entryOfflineDisabled) onOpenEntry(entry);
                     }}
-                    style={({ pressed }) => [styles.entryCard, pressed && styles.pressed]}
+                    style={({ pressed }) => [
+                      styles.entryCard,
+                      entryOfflineDisabled && styles.entryCardDisabled,
+                      pressed && !entryPending && !entryOfflineDisabled && styles.pressed,
+                    ]}
                   >
                     <View style={styles.entryIconContainer}>
                       <Text style={styles.entryIcon}>{entryIcons[entry.kind]}</Text>
@@ -401,6 +435,7 @@ export function DailyProgressHomeScreen({
                           styles.entryStatus,
                           entryPending && styles.entryStatusPending,
                           !entryCompleted && !dailyEntryReady && styles.entryStatusDraft,
+                          entryOfflineDisabled && styles.entryStatusOffline,
                         ]}
                       >
                         {t(locale, statusKey)}
@@ -534,6 +569,12 @@ const styles = StyleSheet.create({
   },
   actionCardEnabled: { borderColor: colors.accent },
   actionCardRequired: { backgroundColor: '#fff4e5', borderColor: '#d97706' },
+  actionCardDisabled: {
+    backgroundColor: '#f2ecee',
+    borderColor: colors.border,
+    opacity: 0.48,
+  },
+  avatarDisabled: { backgroundColor: colors.border, opacity: 0.55 },
   actionCardPressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
   actionIconContainer: {
     alignItems: 'center',
@@ -560,6 +601,7 @@ const styles = StyleSheet.create({
   },
   actionStatusRequired: { color: '#b42318' },
   actionStatusCompleted: { color: '#16794b' },
+  actionStatusOffline: { color: colors.mutedText },
   entryList: { gap: spacing.sm },
   entryCard: {
     alignItems: 'center',
@@ -588,6 +630,8 @@ const styles = StyleSheet.create({
   entryStatus: { color: '#16794b', fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
   entryStatusDraft: { color: '#a15c00' },
   entryStatusPending: { color: '#a15c00' },
+  entryStatusOffline: { color: colors.mutedText },
+  entryCardDisabled: { opacity: 0.52 },
   emptyEntries: { color: colors.mutedText, fontSize: 14, lineHeight: 20 },
   submitBlock: { gap: spacing.sm, marginTop: 'auto' },
   submitHelp: {

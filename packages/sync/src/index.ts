@@ -1,6 +1,6 @@
 import type { PatientEntry } from '@project4/contracts';
 
-export type PendingEntryOperation = 'create_text_entry' | 'update_entry_timestamp';
+export type PendingEntryOperation = 'create_text_entry' | 'update_entry_timestamp' | 'update_note';
 export type OpenedDayEntryCache = Record<string, PatientEntry[]>;
 
 export interface PendingTextEntryPayload {
@@ -14,11 +14,17 @@ export interface PendingTimestampUpdatePayload {
   occurredAt: string;
 }
 
+export interface PendingNoteUpdatePayload {
+  entryId: string;
+  text: string;
+  occurredAt: string;
+}
+
 export interface LocalPendingEntry {
   id: string;
   operation: PendingEntryOperation;
   createdAt: string;
-  payload: PendingTextEntryPayload | PendingTimestampUpdatePayload;
+  payload: PendingTextEntryPayload | PendingTimestampUpdatePayload | PendingNoteUpdatePayload;
 }
 
 export function hasPendingEntries(entries: readonly LocalPendingEntry[]): boolean {
@@ -44,6 +50,18 @@ export function createPendingTimestampUpdate(
   return {
     id: `pending-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
     operation: 'update_entry_timestamp',
+    createdAt: now.toISOString(),
+    payload,
+  };
+}
+
+export function createPendingNoteUpdate(
+  payload: PendingNoteUpdatePayload,
+  now = new Date(),
+): LocalPendingEntry {
+  return {
+    id: `pending-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
+    operation: 'update_note',
     createdAt: now.toISOString(),
     payload,
   };
@@ -81,20 +99,33 @@ export function mergePendingTextEntries(
   entries: readonly PatientEntry[],
   pendingEntries: readonly LocalPendingEntry[],
 ): PatientEntry[] {
-  const timestampUpdates = new Map(
-    pendingEntries
-      .filter((entry) => entry.operation === 'update_entry_timestamp')
-      .map((entry) => {
-        const payload = entry.payload as PendingTimestampUpdatePayload;
-        return [payload.entryId, payload.occurredAt] as const;
-      }),
-  );
-  const entriesWithPendingTimestamps = entries.map((entry) => {
-    const occurredAt = timestampUpdates.get(entry.id);
-    return occurredAt ? { ...entry, occurredAt } : entry;
+  const entryUpdates = new Map<string, Partial<PatientEntry>>();
+
+  for (const pendingEntry of pendingEntries) {
+    if (pendingEntry.operation === 'update_entry_timestamp') {
+      const payload = pendingEntry.payload as PendingTimestampUpdatePayload;
+      entryUpdates.set(payload.entryId, {
+        ...entryUpdates.get(payload.entryId),
+        occurredAt: payload.occurredAt,
+      });
+    }
+
+    if (pendingEntry.operation === 'update_note') {
+      const payload = pendingEntry.payload as PendingNoteUpdatePayload;
+      entryUpdates.set(payload.entryId, {
+        ...entryUpdates.get(payload.entryId),
+        occurredAt: payload.occurredAt,
+        text: payload.text,
+      });
+    }
+  }
+
+  const entriesWithPendingUpdates = entries.map((entry) => {
+    const update = entryUpdates.get(entry.id);
+    return update ? { ...entry, ...update } : entry;
   });
 
-  return [...pendingTextEntriesToPatientEntries(pendingEntries), ...entriesWithPendingTimestamps].sort(
+  return [...pendingTextEntriesToPatientEntries(pendingEntries), ...entriesWithPendingUpdates].sort(
     (left, right) => Date.parse(right.occurredAt) - Date.parse(left.occurredAt),
   );
 }
@@ -102,7 +133,7 @@ export function mergePendingTextEntries(
 export function pendingTimelineEntryIds(pendingEntries: readonly LocalPendingEntry[]): string[] {
   return pendingEntries.flatMap((entry) => {
     if (entry.operation === 'create_text_entry') return [entry.id];
-    const payload = entry.payload as PendingTimestampUpdatePayload;
+    const payload = entry.payload as PendingTimestampUpdatePayload | PendingNoteUpdatePayload;
     return [payload.entryId];
   });
 }
@@ -136,6 +167,11 @@ function pendingEntryDedupeKey(entry: LocalPendingEntry): string {
     return [entry.operation, payload.patientId, payload.occurredAt, payload.text.trim()].join('|');
   }
 
+  if (entry.operation === 'update_note') {
+    const payload = entry.payload as PendingNoteUpdatePayload;
+    return [entry.operation, payload.entryId, payload.occurredAt, payload.text.trim()].join('|');
+  }
+
   const payload = entry.payload as PendingTimestampUpdatePayload;
   return [entry.operation, payload.entryId, payload.occurredAt].join('|');
 }
@@ -156,8 +192,38 @@ export function mergeOpenedDayEntryCache(
     );
   }
 
+  return limitOpenedDayEntryCache(nextCache, maxDays);
+}
+
+export function replaceOpenedDayEntryCache(
+  currentCache: OpenedDayEntryCache,
+  entries: readonly PatientEntry[],
+  getLocalDay: (entry: PatientEntry) => string,
+  daysToReplace: readonly string[],
+  maxDays = 30,
+): OpenedDayEntryCache {
+  const nextCache: OpenedDayEntryCache = { ...currentCache };
+
+  for (const day of daysToReplace) {
+    delete nextCache[day];
+  }
+
+  for (const entry of entries) {
+    const day = getLocalDay(entry);
+    nextCache[day] = [...(nextCache[day] ?? []), entry].sort(
+      (left, right) => Date.parse(right.occurredAt) - Date.parse(left.occurredAt),
+    );
+  }
+
+  return limitOpenedDayEntryCache(nextCache, maxDays);
+}
+
+function limitOpenedDayEntryCache(
+  cache: OpenedDayEntryCache,
+  maxDays: number,
+): OpenedDayEntryCache {
   return Object.fromEntries(
-    Object.entries(nextCache)
+    Object.entries(cache)
       .sort(([leftDay], [rightDay]) => rightDay.localeCompare(leftDay))
       .slice(0, Math.max(1, maxDays)),
   );

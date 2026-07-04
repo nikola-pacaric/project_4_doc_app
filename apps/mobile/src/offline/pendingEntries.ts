@@ -4,6 +4,7 @@ import {
   cachedOpenedDayEntries,
   dedupePendingEntries,
   mergeOpenedDayEntryCache,
+  replaceOpenedDayEntryCache,
   type LocalPendingEntry,
   type OpenedDayEntryCache,
 } from '@project4/sync';
@@ -70,9 +71,12 @@ export async function saveCachedOpenedDayEntries(
   patientId: string,
   entries: readonly PatientEntry[],
   getLocalDay: (entry: PatientEntry) => string,
+  daysToReplace?: readonly string[],
 ): Promise<void> {
   const currentCache = await loadOpenedDayEntryCache(patientId);
-  const nextCache = mergeOpenedDayEntryCache(currentCache, entries, getLocalDay);
+  const nextCache = daysToReplace
+    ? replaceOpenedDayEntryCache(currentCache, entries, getLocalDay, daysToReplace)
+    : mergeOpenedDayEntryCache(currentCache, entries, getLocalDay);
   await AsyncStorage.setItem(openedDaysCacheKeyForPatient(patientId), JSON.stringify(nextCache));
 }
 

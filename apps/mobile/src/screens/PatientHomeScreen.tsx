@@ -17,6 +17,7 @@ import {
   pendingTimelineEntryIds,
   removePendingEntry,
   type LocalPendingEntry,
+  type PendingNoteUpdatePayload,
   type PendingTextEntryPayload,
   type PendingTimestampUpdatePayload,
 } from '@project4/sync';
@@ -59,6 +60,24 @@ interface PatientHomeScreenProps {
   onSignOut: () => Promise<void>;
 }
 
+interface LoadEntriesOptions {
+  showLoading?: boolean;
+}
+
+const ONLINE_LOAD_TIMEOUT_MS = 2_500;
+const ONLINE_MODE_CHECK_MS = 2_000;
+const OFFLINE_MODE_CHECK_MS = 2_000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('Request timed out')), timeoutMs);
+
+    promise
+      .then(resolve, reject)
+      .finally(() => clearTimeout(timeout));
+  });
+}
+
 function hasTodayEntry(entries: PatientEntry[], kind: PatientEntry['kind']): boolean {
   const today = toLocalDateInput(new Date());
   return entries.some(
@@ -73,11 +92,23 @@ function hasTodayNoStoolEntry(entries: PatientEntry[]): boolean {
   );
 }
 
+function recentLocalDays(count = 8): string[] {
+  const days: string[] = [];
+  const today = new Date();
+  for (let index = 0; index < count; index += 1) {
+    const day = new Date(today);
+    day.setDate(today.getDate() - index);
+    days.push(toLocalDateInput(day));
+  }
+  return days;
+}
+
 export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScreenProps) {
   const locale = DEFAULT_LOCALE;
   const [entries, setEntries] = useState<PatientEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [offlineMode, setOfflineMode] = useState(false);
   const [showBaseline, setShowBaseline] = useState(false);
   const [showDailyForm, setShowDailyForm] = useState(false);
   const [dailyEntryId, setDailyEntryId] = useState<string | null>(null);
@@ -109,6 +140,7 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
   const [pendingEntries, setPendingEntries] = useState<LocalPendingEntry[]>([]);
   const syncPendingPromiseRef = useRef<Promise<LocalPendingEntry[]> | null>(null);
+  const loadEntriesPromiseRef = useRef<Promise<void> | null>(null);
 
   const handleActivityAnswerChange = useCallback((answer: boolean | undefined) => {
     setExerciseRequired(answer === true);
@@ -124,6 +156,7 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
 
   const openRecentEntry = useCallback((entry: PatientEntry) => {
     if (isPendingEntryId(entry.id)) return;
+    if (offlineMode && entry.kind !== 'note' && entry.kind !== 'text') return;
 
     if (entry.kind === 'daily') {
       setShowDailyForm(true);
@@ -163,7 +196,7 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
     }
     setNoteEntryToEdit(entry);
     setShowNoteForm(true);
-  }, []);
+  }, [offlineMode]);
 
   const loadPendingQueue = useCallback(async () => {
     setPendingEntries(await loadPendingEntries(profile.id));
@@ -181,6 +214,13 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
           if (pendingEntry.operation === 'create_text_entry') {
             const payload = pendingEntry.payload as PendingTextEntryPayload;
             await createPatientNote(client, profile.id, {
+              occurredAt: payload.occurredAt,
+              text: payload.text,
+            });
+          } else if (pendingEntry.operation === 'update_note') {
+            const payload = pendingEntry.payload as PendingNoteUpdatePayload;
+            await createPatientNote(client, profile.id, {
+              entryId: payload.entryId,
               occurredAt: payload.occurredAt,
               text: payload.text,
             });
@@ -207,55 +247,74 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
     }
   }, [client, profile.id]);
 
-  const loadEntries = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const loadEntries = useCallback(async (options: LoadEntriesOptions = {}) => {
+    if (loadEntriesPromiseRef.current) return loadEntriesPromiseRef.current;
 
-    try {
-      await syncPendingQueue();
-      const range = localDayRange(toLocalDateInput(new Date()));
-      const [nextEntries, baseline, dailyForm] = await Promise.all([
-        listRecentPatientEntries(client, profile.id),
-        getPatientBaseline(client, profile.id),
-        getPatientDailyForm(client, profile.id, range.start, range.end),
-      ]);
-      await saveCachedRecentEntries(profile.id, nextEntries);
-      await saveCachedOpenedDayEntries(profile.id, nextEntries, (entry) =>
-        toLocalDateInput(new Date(entry.occurredAt)),
-      );
-      setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
-      setDailyEntryId(dailyForm?.entryId ?? null);
-      setDailyCompleted(Boolean(dailyForm?.details.completedAt));
-      setDailyMissingFields(
-        dailyForm
-          ? getDailyFormMissingFields(
-              toDailyFormDraft(dailyForm.details),
-              baseline?.sex === 'female',
-              Boolean(baseline?.chronicTherapy?.trim()),
-            )
-          : [],
-      );
-      setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
-      setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
-      setPeriodRequired(dailyForm?.details.hadMenstruation === true);
-      setSymptomsCompleted(hasTodayEntry(nextEntries, 'symptom'));
-      setExerciseCompleted(hasTodayEntry(nextEntries, 'exercise'));
-      setMedicationCompleted(hasTodayEntry(nextEntries, 'medication'));
-      setPeriodCompleted(hasTodayEntry(nextEntries, 'menstruation'));
-      setCanTrackMenstruation(baseline?.sex === 'female');
-    } catch {
-      const cachedOpenedDayEntries = await loadCachedOpenedDayEntries(profile.id);
-      const cachedEntries = cachedOpenedDayEntries.length
-        ? cachedOpenedDayEntries
-        : await loadCachedRecentEntries(profile.id);
-      if (cachedEntries.length) {
-        setEntries(filterPatientTimelineEntries(cachedEntries, null));
-        setError(t(locale, 'entry.offlineCached'));
-      } else {
-        setError(t(locale, 'entry.loadError'));
+    const loadPromise = (async () => {
+      if (options.showLoading !== false) {
+        setLoading(true);
       }
+      setError(null);
+
+      try {
+        await withTimeout(syncPendingQueue(), ONLINE_LOAD_TIMEOUT_MS);
+        const range = localDayRange(toLocalDateInput(new Date()));
+        const [nextEntries, baseline, dailyForm] = await withTimeout(
+          Promise.all([
+            listRecentPatientEntries(client, profile.id),
+            getPatientBaseline(client, profile.id),
+            getPatientDailyForm(client, profile.id, range.start, range.end),
+          ]),
+          ONLINE_LOAD_TIMEOUT_MS,
+        );
+        setOfflineMode(false);
+        await saveCachedRecentEntries(profile.id, nextEntries);
+        await saveCachedOpenedDayEntries(profile.id, nextEntries, (entry) =>
+          toLocalDateInput(new Date(entry.occurredAt)),
+          recentLocalDays(),
+        );
+        setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
+        setDailyEntryId(dailyForm?.entryId ?? null);
+        setDailyCompleted(Boolean(dailyForm?.details.completedAt));
+        setDailyMissingFields(
+          dailyForm
+            ? getDailyFormMissingFields(
+                toDailyFormDraft(dailyForm.details),
+                baseline?.sex === 'female',
+                Boolean(baseline?.chronicTherapy?.trim()),
+              )
+            : [],
+        );
+        setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
+        setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
+        setPeriodRequired(dailyForm?.details.hadMenstruation === true);
+        setSymptomsCompleted(hasTodayEntry(nextEntries, 'symptom'));
+        setExerciseCompleted(hasTodayEntry(nextEntries, 'exercise'));
+        setMedicationCompleted(hasTodayEntry(nextEntries, 'medication'));
+        setPeriodCompleted(hasTodayEntry(nextEntries, 'menstruation'));
+        setCanTrackMenstruation(baseline?.sex === 'female');
+      } catch {
+        const cachedOpenedDayEntries = await loadCachedOpenedDayEntries(profile.id);
+        const cachedEntries = cachedOpenedDayEntries.length
+          ? cachedOpenedDayEntries
+          : await loadCachedRecentEntries(profile.id);
+        setOfflineMode(true);
+        if (cachedEntries.length) {
+          setEntries(filterPatientTimelineEntries(cachedEntries, null));
+          setError(null);
+        } else {
+          setError(t(locale, 'entry.loadError'));
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
+
+    loadEntriesPromiseRef.current = loadPromise;
+    try {
+      return await loadPromise;
     } finally {
-      setLoading(false);
+      loadEntriesPromiseRef.current = null;
     }
   }, [client, locale, profile.id, syncPendingQueue]);
 
@@ -278,6 +337,14 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
 
     return () => subscription.remove();
   }, [loadEntries]);
+
+  useEffect(() => {
+    const retryTimer = setInterval(() => {
+      void loadEntries({ showLoading: false });
+    }, offlineMode ? OFFLINE_MODE_CHECK_MS : ONLINE_MODE_CHECK_MS);
+
+    return () => clearInterval(retryTimer);
+  }, [loadEntries, offlineMode]);
 
   if (showBaseline) {
     return (
@@ -461,6 +528,7 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
 
   const submitDisabled =
     loading ||
+    offlineMode ||
     submittingDay ||
     dailyCompleted ||
     !dailyEntryId ||
@@ -486,7 +554,9 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
   }
 
   const submitHelp =
-    dailyCompleted
+    offlineMode
+      ? t(locale, 'offline.actionsDisabled')
+      : dailyCompleted
       ? t(locale, 'home.submitCompletedHelp')
       : !dailyEntryId
         ? t(locale, 'home.submitDailyFirst')
@@ -538,6 +608,7 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
       onOpenTimeline={() => setShowTimeline(true)}
       onSubmitDay={submitDay}
       onSignOut={onSignOut}
+      offlineMode={offlineMode}
       profile={profile}
       pendingEntryIds={pendingIds}
       recentEntries={visibleEntries}

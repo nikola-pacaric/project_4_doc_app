@@ -2,8 +2,8 @@ import type { PatientEntry, UserProfile } from '@project4/contracts';
 import { normalizeNoteDateTime, type NoteDraft } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import {
+  createPendingNoteUpdate,
   createPendingTextEntry,
-  createPendingTimestampUpdate,
   type LocalPendingEntry,
 } from '@project4/sync';
 import { createPatientNote, type AppSupabaseClient } from '@project4/supabase-client';
@@ -55,11 +55,12 @@ export function PatientNoteScreen({
     } catch {
       const occurredAt = normalizeNoteDateTime(draft.occurredAt);
       const text = draft.text?.trim();
-      if (entryToEdit && occurredAt && occurredAt !== entryToEdit.occurredAt) {
+      if (entryToEdit && occurredAt && text) {
         await onPendingSaved(
-          createPendingTimestampUpdate({
+          createPendingNoteUpdate({
             entryId: entryToEdit.id,
             occurredAt,
+            text,
           }),
         );
         onSaved();

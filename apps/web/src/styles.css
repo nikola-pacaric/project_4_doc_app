@@ -437,8 +437,9 @@ button:focus-visible {
   color: #59434a;
 }
 
-.primary-button:disabled {
-  cursor: wait;
+.primary-button:disabled,
+.secondary-button:disabled {
+  cursor: not-allowed;
   opacity: 0.6;
 }
 
@@ -1571,6 +1572,23 @@ button:focus-visible {
   transform: translateY(-2px);
 }
 
+.web-action-card:disabled,
+.web-action-card.offline-disabled {
+  cursor: not-allowed;
+  border-color: #eadfe2;
+  background: #f1ecee;
+  color: #806c73;
+  opacity: 0.52;
+  box-shadow: none;
+}
+
+.web-action-card:disabled:hover,
+.web-action-card.offline-disabled:hover {
+  border-color: #eadfe2;
+  box-shadow: none;
+  transform: none;
+}
+
 .web-action-card.required {
   border-color: #d97706;
   background: #fff7ea;
@@ -1630,6 +1648,11 @@ button:focus-visible {
 .web-recent-entry.draft {
   border-color: #e7bd76;
   background: #fff9ef;
+}
+
+.web-recent-entry.offline-disabled {
+  background: #f2ecee;
+  opacity: 0.58;
 }
 
 .web-recent-entry > button,
@@ -1710,6 +1733,10 @@ button:focus-visible {
 
 .web-recent-entry .web-entry-status.draft {
   color: #a15c00;
+}
+
+.web-recent-entry .web-entry-status.offline {
+  color: #806c73;
 }
 
 .web-entry-actions {

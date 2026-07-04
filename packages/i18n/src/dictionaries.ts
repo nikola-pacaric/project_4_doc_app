@@ -329,6 +329,9 @@ export const dictionaries = {
     'entry.empty': 'No entries in the last 7 days.',
     'entry.loadError': 'Your recent entries could not be loaded.',
     'entry.offlineCached': 'Showing saved recent entries. New notes will sync when the connection returns.',
+    'offline.actionsDisabled':
+      'You are offline. Notes and saved timeline viewing are available; medical forms need a connection.',
+    'offline.onlyNotes': 'Offline: notes only',
     'entry.kind.custom': 'Custom entry',
     'entry.kind.daily': 'Daily form',
     'entry.kind.exercise': 'Exercise entry',
@@ -771,6 +774,9 @@ export const dictionaries = {
     'entry.loadError': 'Nije moguce ucitati skorasnje unose.',
     'entry.offlineCached':
       'Prikazani su sacuvani skorasnji unosi. Nove napomene ce se sinhronizovati kada se veza vrati.',
+    'offline.actionsDisabled':
+      'Niste na mrezi. Dostupne su napomene i pregled sacuvane vremenske linije; medicinski obrasci zahtevaju vezu.',
+    'offline.onlyNotes': 'Van mreze: samo napomene',
     'entry.kind.custom': 'Prilagodjeni unos',
     'entry.kind.daily': 'Dnevni obrazac',
     'entry.kind.exercise': 'Unos aktivnosti',

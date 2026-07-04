@@ -3,6 +3,7 @@ import {
   cachedOpenedDayEntries,
   dedupePendingEntries,
   mergeOpenedDayEntryCache,
+  replaceOpenedDayEntryCache,
   type LocalPendingEntry,
   type OpenedDayEntryCache,
 } from '@project4/sync';
@@ -65,12 +66,12 @@ export function saveCachedOpenedDayEntries(
   patientId: string,
   entries: readonly PatientEntry[],
   getLocalDay: (entry: PatientEntry) => string,
+  daysToReplace?: readonly string[],
 ): void {
-  const nextCache = mergeOpenedDayEntryCache(
-    loadOpenedDayEntryCache(patientId),
-    entries,
-    getLocalDay,
-  );
+  const currentCache = loadOpenedDayEntryCache(patientId);
+  const nextCache = daysToReplace
+    ? replaceOpenedDayEntryCache(currentCache, entries, getLocalDay, daysToReplace)
+    : mergeOpenedDayEntryCache(currentCache, entries, getLocalDay);
   window.localStorage.setItem(openedDaysCacheKeyForPatient(patientId), JSON.stringify(nextCache));
 }
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PatientEntry } from '@project4/contracts';
 
 import {
+  createPendingNoteUpdate,
   createPendingTimestampUpdate,
   createPendingTextEntry,
   cachedOpenedDayEntries,
@@ -11,6 +12,7 @@ import {
   mergePendingTextEntries,
   pendingTimelineEntryIds,
   pendingTextEntryToPatientEntry,
+  replaceOpenedDayEntryCache,
   removePendingEntry,
 } from './index';
 
@@ -101,6 +103,39 @@ describe('offline-lite pending text entries', () => {
     expect(pendingTimelineEntryIds([pending])).toEqual(['server-1']);
   });
 
+  it('applies pending note text and timestamp updates to existing timeline entries', () => {
+    const pending = createPendingNoteUpdate(
+      {
+        entryId: 'server-1',
+        text: 'Edited offline',
+        occurredAt: '2026-07-03T12:15:00.000Z',
+      },
+      new Date('2026-07-03T12:16:00.000Z'),
+    );
+
+    const merged = mergePendingTextEntries(
+      [
+        {
+          id: 'server-1',
+          patientId: 'patient-1',
+          kind: 'note',
+          occurredAt: '2026-07-03T09:00:00.000Z',
+          text: 'Server',
+          createdAt: '2026-07-03T09:00:00.000Z',
+          updatedAt: '2026-07-03T09:00:00.000Z',
+        },
+      ],
+      [pending],
+    );
+
+    expect(merged[0]).toMatchObject({
+      id: 'server-1',
+      text: 'Edited offline',
+      occurredAt: '2026-07-03T12:15:00.000Z',
+    });
+    expect(pendingTimelineEntryIds([pending])).toEqual(['server-1']);
+  });
+
   it('deduplicates pending entries with the same operation payload', () => {
     const first = createPendingTextEntry(
       { patientId: 'patient-1', text: 'Same note', occurredAt: '2026-07-03T08:00:00.000Z' },
@@ -177,5 +212,20 @@ describe('offline-lite opened-day cache', () => {
     );
 
     expect(Object.keys(cache)).toEqual(['2026-07-03', '2026-07-02']);
+  });
+
+  it('replaces loaded day buckets so stale deleted server rows leave the cache', () => {
+    const cache = replaceOpenedDayEntryCache(
+      {
+        '2026-07-02': [entry('stale-deleted', '2026-07-02T08:00:00.000Z')],
+        '2026-07-01': [entry('older-opened', '2026-07-01T08:00:00.000Z')],
+      },
+      [entry('fresh', '2026-07-02T09:00:00.000Z')],
+      (candidate) => candidate.occurredAt.slice(0, 10),
+      ['2026-07-02'],
+    );
+
+    expect(cache['2026-07-02']?.map((candidate) => candidate.id)).toEqual(['fresh']);
+    expect(cache['2026-07-01']?.map((candidate) => candidate.id)).toEqual(['older-opened']);
   });
 });
