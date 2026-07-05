@@ -72,9 +72,10 @@ function createEmptyOtherFluidDraft(): OtherFluidDraft {
 
 function toHydrationDraft(details: FoodFormDetails | null): FoodHydrationDraft {
   if (!details) return { ...foodHydrationDefaults };
+  const otherFluids = details.otherFluids?.trim() ?? '';
   return {
     waterLiters: details.waterLiters ?? undefined,
-    hasOtherFluids: details.hasOtherFluids ?? Boolean(details.otherFluids?.trim()),
+    hasOtherFluids: details.hasOtherFluids === true || otherFluids ? true : undefined,
     otherFluids: details.otherFluids ?? '',
   };
 }
@@ -102,6 +103,7 @@ function toOtherFluidDrafts(value: string | null | undefined): OtherFluidDraft[]
   if (!parsedFluids.length) return [createEmptyOtherFluidDraft()];
 
   return parsedFluids.map((fluid) => ({
+    entryId: fluid.entryId,
     occurredAt: toValidLocalDateTime(fluid.occurredAt) ?? toLocalDateTime(new Date()),
     name: fluid.name ?? '',
   }));

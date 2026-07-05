@@ -20,17 +20,18 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { colors, sharedStyles } from '../theme';
 
-interface PhotoUploadScreenProps {
+export interface PhotoUploadScreenProps {
   client: AppSupabaseClient;
   contextLabel: string;
   contextType: 'meal' | 'fluid' | 'medication';
-  entryId: string;
+  entryId?: string | null;
   onBack: () => void;
-  onUploaded: () => void | Promise<void>;
+  onUploaded?: () => void | Promise<void>;
+  onPhotoPrepared?: (photo: PreparedPhoto) => void | Promise<void>;
   profile: UserProfile;
 }
 
-interface PreparedPhoto {
+export interface PreparedPhoto {
   originalFilename?: string;
   photo: ImageResult;
   photoBytes: Uint8Array;
@@ -60,6 +61,7 @@ export function PhotoUploadScreen({
   entryId,
   onBack,
   onUploaded,
+  onPhotoPrepared,
   profile,
 }: PhotoUploadScreenProps) {
   const locale = DEFAULT_LOCALE;
@@ -153,8 +155,25 @@ export function PhotoUploadScreen({
     }
   }
 
-  async function uploadPhoto() {
+  async function handleFinalAction() {
     if (!preparedPhoto) return;
+
+    if (onPhotoPrepared) {
+      setSaving(true);
+      try {
+        await onPhotoPrepared(preparedPhoto);
+      } catch {
+        setError(t(locale, 'photo.prepareError'));
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    if (!entryId) {
+      setError(t(locale, 'photo.uploadError'));
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -180,7 +199,9 @@ export function PhotoUploadScreen({
           },
         },
       });
-      await onUploaded();
+      if (onUploaded) {
+        await onUploaded();
+      }
     } catch {
       setError(t(locale, 'photo.uploadError'));
     } finally {
@@ -247,8 +268,8 @@ export function PhotoUploadScreen({
           <PrimaryButton
             busy={saving}
             disabled={!preparedPhoto || busy}
-            label={t(locale, 'photo.upload')}
-            onPress={() => void uploadPhoto()}
+            label={t(locale, onPhotoPrepared ? 'common.save' : 'photo.upload')}
+            onPress={() => void handleFinalAction()}
           />
         </View>
       </ScrollView>

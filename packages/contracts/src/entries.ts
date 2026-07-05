@@ -2,6 +2,7 @@ export type EntryKind =
   | 'text'
   | 'daily'
   | 'meal'
+  | 'fluid'
   | 'symptom'
   | 'stool'
   | 'medication'

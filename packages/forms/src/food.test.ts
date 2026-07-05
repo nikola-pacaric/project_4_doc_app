@@ -61,9 +61,15 @@ describe('food hydration validation', () => {
   });
 
   it('serializes and parses repeatable other fluid rows', () => {
-    const saved = serializeOtherFluids([{ occurredAt: '2026-06-28 12:30', name: 'Coffee' }]);
+    const saved = serializeOtherFluids([
+      { entryId: 'fluid-entry-1', occurredAt: '2026-06-28 12:30', name: 'Coffee' },
+    ]);
     expect(parseOtherFluids(saved)).toEqual([
-      { occurredAt: new Date(2026, 5, 28, 12, 30).toISOString(), name: 'Coffee' },
+      {
+        entryId: 'fluid-entry-1',
+        occurredAt: new Date(2026, 5, 28, 12, 30).toISOString(),
+        name: 'Coffee',
+      },
     ]);
     expect(parseOtherFluids('Coffee with oat milk')).toEqual([{ name: 'Coffee with oat milk' }]);
   });

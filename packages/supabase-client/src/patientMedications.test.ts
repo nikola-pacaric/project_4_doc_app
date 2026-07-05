@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AppSupabaseClient } from './index';
-import { createPatientMedication, getPatientMedication } from './patientMedications';
+import {
+  createPatientMedication,
+  getPatientMedication,
+  listCompletePatientMedicationEntryIds,
+} from './patientMedications';
 
 function createClientMock(
   result: { data: unknown; error: unknown } = { data: 'medication-entry-1', error: null },
@@ -57,13 +61,29 @@ describe('createPatientMedication', () => {
     );
   });
 
-  it('rejects incomplete drafts before calling Supabase', async () => {
+  it('saves incomplete drafts without inventing medication fields', async () => {
     const { client, rpc } = createClientMock();
 
     await expect(
-      createPatientMedication(client, 'patient-1', { name: 'Vitamin D' }),
-    ).rejects.toThrow('Cannot persist an incomplete medication draft.');
-    expect(rpc).not.toHaveBeenCalled();
+      createPatientMedication(client, 'patient-1', {
+        name: 'Vitamin D',
+        takenAt: '2026-06-22T08:30:00.000Z',
+      }),
+    ).resolves.toMatchObject({
+      entryId: 'medication-entry-1',
+      name: 'Vitamin D',
+      dose: null,
+      isChronicTherapy: null,
+    });
+
+    expect(rpc).toHaveBeenCalledWith(
+      'save_patient_medication',
+      expect.objectContaining({
+        p_name: 'Vitamin D',
+        p_dose: null,
+        p_is_chronic_therapy: null,
+      }),
+    );
   });
 
   it('rejects an invalid RPC response', async () => {
@@ -72,6 +92,29 @@ describe('createPatientMedication', () => {
     await expect(createPatientMedication(client, 'patient-1', completeDraft)).rejects.toThrow(
       'Medication save returned an invalid entry ID.',
     );
+  });
+});
+
+describe('listCompletePatientMedicationEntryIds', () => {
+  it('loads only medication entries with complete required medication details', async () => {
+    const returns = vi.fn().mockResolvedValue({
+      data: [{ entry_id: 'medication-entry-1' }],
+      error: null,
+    });
+    const notThird = vi.fn(() => ({ returns }));
+    const notSecond = vi.fn(() => ({ not: notThird }));
+    const notFirst = vi.fn(() => ({ not: notSecond }));
+    const inMock = vi.fn(() => ({ not: notFirst }));
+    const select = vi.fn(() => ({ in: inMock }));
+    const from = vi.fn(() => ({ select }));
+    const client = { from } as unknown as AppSupabaseClient;
+
+    await expect(
+      listCompletePatientMedicationEntryIds(client, ['medication-entry-1', 'draft-entry-1']),
+    ).resolves.toEqual(['medication-entry-1']);
+
+    expect(from).toHaveBeenCalledWith('medication_details');
+    expect(inMock).toHaveBeenCalledWith('entry_id', ['medication-entry-1', 'draft-entry-1']);
   });
 });
 

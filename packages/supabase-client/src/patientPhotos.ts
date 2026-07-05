@@ -93,6 +93,19 @@ export async function listEntryPhotos(
   return data.map(toEntryPhoto);
 }
 
+export async function createEntryPhotoSignedUrl(
+  client: AppSupabaseClient,
+  path: string,
+  expiresInSeconds = 300,
+): Promise<string> {
+  const { data, error } = await client.storage
+    .from(PHOTO_BUCKET)
+    .createSignedUrl(path, expiresInSeconds);
+
+  if (error) throw error;
+  return data.signedUrl;
+}
+
 export async function uploadPreparedEntryPhoto(
   client: AppSupabaseClient,
   input: UploadPreparedEntryPhotoInput,
@@ -149,4 +162,25 @@ export async function uploadPreparedEntryPhoto(
     }
     throw error;
   }
+}
+
+export async function deleteEntryPhotos(
+  client: AppSupabaseClient,
+  photos: Pick<EntryPhoto, 'id' | 'photoPath' | 'thumbnailPath'>[],
+): Promise<void> {
+  if (!photos.length) return;
+
+  const paths = photos.flatMap((photo) => [photo.photoPath, photo.thumbnailPath]);
+  const bucket = client.storage.from(PHOTO_BUCKET);
+  const storageDelete = await bucket.remove(paths);
+  if (storageDelete.error) throw storageDelete.error;
+
+  const { error } = await client
+    .from('entry_photos')
+    .delete()
+    .in(
+      'id',
+      photos.map((photo) => photo.id),
+    );
+  if (error) throw error;
 }

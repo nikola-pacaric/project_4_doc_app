@@ -17,7 +17,7 @@ Build:
 - Doctor invite-code creation, revocation before use, and patient redemption.
 - Patient baseline profile, full daily/symptom/stool forms, timeline CRUD, timestamp editing, and custom entries.
 - Offline-lite cached own history and pending patient text entries.
-- Online compressed private photo upload with thumbnail and metadata.
+- Online compressed private photo upload with thumbnail and metadata for food/meal/fluid and medication entries only.
 - Free browser/device voice input for text fields where supported.
 - Doctor dashboard, active linked patient timeline read view, and doctor JSON exports.
 - RLS/security tests, web validation, Android APK validation, and Huawei Android validation when a Huawei device is available.
@@ -92,6 +92,11 @@ Backend behavior:
 Photo storage:
 - Private Supabase bucket for photos and thumbnails.
 - Paths: `patients/{patient_id}/entries/{entry_id}/photos/{photo_id}.jpg` and `patients/{patient_id}/entries/{entry_id}/thumbs/{photo_id}.jpg`.
+- V1 photo inputs are intentionally limited to food and medication workflows:
+  - Each meal inside the food form can have its own photo.
+  - Each other-fluid input inside the food form can have its own photo.
+  - Medication entries can have a photo for package/pill identification.
+- Do not add photo inputs to daily, symptom, stool, exercise, menstruation, note, or custom-note entries in V1.
 - Preview, resize main image to max width 1280px, encode JPEG around quality `0.8`, create thumbnail, and store metadata/path rows only.
 - Target sizes: main 250-500 KB where possible; thumbnail 20-60 KB.
 - Linked doctor access must use authenticated access or guarded time-limited references.
@@ -147,7 +152,8 @@ Photo storage:
 - Done: cached days open offline and pending text syncs within 60 seconds after connectivity returns.
 
 ### Phase 6 - Photos And Voice
-- Add photo preview, compression, thumbnail generation, private upload, metadata rows, ownership policies, and linked-doctor read access.
+- Add photo preview, compression, thumbnail generation, private upload, metadata rows, ownership policies, and linked-doctor read access for the V1 photo surfaces only: meals, other fluids, and medication.
+- Exclude photo inputs for daily, symptom, stool, exercise, menstruation, note, and custom-note entries. Rationale: daily has no photo need; symptoms are subjective stomach symptoms; stool photos are intentionally not collected; exercise, menstruation, and notes do not need photos in V1.
 - Add free device/browser voice helper for `sr-RS` and `en-US` where available; append transcript, allow edits before save, and fall back to typing.
 - Done: photos are private compressed JPEG <=1280px wide with thumbnails and no original upload; voice/fallback behavior works.
 

@@ -1,5 +1,9 @@
 import type { MedicationRecord, UserProfile } from '@project4/contracts';
-import { medicationDraftDefaults, validateMedication, type MedicationDraft } from '@project4/forms';
+import {
+  medicationDraftDefaults,
+  normalizeMedicationDateTime,
+  type MedicationDraft,
+} from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import {
   createPatientMedication,
@@ -28,18 +32,17 @@ function createInitialDraft(): MedicationDraft {
   return {
     ...medicationDraftDefaults,
     takenAt: toLocalDateTime(new Date()),
-    isChronicTherapy: false,
   };
 }
 
 function toDraft(record: MedicationRecord): MedicationDraft {
   return {
     entryId: record.entryId,
-    name: record.name,
-    dose: record.dose,
+    name: record.name ?? '',
+    dose: record.dose ?? '',
     takenAt: toLocalDateTime(new Date(record.occurredAt)),
     reason: record.reason ?? '',
-    isChronicTherapy: record.isChronicTherapy,
+    isChronicTherapy: record.isChronicTherapy ?? undefined,
   };
 }
 
@@ -99,8 +102,8 @@ export function MedicationFormScreen({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!validateMedication(draft).valid) {
-      setError(t(locale, 'medication.requiredError'));
+    if (!normalizeMedicationDateTime(draft.takenAt)) {
+      setError(t(locale, 'medication.timeRequiredError'));
       return;
     }
 
@@ -150,6 +153,27 @@ export function MedicationFormScreen({
             placeholder={t(locale, 'medication.dosePlaceholder')}
             value={draft.dose ?? ''}
           />
+        </fieldset>
+        <fieldset className="structured-fieldset conditional-question">
+          <legend>{t(locale, 'medication.chronicTherapy')}</legend>
+          <p className="field-help">{t(locale, 'medication.chronicTherapyHelp')}</p>
+          <div className="choice-row" role="radiogroup">
+            {[
+              { value: true, label: t(locale, 'common.yes') },
+              { value: false, label: t(locale, 'common.no') },
+            ].map((option) => (
+              <button
+                aria-checked={draft.isChronicTherapy === option.value}
+                className={draft.isChronicTherapy === option.value ? 'selected' : ''}
+                key={String(option.value)}
+                onClick={() => update('isChronicTherapy', option.value)}
+                role="radio"
+                type="button"
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </fieldset>
         <fieldset className="structured-fieldset">
           <legend>{t(locale, 'medication.timeTaken')}</legend>

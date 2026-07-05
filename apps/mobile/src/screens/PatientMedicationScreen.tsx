@@ -1,18 +1,21 @@
 import type { MedicationRecord, UserProfile } from '@project4/contracts';
-import type { MedicationDraft } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import {
+  createEntryPhotoSignedUrl,
   createPatientMedication,
   getPatientMedication,
+  listEntryPhotos,
+  uploadPreparedEntryPhoto,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
+import { PHOTO_MIME_TYPE } from '@project4/photo';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { colors, sharedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
-import { MedicationFormScreen } from './MedicationFormScreen';
-import { PhotoUploadScreen } from './PhotoUploadScreen';
+import { MedicationFormScreen, type ClientMedicationDraft } from './MedicationFormScreen';
+import { PhotoUploadScreen, type PreparedPhoto } from './PhotoUploadScreen';
 
 interface PatientMedicationScreenProps {
   client: AppSupabaseClient;
@@ -22,15 +25,19 @@ interface PatientMedicationScreenProps {
   profile: UserProfile;
 }
 
-function toDraft(record: MedicationRecord): MedicationDraft {
+function createPhotoId(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function toDraft(record: MedicationRecord): ClientMedicationDraft {
   const occurredAt = new Date(record.occurredAt);
   return {
     entryId: record.entryId,
-    name: record.name,
-    dose: record.dose,
+    name: record.name ?? '',
+    dose: record.dose ?? '',
     takenAt: `${toLocalDateInput(occurredAt)} ${toLocalTimeInput(occurredAt)}`,
     reason: record.reason ?? '',
-    isChronicTherapy: record.isChronicTherapy,
+    isChronicTherapy: record.isChronicTherapy ?? undefined,
   };
 }
 
@@ -42,15 +49,17 @@ export function PatientMedicationScreen({
   profile,
 }: PatientMedicationScreenProps) {
   const locale = DEFAULT_LOCALE;
-  const [initialDraft, setInitialDraft] = useState<MedicationDraft | null>(null);
+  const [initialDraft, setInitialDraft] = useState<ClientMedicationDraft | null>(null);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [photoTarget, setPhotoTarget] = useState<MedicationDraft | null>(null);
+  const [existingPhotoUris, setExistingPhotoUris] = useState<string[]>([]);
+  const [photoTarget, setPhotoTarget] = useState<ClientMedicationDraft | null>(null);
 
   useEffect(() => {
     if (!entryToEdit) {
       setInitialDraft(null);
+      setExistingPhotoUris([]);
       setLoading(false);
       return;
     }
@@ -58,14 +67,21 @@ export function PatientMedicationScreen({
     let active = true;
     setLoading(true);
     setError(null);
-    void getPatientMedication(client, entryToEdit.id, entryToEdit.occurredAt)
-      .then((record) => {
+    void Promise.all([
+      getPatientMedication(client, entryToEdit.id, entryToEdit.occurredAt),
+      listEntryPhotos(client, entryToEdit.id),
+    ])
+      .then(async ([record, photos]) => {
         if (!active) return;
         if (!record) {
           setError(t(locale, 'medication.loadError'));
           return;
         }
         setInitialDraft(toDraft(record));
+        const photoUris = await Promise.all(
+          photos.map((photo) => createEntryPhotoSignedUrl(client, photo.thumbnailPath)),
+        );
+        if (active) setExistingPhotoUris(photoUris);
       })
       .catch(() => {
         if (active) setError(t(locale, 'medication.loadError'));
@@ -79,17 +95,47 @@ export function PatientMedicationScreen({
     };
   }, [client, entryToEdit, locale]);
 
-  async function save(draft: MedicationDraft) {
+  async function save(draft: ClientMedicationDraft) {
     setSaving(true);
     setError(null);
     try {
-      await createPatientMedication(client, profile.id, draft);
+      const activeDraft = { ...draft };
+      const savedRecord = await createPatientMedication(client, profile.id, activeDraft);
+
+      if (activeDraft.localPhoto && savedRecord.entryId) {
+        const photoId = createPhotoId();
+        await uploadPreparedEntryPhoto(client, {
+          contextLabel: activeDraft.name?.trim() || undefined,
+          contextType: 'medication',
+          entryId: savedRecord.entryId,
+          patientId: profile.id,
+          photoId,
+          photoBody: activeDraft.localPhoto.photoBytes,
+          thumbnailBody: activeDraft.localPhoto.thumbnailBytes,
+          metadata: {
+            originalFilename: activeDraft.localPhoto.originalFilename,
+            mimeType: PHOTO_MIME_TYPE,
+            widthPx: activeDraft.localPhoto.photo.width,
+            heightPx: activeDraft.localPhoto.photo.height,
+            sizeBytes: activeDraft.localPhoto.photoBytes.byteLength,
+            thumbnail: {
+              widthPx: activeDraft.localPhoto.thumbnail.width,
+              heightPx: activeDraft.localPhoto.thumbnail.height,
+              sizeBytes: activeDraft.localPhoto.thumbnailBytes.byteLength,
+            },
+          },
+        });
+      }
       onSaved();
     } catch {
       setError(t(locale, 'medication.saveError'));
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleAddPhoto(draft: ClientMedicationDraft) {
+    setPhotoTarget(draft);
   }
 
   if (loading) {
@@ -100,15 +146,20 @@ export function PatientMedicationScreen({
     );
   }
 
-  if (photoTarget?.entryId) {
+  if (photoTarget) {
     return (
       <PhotoUploadScreen
         client={client}
-        contextLabel={photoTarget.name?.trim() || t(locale, 'photo.medicationFallback')}
+        contextLabel={photoTarget.name?.trim() || ''}
         contextType="medication"
-        entryId={photoTarget.entryId}
         onBack={() => setPhotoTarget(null)}
-        onUploaded={() => setPhotoTarget(null)}
+        onPhotoPrepared={(preparedPhoto) => {
+          setInitialDraft({
+            ...photoTarget,
+            localPhoto: preparedPhoto,
+          });
+          setPhotoTarget(null);
+        }}
         profile={profile}
       />
     );
@@ -118,8 +169,9 @@ export function PatientMedicationScreen({
     <MedicationFormScreen
       busy={saving}
       error={error}
+      existingPhotoUris={existingPhotoUris}
       initialDraft={initialDraft ?? undefined}
-      onAddPhoto={(draft) => setPhotoTarget(draft)}
+      onAddPhoto={handleAddPhoto}
       onBack={onBack}
       onSave={save}
     />

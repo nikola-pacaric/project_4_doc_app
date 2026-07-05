@@ -7,6 +7,7 @@ export interface FoodHydrationDraft {
 }
 
 export interface OtherFluidDraft {
+  entryId?: string;
   occurredAt?: string;
   name?: string;
 }
@@ -65,7 +66,7 @@ export function normalizeOtherFluidDateTime(value: string | undefined): string |
 }
 
 export function isOtherFluidDraftStarted(draft: OtherFluidDraft): boolean {
-  return Boolean(draft.occurredAt?.trim() || draft.name?.trim());
+  return Boolean(draft.entryId?.trim() || draft.occurredAt?.trim() || draft.name?.trim());
 }
 
 export function getStartedOtherFluids(drafts: OtherFluidDraft[]): OtherFluidDraft[] {
@@ -85,6 +86,7 @@ export function serializeOtherFluids(drafts: OtherFluidDraft[]): string {
   if (!startedFluids.length) return '';
 
   const fluids = startedFluids.map((draft) => ({
+    entryId: draft.entryId ?? null,
     occurredAt: normalizeOtherFluidDateTime(draft.occurredAt),
     name: draft.name?.trim() ?? '',
   }));
@@ -106,8 +108,10 @@ export function parseOtherFluids(value: string | null | undefined): OtherFluidDr
     return parsed.flatMap((item) => {
       if (!item || typeof item !== 'object') return [];
       const occurredAt = 'occurredAt' in item ? String(item.occurredAt ?? '') : '';
+      const entryId = 'entryId' in item ? String(item.entryId ?? '') : '';
       const name = 'name' in item ? String(item.name ?? '') : '';
-      return occurredAt || name ? [{ occurredAt, name }] : [];
+      if (!occurredAt && !name && !entryId) return [];
+      return [{ ...(entryId ? { entryId } : {}), occurredAt, name }];
     });
   } catch {
     return [];

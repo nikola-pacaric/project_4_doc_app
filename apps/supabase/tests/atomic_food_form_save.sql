@@ -64,6 +64,41 @@ begin
     '2026-06-22 00:00:00+02',
     '2026-06-23 00:00:00+02',
     '2026-06-22 12:00:00+02',
+    null,
+    null,
+    null,
+    '[]'::jsonb
+  ) into v_daily_entry_id;
+
+  select water_liters into saved_water
+  from public.food_form_details
+  where entry_id = v_daily_entry_id;
+  if saved_water is not null then raise exception 'draft food checkpoint should allow blank water'; end if;
+
+  perform public.save_patient_food_form(
+    '2026-06-22 00:00:00+02',
+    '2026-06-23 00:00:00+02',
+    '2026-06-22 12:00:00+02',
+    null,
+    true,
+    null,
+    '[]'::jsonb
+  );
+
+  if not exists (
+    select 1
+    from public.food_form_details
+    where entry_id = v_daily_entry_id
+      and has_other_fluids is true
+      and other_fluids is null
+  ) then
+    raise exception 'draft food checkpoint should allow a partial other-fluid answer';
+  end if;
+
+  select public.save_patient_food_form(
+    '2026-06-22 00:00:00+02',
+    '2026-06-23 00:00:00+02',
+    '2026-06-22 12:00:00+02',
     1.000,
     false,
     null,
@@ -80,6 +115,28 @@ begin
   where patient_id = '00000000-0000-4000-8000-000000000701'
     and kind = 'meal';
   if meal_count <> 0 then raise exception 'morning checkpoint should allow zero meals'; end if;
+
+  perform public.save_patient_food_form(
+    '2026-06-22 00:00:00+02',
+    '2026-06-23 00:00:00+02',
+    '2026-06-22 12:00:00+02',
+    1.250,
+    false,
+    null,
+    '[{"meal_type":null,"name":null,"description":null,"occurred_at":"2026-06-22T12:52:00+02:00"}]'::jsonb
+  );
+
+  if not exists (
+    select 1
+    from public.patient_entries entry
+    join public.meal_details meal on meal.entry_id = entry.id
+    where entry.patient_id = '00000000-0000-4000-8000-000000000701'
+      and entry.kind = 'meal'
+      and meal.meal_type is null
+      and meal.name is null
+  ) then
+    raise exception 'draft meal checkpoint should allow null type and name without autofill';
+  end if;
 
   perform public.save_patient_food_form(
     '2026-06-22 00:00:00+02',
@@ -162,25 +219,32 @@ begin
     raise exception 'later structured other-fluid checkpoint should replace rows, found %', other_fluid_count;
   end if;
 
-  begin
-    perform public.save_patient_food_form(
-      '2026-06-22 00:00:00+02',
-      '2026-06-23 00:00:00+02',
-      '2026-06-22 12:00:00+02',
-      2.500,
-      true,
-      'project4:other-fluids:v1:[{"occurredAt":"2026-06-22T11:00:00+02:00","name":"   "}]',
-      '[]'::jsonb
-    );
-    raise exception 'blank structured other-fluid names should fail';
-  exception when invalid_parameter_value then null;
-  end;
+  perform public.save_patient_food_form(
+    '2026-06-22 00:00:00+02',
+    '2026-06-23 00:00:00+02',
+    '2026-06-22 12:00:00+02',
+    2.500,
+    true,
+    'project4:other-fluids:v1:[{"occurredAt":"2026-06-22T11:00:00+02:00","name":"   "}]',
+    '[]'::jsonb
+  );
 
   select count(*) into other_fluid_count
   from public.other_fluid_details fluid
   where fluid.daily_entry_id = v_daily_entry_id;
   if other_fluid_count <> 1 then
-    raise exception 'failed structured other-fluid checkpoint should roll rows back, found %', other_fluid_count;
+    raise exception 'draft structured other-fluid checkpoint should save one row, found %', other_fluid_count;
+  end if;
+
+  if not exists (
+    select 1
+    from public.other_fluid_details fluid
+    join public.patient_entries entry on entry.id = fluid.entry_id
+    where fluid.daily_entry_id = v_daily_entry_id
+      and entry.kind::text = 'fluid'
+      and fluid.name is null
+  ) then
+    raise exception 'draft fluid checkpoint should create a fluid entry row with nullable name';
   end if;
 
   begin

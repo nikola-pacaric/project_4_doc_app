@@ -57,6 +57,24 @@ export async function listPatientMeals(
   });
 }
 
+export async function listCompletePatientMealEntryIds(
+  client: AppSupabaseClient,
+  entryIds: string[],
+): Promise<string[]> {
+  if (!entryIds.length) return [];
+
+  const { data, error } = await client
+    .from('meal_details')
+    .select('entry_id')
+    .in('entry_id', entryIds)
+    .not('meal_type', 'is', null)
+    .not('name', 'is', null)
+    .returns<Array<{ entry_id: string }>>();
+
+  if (error) throw error;
+  return data.map((row) => row.entry_id);
+}
+
 export async function savePatientMeals(
   client: AppSupabaseClient,
   patientId: string,

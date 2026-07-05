@@ -1,7 +1,7 @@
 import { isMealDraftStarted, type MealDraft, type MealType } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../theme';
 import { toLocalDateInput } from '../utils/dateTime';
@@ -9,12 +9,18 @@ import { FormField } from './FormField';
 import { PrimaryButton } from './PrimaryButton';
 import { SelectField } from './SelectField';
 import { TimePickerField } from './TimePickerField';
+import { type PreparedPhoto } from '../screens/PhotoUploadScreen';
+
+export interface ClientMealDraft extends MealDraft {
+  existingPhotoUris?: string[];
+  localPhoto?: PreparedPhoto | null;
+}
 
 interface MealFieldsProps {
-  createMeal: () => MealDraft;
-  meals: MealDraft[];
-  onAddPhoto?: (meal: MealDraft, index: number) => void;
-  onChange: (meals: MealDraft[]) => void;
+  createMeal: () => ClientMealDraft;
+  meals: ClientMealDraft[];
+  onAddPhoto?: (meal: ClientMealDraft, index: number) => void;
+  onChange: (meals: ClientMealDraft[]) => void;
 }
 
 const mealTypes: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack', 'other'];
@@ -22,7 +28,7 @@ const mealTypes: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack', 'other']
 export function MealFields({ createMeal, meals, onAddPhoto, onChange }: MealFieldsProps) {
   const locale = DEFAULT_LOCALE;
 
-  function updateMeal(index: number, update: Partial<MealDraft>) {
+  function updateMeal(index: number, update: Partial<ClientMealDraft>) {
     onChange(meals.map((meal, mealIndex) => (mealIndex === index ? { ...meal, ...update } : meal)));
   }
 
@@ -74,14 +80,29 @@ export function MealFields({ createMeal, meals, onAddPhoto, onChange }: MealFiel
               />
             </View>
           ) : null}
-          {onAddPhoto ? (
+          {meal.localPhoto ? (
+            <View style={styles.photoPreviewContainer}>
+              <Image source={{ uri: meal.localPhoto.photo.uri }} style={styles.photoPreview} />
+              <PrimaryButton
+                label={t(locale, 'common.remove')}
+                onPress={() => updateMeal(index, { localPhoto: null })}
+                variant="danger"
+              />
+            </View>
+          ) : onAddPhoto ? (
             <View style={styles.photoAction}>
               <PrimaryButton
-                disabled={!meal.entryId}
-                label={meal.entryId ? t(locale, 'photo.add') : t(locale, 'photo.saveFirst')}
+                label={t(locale, 'photo.add')}
                 onPress={() => onAddPhoto(meal, index)}
                 variant="secondary"
               />
+            </View>
+          ) : null}
+          {meal.existingPhotoUris?.length ? (
+            <View style={styles.existingPhotos}>
+              {meal.existingPhotoUris.map((uri) => (
+                <Image key={uri} source={{ uri }} style={styles.photoPreview} />
+              ))}
             </View>
           ) : null}
           {meals.length > 1 || isMealDraftStarted(meal) ? (
@@ -122,5 +143,23 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: '#fff7f8',
     padding: spacing.md,
+  },
+  photoPreviewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  photoPreview: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+  },
+  existingPhotos: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
 });

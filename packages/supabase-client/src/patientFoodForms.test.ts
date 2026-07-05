@@ -17,6 +17,22 @@ function createClientMock(
 }
 
 describe('savePatientFoodForm', () => {
+  it('saves a draft checkpoint without hydration answers or meals', async () => {
+    const { client, rpc } = createClientMock();
+
+    await expect(savePatientFoodForm(client, range, {}, [])).resolves.toBe('entry-1');
+
+    expect(rpc).toHaveBeenCalledWith('save_patient_food_form', {
+      p_day_start: range.start,
+      p_day_end: range.end,
+      p_occurred_at: range.occurredAt,
+      p_water_liters: null,
+      p_has_other_fluids: null,
+      p_other_fluids: null,
+      p_meals: [],
+    });
+  });
+
   it('saves a progressive hydration checkpoint with no meals', async () => {
     const { client, rpc } = createClientMock();
 
@@ -101,7 +117,7 @@ describe('savePatientFoodForm', () => {
     );
   });
 
-  it('rejects incomplete hydration before calling Supabase', async () => {
+  it('saves a partial other-fluid answer without details', async () => {
     const { client, rpc } = createClientMock();
 
     await expect(
@@ -111,18 +127,86 @@ describe('savePatientFoodForm', () => {
         { waterLiters: 1.5, hasOtherFluids: true, otherFluids: '' },
         [],
       ),
-    ).rejects.toThrow('Cannot persist incomplete food hydration data.');
+    ).resolves.toBe('entry-1');
+
+    expect(rpc).toHaveBeenCalledWith(
+      'save_patient_food_form',
+      expect.objectContaining({
+        p_has_other_fluids: true,
+        p_other_fluids: null,
+      }),
+    );
+  });
+
+  it('sends structured draft fluids with entry ids for per-fluid photo attachment', async () => {
+    const { client, rpc } = createClientMock();
+
+    await expect(
+      savePatientFoodForm(
+        client,
+        range,
+        {
+          waterLiters: 1.5,
+          hasOtherFluids: true,
+          otherFluids:
+            'project4:other-fluids:v1:[{"entryId":"fluid-entry-1","occurredAt":"2026-06-23T12:00:00.000Z","name":""}]',
+        },
+        [],
+      ),
+    ).resolves.toBe('entry-1');
+
+    expect(rpc).toHaveBeenCalledWith(
+      'save_patient_food_form',
+      expect.objectContaining({
+        p_has_other_fluids: true,
+        p_other_fluids:
+          'project4:other-fluids:v1:[{"entryId":"fluid-entry-1","occurredAt":"2026-06-23T12:00:00.000Z","name":""}]',
+      }),
+    );
+  });
+
+  it('rejects invalid water amounts before calling Supabase', async () => {
+    const { client, rpc } = createClientMock();
+
+    await expect(
+      savePatientFoodForm(client, range, { waterLiters: Number.NaN, hasOtherFluids: false }, []),
+    ).rejects.toThrow('Cannot persist invalid food hydration data.');
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it('rejects a partially entered meal before calling Supabase', async () => {
+  it('saves a draft meal checkpoint without inventing meal fields', async () => {
     const { client, rpc } = createClientMock();
 
     await expect(
       savePatientFoodForm(client, range, { waterLiters: 1.5, hasOtherFluids: false }, [
-        { occurredAt: '2026-06-23T08:15:00.000Z', type: 'breakfast', name: '' },
+        { occurredAt: '2026-06-23T08:15:00.000Z' },
       ]),
-    ).rejects.toThrow('Cannot persist incomplete meal data.');
+    ).resolves.toBe('entry-1');
+
+    expect(rpc).toHaveBeenCalledWith(
+      'save_patient_food_form',
+      expect.objectContaining({
+        p_meals: [
+          {
+            entry_id: null,
+            occurred_at: '2026-06-23T08:15:00.000Z',
+            meal_type: null,
+            name: null,
+            description: null,
+          },
+        ],
+      }),
+    );
+  });
+
+  it('rejects a draft meal without a valid time before calling Supabase', async () => {
+    const { client, rpc } = createClientMock();
+
+    await expect(
+      savePatientFoodForm(client, range, { waterLiters: 1.5, hasOtherFluids: false }, [
+        { name: 'Soup' },
+      ]),
+    ).rejects.toThrow('Cannot persist meal data without a valid time.');
     expect(rpc).not.toHaveBeenCalled();
   });
 });

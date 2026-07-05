@@ -38,7 +38,7 @@ insert into public.daily_form_details (
 )
 values
   ('10000000-0000-4000-8000-000000000501', '07:30', '08:00', 'usual', false, 2, 'Normal day', false, false, 2, false),
-  ('10000000-0000-4000-8000-000000000502', '07:30', '08:00', 'usual', false, 2, 'Normal day', false, false, 2, false)
+  ('10000000-0000-4000-8000-000000000502', '07:30', '08:00', 'usual', false, 2, 'Normal day', null, false, 2, false)
 on conflict (entry_id) do nothing;
 
 set local role authenticated;
@@ -125,6 +125,23 @@ begin
   begin
     perform public.complete_patient_daily_form('10000000-0000-4000-8000-000000000501');
     raise exception 'outside-therapy medication should require a same-day medication entry';
+  exception when check_violation then null;
+  end;
+
+  insert into public.patient_entries (id, patient_id, kind, occurred_at)
+  values (
+    '10000000-0000-4000-8000-000000000511',
+    '00000000-0000-4000-8000-000000000501',
+    'medication',
+    '2026-06-21 18:30:00+02'
+  );
+
+  insert into public.medication_details (entry_id, name, dose, is_chronic_therapy)
+  values ('10000000-0000-4000-8000-000000000511', 'Draft medicine', null, false);
+
+  begin
+    perform public.complete_patient_daily_form('10000000-0000-4000-8000-000000000501');
+    raise exception 'draft medication should not satisfy daily completion';
   exception when check_violation then null;
   end;
 

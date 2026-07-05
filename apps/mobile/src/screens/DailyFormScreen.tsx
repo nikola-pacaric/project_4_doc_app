@@ -76,7 +76,6 @@ export function DailyFormScreen({
         setExistingEntryId(record?.entryId);
         setCompletedAt(record?.details.completedAt ?? undefined);
         const nextDraft = toDailyFormDraft(record?.details ?? null);
-        if (!nextHasChronicTherapy) nextDraft.tookChronicTherapy = false;
         setDraft(nextDraft);
         onActivityAnswerChange(nextDraft.hadPhysicalActivity);
         onMedicationAnswerChange(nextDraft.tookMedicationOutsideChronicTherapy);
@@ -278,7 +277,9 @@ export function DailyFormScreen({
                 { value: 'no', label: t(locale, 'common.no') },
               ]}
               value={
-                draft.tookChronicTherapy === undefined
+                !hasChronicTherapy
+                  ? 'no'
+                  : draft.tookChronicTherapy === undefined
                   ? undefined
                   : draft.tookChronicTherapy
                     ? 'yes'

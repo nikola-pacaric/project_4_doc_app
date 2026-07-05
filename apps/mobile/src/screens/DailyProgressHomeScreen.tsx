@@ -39,6 +39,8 @@ interface DailyProgressHomeScreenProps {
   exerciseCompleted: boolean;
   exerciseRequired: boolean;
   medicationCompleted: boolean;
+  completeMealEntryIds: string[];
+  completeMedicationEntryIds: string[];
   medicationRequired: boolean;
   periodCompleted: boolean;
   periodRequired: boolean;
@@ -76,6 +78,7 @@ const entryIcons: Record<EntryKind, string> = {
   text: '📝',
   daily: '☀️',
   meal: '🍽️',
+  fluid: '🥤',
   symptom: '⚠️',
   stool: '💩',
   medication: '💊',
@@ -122,6 +125,8 @@ export function DailyProgressHomeScreen({
   exerciseCompleted,
   exerciseRequired,
   medicationCompleted,
+  completeMealEntryIds,
+  completeMedicationEntryIds,
   medicationRequired,
   periodCompleted,
   periodRequired,
@@ -156,12 +161,16 @@ export function DailyProgressHomeScreen({
   );
   const todayEntries = allTodayEntries.slice(0, 8);
   const pendingIds = new Set(pendingEntryIds);
+  const completeMealIds = new Set(completeMealEntryIds);
+  const completeMedicationIds = new Set(completeMedicationEntryIds);
   const completedKinds = new Set(allTodayEntries.map((entry) => entry.kind));
   const completedItems = progressActions.filter((action) =>
     action.id === 'daily'
       ? dailyCompleted || dailyReadyToSubmit
       : action.id === 'stool'
         ? stoolCompleted
+        : action.id === 'food'
+          ? allTodayEntries.some((entry) => entry.kind === 'meal' && completeMealIds.has(entry.id))
         : completedKinds.has(actionEntryKinds[action.id]),
   ).length;
   const progress = Math.round((completedItems / progressActions.length) * 100);
@@ -389,7 +398,14 @@ export function DailyProgressHomeScreen({
                 const dailyEntryReady = entry.kind === 'daily' && dailyReadyToSubmit;
                 const entryPending = pendingIds.has(entry.id);
                 const entryOfflineDisabled = offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
-                const entryCompleted = entry.kind !== 'daily' || dailyCompleted;
+                const entryCompleted =
+                  entry.kind === 'daily'
+                    ? dailyCompleted
+                    : entry.kind === 'meal'
+                      ? completeMealIds.has(entry.id)
+                    : entry.kind === 'medication'
+                      ? completeMedicationIds.has(entry.id)
+                      : true;
                 const statusKey =
                   entryPending
                     ? 'sync.pending'

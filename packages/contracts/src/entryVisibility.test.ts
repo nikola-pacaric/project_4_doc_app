@@ -35,4 +35,32 @@ describe('patient timeline visibility', () => {
       expect(filterPatientTimelineEntries(entries, sex)).toEqual([entries[0]]);
     },
   );
+
+  it('hides internal daily entries that are not marked visible', () => {
+    const dailyEntry: PatientEntry = {
+      id: 'entry-daily',
+      patientId: 'patient-1',
+      kind: 'daily',
+      occurredAt: '2026-06-20T10:00:00.000Z',
+      text: null,
+      createdAt: '2026-06-20T10:00:00.000Z',
+      updatedAt: '2026-06-20T10:00:00.000Z',
+    };
+
+    expect(
+      filterPatientTimelineEntries([...entries, dailyEntry], 'female', {
+        visibleDailyEntryIds: [],
+      }),
+    ).toEqual(entries);
+    expect(
+      filterPatientTimelineEntries([...entries, dailyEntry], 'female', {
+        visibleDailyEntryIds: ['different-daily'],
+      }),
+    ).toEqual(entries);
+    expect(
+      filterPatientTimelineEntries([...entries, dailyEntry], 'female', {
+        visibleDailyEntryIds: ['entry-daily'],
+      }),
+    ).toEqual([...entries, dailyEntry]);
+  });
 });

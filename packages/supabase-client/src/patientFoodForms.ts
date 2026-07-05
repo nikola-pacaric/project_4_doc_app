@@ -1,12 +1,12 @@
 import type { FoodFormDetails, FoodFormRecord } from '@project4/contracts';
 import {
-  isCompleteFoodHydrationDraft,
   formatOtherFluidsForDisplay,
+  normalizeOtherFluidDateTime,
   normalizeMealDateTime,
   normalizeFoodWaterLiters,
-  validateMeal,
   type FoodHydrationDraft,
   type MealDraft,
+  type OtherFluidDraft,
 } from '@project4/forms';
 
 import type { AppSupabaseClient } from './index';
@@ -19,6 +19,22 @@ export interface FoodFormRow {
 }
 
 const foodFormColumns = 'entry_id, water_liters, has_other_fluids, other_fluids';
+
+export interface OtherFluidRow {
+  entry_id: string | null;
+  daily_entry_id: string;
+  occurred_at: string;
+  name: string | null;
+}
+
+export interface OtherFluidRecord {
+  entryId: string | null;
+  dailyEntryId: string;
+  occurredAt: string;
+  name: string | null;
+}
+
+const otherFluidColumns = 'entry_id, daily_entry_id, occurred_at, name';
 
 export function toFoodFormDetails(row: FoodFormRow): FoodFormDetails {
   return {
@@ -64,6 +80,26 @@ export async function getPatientFoodForm(
   };
 }
 
+export async function listPatientOtherFluids(
+  client: AppSupabaseClient,
+  dailyEntryId: string,
+): Promise<OtherFluidRecord[]> {
+  const { data, error } = await client
+    .from('other_fluid_details')
+    .select(otherFluidColumns)
+    .eq('daily_entry_id', dailyEntryId)
+    .order('occurred_at', { ascending: true })
+    .returns<OtherFluidRow[]>();
+
+  if (error) throw error;
+  return data.map((row) => ({
+    entryId: row.entry_id,
+    dailyEntryId: row.daily_entry_id,
+    occurredAt: row.occurred_at,
+    name: row.name,
+  }));
+}
+
 export interface FoodFormSaveRange {
   start: string;
   end: string;
@@ -81,26 +117,48 @@ function toFoodFormSaveParams(
       draft.waterLiters === undefined ? undefined : normalizeFoodWaterLiters(draft.waterLiters),
   };
 
-  if (!isCompleteFoodHydrationDraft(normalizedDraft)) {
-    throw new Error('Cannot persist incomplete food hydration data.');
+  if (
+    normalizedDraft.waterLiters !== undefined &&
+    (!Number.isFinite(normalizedDraft.waterLiters) ||
+      normalizedDraft.waterLiters < 0 ||
+      normalizedDraft.waterLiters > 20)
+  ) {
+    throw new Error('Cannot persist invalid food hydration data.');
   }
 
-  if (!meals.every((meal) => validateMeal(meal).valid)) {
-    throw new Error('Cannot persist incomplete meal data.');
+  if (normalizedDraft.hasOtherFluids === false && normalizedDraft.otherFluids?.trim()) {
+    throw new Error('Cannot persist inconsistent other-fluid data.');
+  }
+
+  if (!meals.every((meal) => normalizeMealDateTime(meal.occurredAt))) {
+    throw new Error('Cannot persist meal data without a valid time.');
+  }
+
+  if (normalizedDraft.hasOtherFluids === true) {
+    const otherFluids = normalizedDraft.otherFluids?.trim();
+    if (otherFluids?.startsWith('project4:other-fluids:v1:')) {
+      const parsed = JSON.parse(otherFluids.slice('project4:other-fluids:v1:'.length)) as OtherFluidDraft[];
+      if (!parsed.every((fluid) => normalizeOtherFluidDateTime(fluid.occurredAt))) {
+        throw new Error('Cannot persist fluid data without a valid time.');
+      }
+    }
   }
 
   return {
     p_day_start: range.start,
     p_day_end: range.end,
     p_occurred_at: range.occurredAt,
-    p_water_liters: normalizedDraft.waterLiters,
-    p_has_other_fluids: normalizedDraft.hasOtherFluids,
-    p_other_fluids: normalizedDraft.hasOtherFluids ? normalizedDraft.otherFluids.trim() : null,
+    p_water_liters: normalizedDraft.waterLiters ?? null,
+    p_has_other_fluids: normalizedDraft.hasOtherFluids ?? null,
+    p_other_fluids:
+      normalizedDraft.hasOtherFluids === true
+        ? normalizedDraft.otherFluids?.trim() || null
+        : null,
     p_meals: meals.map((meal) => ({
       entry_id: meal.entryId ?? null,
       occurred_at: normalizeMealDateTime(meal.occurredAt) ?? null,
-      meal_type: meal.type,
-      name: meal.name?.trim(),
+      meal_type: meal.type ?? null,
+      name: meal.name?.trim() || null,
       description: meal.description?.trim() || null,
     })),
   };

@@ -2,7 +2,7 @@ import { PHOTO_BUCKET, PHOTO_MIME_TYPE } from '@project4/photo';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AppSupabaseClient } from './index';
-import { uploadPreparedEntryPhoto } from './patientPhotos';
+import { createEntryPhotoSignedUrl, deleteEntryPhotos, uploadPreparedEntryPhoto } from './patientPhotos';
 
 function createUploadClientMock() {
   const single = vi.fn().mockResolvedValue({
@@ -157,5 +157,51 @@ describe('uploadPreparedEntryPhoto', () => {
       'patients/00000000-0000-4000-8000-000000000001/entries/10000000-0000-4000-8000-000000000001/photos/photo-1.jpg',
       'patients/00000000-0000-4000-8000-000000000001/entries/10000000-0000-4000-8000-000000000001/thumbs/photo-1.jpg',
     ]);
+  });
+});
+
+describe('createEntryPhotoSignedUrl', () => {
+  it('creates a short-lived signed URL for private photo previews', async () => {
+    const createSignedUrl = vi.fn().mockResolvedValue({
+      data: { signedUrl: 'https://example.test/signed-thumbnail' },
+      error: null,
+    });
+    const storageFrom = vi.fn(() => ({ createSignedUrl }));
+    const client = { storage: { from: storageFrom } } as unknown as AppSupabaseClient;
+
+    await expect(createEntryPhotoSignedUrl(client, 'private/thumb.jpg')).resolves.toBe(
+      'https://example.test/signed-thumbnail',
+    );
+
+    expect(storageFrom).toHaveBeenCalledWith(PHOTO_BUCKET);
+    expect(createSignedUrl).toHaveBeenCalledWith('private/thumb.jpg', 300);
+  });
+});
+
+describe('deleteEntryPhotos', () => {
+  it('removes private objects before deleting photo metadata', async () => {
+    const remove = vi.fn().mockResolvedValue({ data: [], error: null });
+    const inFilter = vi.fn().mockResolvedValue({ error: null });
+    const deleteRows = vi.fn(() => ({ in: inFilter }));
+    const from = vi.fn(() => ({ delete: deleteRows }));
+    const storageFrom = vi.fn(() => ({ remove }));
+    const client = { from, storage: { from: storageFrom } } as unknown as AppSupabaseClient;
+
+    await deleteEntryPhotos(client, [
+      {
+        id: 'photo-row-1',
+        photoPath: 'patients/patient-1/entries/entry-1/photos/photo-1.jpg',
+        thumbnailPath: 'patients/patient-1/entries/entry-1/thumbs/photo-1.jpg',
+      },
+    ]);
+
+    expect(storageFrom).toHaveBeenCalledWith(PHOTO_BUCKET);
+    expect(remove).toHaveBeenCalledWith([
+      'patients/patient-1/entries/entry-1/photos/photo-1.jpg',
+      'patients/patient-1/entries/entry-1/thumbs/photo-1.jpg',
+    ]);
+    expect(from).toHaveBeenCalledWith('entry_photos');
+    expect(deleteRows).toHaveBeenCalled();
+    expect(inFilter).toHaveBeenCalledWith('id', ['photo-row-1']);
   });
 });

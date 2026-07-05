@@ -1,32 +1,36 @@
 import { isOtherFluidDraftStarted, type OtherFluidDraft } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../theme';
 import { toLocalDateInput } from '../utils/dateTime';
 import { FormField } from './FormField';
 import { PrimaryButton } from './PrimaryButton';
 import { TimePickerField } from './TimePickerField';
+import { type PreparedPhoto } from '../screens/PhotoUploadScreen';
+
+export interface ClientOtherFluidDraft extends OtherFluidDraft {
+  existingPhotoUris?: string[];
+  localPhoto?: PreparedPhoto | null;
+}
 
 interface OtherFluidFieldsProps {
-  createFluid: () => OtherFluidDraft;
-  fluids: OtherFluidDraft[];
-  onAddPhoto?: (fluid: OtherFluidDraft, index: number) => void;
-  photoDisabled?: boolean;
-  onChange: (fluids: OtherFluidDraft[]) => void;
+  createFluid: () => ClientOtherFluidDraft;
+  fluids: ClientOtherFluidDraft[];
+  onAddPhoto?: (fluid: ClientOtherFluidDraft, index: number) => void;
+  onChange: (fluids: ClientOtherFluidDraft[]) => void;
 }
 
 export function OtherFluidFields({
   createFluid,
   fluids,
   onAddPhoto,
-  photoDisabled = false,
   onChange,
 }: OtherFluidFieldsProps) {
   const locale = DEFAULT_LOCALE;
 
-  function updateFluid(index: number, update: Partial<OtherFluidDraft>) {
+  function updateFluid(index: number, update: Partial<ClientOtherFluidDraft>) {
     onChange(
       fluids.map((fluid, fluidIndex) => (fluidIndex === index ? { ...fluid, ...update } : fluid)),
     );
@@ -60,14 +64,29 @@ export function OtherFluidFields({
             onChangeText={(value) => updateFluid(index, { name: value })}
             value={fluid.name ?? ''}
           />
-          {onAddPhoto ? (
+          {fluid.localPhoto ? (
+            <View style={styles.photoPreviewContainer}>
+              <Image source={{ uri: fluid.localPhoto.photo.uri }} style={styles.photoPreview} />
+              <PrimaryButton
+                label={t(locale, 'common.remove')}
+                onPress={() => updateFluid(index, { localPhoto: null })}
+                variant="danger"
+              />
+            </View>
+          ) : onAddPhoto ? (
             <View style={styles.photoAction}>
               <PrimaryButton
-                disabled={photoDisabled}
-                label={photoDisabled ? t(locale, 'photo.saveFirst') : t(locale, 'photo.add')}
+                label={t(locale, 'photo.add')}
                 onPress={() => onAddPhoto(fluid, index)}
                 variant="secondary"
               />
+            </View>
+          ) : null}
+          {fluid.existingPhotoUris?.length ? (
+            <View style={styles.existingPhotos}>
+              {fluid.existingPhotoUris.map((uri) => (
+                <Image key={uri} source={{ uri }} style={styles.photoPreview} />
+              ))}
             </View>
           ) : null}
           {fluids.length > 1 || isOtherFluidDraftStarted(fluid) ? (
@@ -101,4 +120,22 @@ const styles = StyleSheet.create({
   help: { color: colors.mutedText, fontSize: 15, lineHeight: 22 },
   card: { gap: spacing.sm },
   photoAction: { marginTop: spacing.xs },
+  photoPreviewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  photoPreview: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+  },
+  existingPhotos: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
 });

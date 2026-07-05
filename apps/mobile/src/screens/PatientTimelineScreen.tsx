@@ -28,6 +28,7 @@ const entryIcons: Record<PatientEntry['kind'], string> = {
   text: '📝',
   daily: '☀️',
   meal: '🍽️',
+  fluid: '🥤',
   symptom: '⚠️',
   stool: '💩',
   medication: '💊',

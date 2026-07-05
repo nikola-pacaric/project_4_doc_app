@@ -47,20 +47,19 @@ export function toDailyFormDraft(details: DailyFormDetails | null): DailyFormDra
     wakeTime: details.wakeTime ?? undefined,
     sleepDuration: details.sleepDuration ?? undefined,
     appetite: details.appetite ?? undefined,
-    hadPhysicalActivity: details.hadPhysicalActivity ?? Boolean(details.activityNotes?.trim()),
-    activityNotes: details.activityNotes ?? '',
+    hadPhysicalActivity: details.hadPhysicalActivity ?? undefined,
+    activityNotes: details.activityNotes ?? undefined,
     stressLevel: details.stressLevel ?? undefined,
-    dayDescription: details.dayDescription ?? '',
+    dayDescription: details.dayDescription ?? undefined,
     tookChronicTherapy: details.tookChronicTherapy ?? undefined,
     tookMedicationOutsideChronicTherapy:
-      details.tookMedicationOutsideChronicTherapy ??
-      Boolean(details.medicationOutsideChronicTherapy?.trim()),
-    medicationOutsideChronicTherapy: details.medicationOutsideChronicTherapy ?? '',
+      details.tookMedicationOutsideChronicTherapy ?? undefined,
+    medicationOutsideChronicTherapy: details.medicationOutsideChronicTherapy ?? undefined,
     hadMenstruation: details.hadMenstruation ?? undefined,
-    menstruationNotes: '',
+    menstruationNotes: details.menstruationNotes ?? undefined,
     energyLevel: details.energyLevel ?? undefined,
-    hadNaps: details.hadNaps ?? Boolean(details.naps?.trim()),
-    naps: details.naps ?? '',
+    hadNaps: details.hadNaps ?? undefined,
+    naps: details.naps ?? undefined,
   };
 }
 

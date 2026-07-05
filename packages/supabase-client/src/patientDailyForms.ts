@@ -56,7 +56,7 @@ function toRow(entryId: string, draft: DailyFormDraft, includeMenstruation: bool
     sleep_notes: draft.sleepDuration || null,
     stress_level: draft.stressLevel ?? null,
     day_description: draft.dayDescription?.trim() || null,
-    took_chronic_therapy: draft.tookChronicTherapy ?? false,
+    took_chronic_therapy: draft.tookChronicTherapy ?? null,
     took_medication_outside_chronic_therapy: draft.tookMedicationOutsideChronicTherapy ?? null,
     medication_outside_chronic_therapy: draft.tookMedicationOutsideChronicTherapy
       ? draft.medicationOutsideChronicTherapy?.trim() || null

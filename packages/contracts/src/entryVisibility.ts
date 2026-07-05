@@ -4,6 +4,16 @@ import type { PatientSex } from './profiles';
 export function filterPatientTimelineEntries(
   entries: PatientEntry[],
   sex: PatientSex | null | undefined,
+  options: { visibleDailyEntryIds?: string[] } = {},
 ): PatientEntry[] {
-  return sex === 'female' ? entries : entries.filter((entry) => entry.kind !== 'menstruation');
+  const visibleDailyEntryIds = new Set(options.visibleDailyEntryIds);
+  const filterDailyEntries = options.visibleDailyEntryIds !== undefined;
+  return entries.filter((entry) => {
+    if (entry.kind === 'fluid') return false;
+    if (entry.kind === 'menstruation' && sex !== 'female') return false;
+    if (entry.kind === 'daily' && filterDailyEntries) {
+      return visibleDailyEntryIds.has(entry.id);
+    }
+    return true;
+  });
 }

@@ -9,6 +9,7 @@ import type { DailyFormDetails } from '@project4/contracts';
 import {
   formatDailyFormMissingFields,
   getDailyFormMissingFields,
+  hasDailyFormProgress,
   isCompleteDailyForm,
   type DailyFormDraft,
   type DailyFormField,
@@ -129,17 +130,17 @@ function toDailyDraft(details: DailyFormDetails | null): DailyFormDraft {
     sleepDuration: details.sleepDuration ?? undefined,
     appetite: details.appetite ?? undefined,
     hadPhysicalActivity: details.hadPhysicalActivity ?? undefined,
-    activityNotes: details.activityNotes ?? '',
+    activityNotes: details.activityNotes ?? undefined,
     stressLevel: details.stressLevel ?? undefined,
-    dayDescription: details.dayDescription ?? '',
+    dayDescription: details.dayDescription ?? undefined,
     tookChronicTherapy: details.tookChronicTherapy ?? undefined,
     tookMedicationOutsideChronicTherapy: details.tookMedicationOutsideChronicTherapy ?? undefined,
-    medicationOutsideChronicTherapy: details.medicationOutsideChronicTherapy ?? '',
+    medicationOutsideChronicTherapy: details.medicationOutsideChronicTherapy ?? undefined,
     hadMenstruation: details.hadMenstruation ?? undefined,
-    menstruationNotes: '',
+    menstruationNotes: details.menstruationNotes ?? undefined,
     energyLevel: details.energyLevel ?? undefined,
     hadNaps: details.hadNaps ?? undefined,
-    naps: details.naps ?? '',
+    naps: details.naps ?? undefined,
   };
 }
 
@@ -168,6 +169,7 @@ const entryIcons: Record<EntryKind, string> = {
   text: '📝',
   daily: '☀️',
   meal: '🍽️',
+  fluid: '🥤',
   symptom: '⚠️',
   stool: '💩',
   medication: '💊',
@@ -305,23 +307,30 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
         );
         const nextHasChronicTherapy = Boolean(baseline?.chronicTherapy?.trim());
         const includeMenstruation = baseline?.sex === 'female';
-        setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
+        const dailyDraft = dailyForm ? toDailyDraft(dailyForm.details) : null;
+        const visibleDailyEntryIds =
+          dailyForm && (dailyForm.details.completedAt || hasDailyFormProgress(dailyDraft ?? {}))
+            ? [dailyForm.entryId]
+            : [];
+        setEntries(
+          filterPatientTimelineEntries(nextEntries, baseline?.sex, { visibleDailyEntryIds }),
+        );
         setCanTrackMenstruation(includeMenstruation);
         setDailyEntryId(dailyForm?.entryId ?? null);
         setDailyCompleted(Boolean(dailyForm?.details.completedAt));
         setDailyReadyToSubmit(
-          dailyForm
+          dailyForm && dailyDraft
             ? isCompleteDailyForm(
-                toDailyDraft(dailyForm.details),
+                dailyDraft,
                 includeMenstruation,
                 nextHasChronicTherapy,
               )
             : false,
         );
         setDailyMissingFields(
-          dailyForm
+          dailyForm && dailyDraft
             ? getDailyFormMissingFields(
-                toDailyDraft(dailyForm.details),
+                dailyDraft,
                 includeMenstruation,
                 nextHasChronicTherapy,
               )

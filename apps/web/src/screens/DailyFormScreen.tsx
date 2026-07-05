@@ -85,7 +85,6 @@ export function DailyFormScreen({
         setExistingEntryId(record?.entryId);
         setCompletedAt(record?.details.completedAt ?? undefined);
         const nextDraft = toDailyFormDraft(record?.details ?? null);
-        if (!nextHasChronicTherapy) nextDraft.tookChronicTherapy = false;
         setDraft(nextDraft);
         onActivityAnswerChange(nextDraft.hadPhysicalActivity);
         onMedicationAnswerChange(nextDraft.tookMedicationOutsideChronicTherapy);
@@ -333,19 +332,27 @@ export function DailyFormScreen({
           >
             <legend>{t(locale, 'daily.chronicTherapyTaken')}</legend>
             <div className="choice-row" role="radiogroup">
-              {([true, false] as const).map((answer) => (
-                <button
-                  aria-checked={draft.tookChronicTherapy === answer}
-                  className={draft.tookChronicTherapy === answer ? 'selected' : ''}
-                  disabled={!hasChronicTherapy}
-                  key={String(answer)}
-                  onClick={() => setDraft((value) => ({ ...value, tookChronicTherapy: answer }))}
-                  role="radio"
-                  type="button"
-                >
-                  {t(locale, answer ? 'common.yes' : 'common.no')}
-                </button>
-              ))}
+              {([true, false] as const).map((answer) => {
+                const chronicTherapyAnswer = hasChronicTherapy
+                  ? draft.tookChronicTherapy
+                  : false;
+
+                return (
+                  <button
+                    aria-checked={chronicTherapyAnswer === answer}
+                    className={chronicTherapyAnswer === answer ? 'selected' : ''}
+                    disabled={!hasChronicTherapy}
+                    key={String(answer)}
+                    onClick={() =>
+                      setDraft((value) => ({ ...value, tookChronicTherapy: answer }))
+                    }
+                    role="radio"
+                    type="button"
+                  >
+                    {t(locale, answer ? 'common.yes' : 'common.no')}
+                  </button>
+                );
+              })}
             </div>
             {!hasChronicTherapy ? <p>{t(locale, 'daily.noChronicTherapyHelp')}</p> : null}
           </fieldset>

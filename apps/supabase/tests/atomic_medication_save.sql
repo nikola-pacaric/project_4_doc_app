@@ -56,6 +56,8 @@ declare
   second_entry_id uuid;
   medication_count integer;
   saved_dose text;
+  draft_entry_id uuid;
+  draft_name text;
 begin
   first_entry_id := public.save_patient_medication(
     null,
@@ -116,18 +118,21 @@ begin
   exception when insufficient_privilege then null;
   end;
 
-  begin
-    perform public.save_patient_medication(
-      null,
-      '2026-06-22 12:00:00+02',
-      '   ',
-      '100 mg',
-      null,
-      false
-    );
-    raise exception 'blank medication name should fail';
-  exception when invalid_parameter_value then null;
-  end;
+  draft_entry_id := public.save_patient_medication(
+    null,
+    '2026-06-22 12:00:00+02',
+    '   ',
+    '100 mg',
+    null,
+    null
+  );
+
+  select name into draft_name
+  from public.medication_details
+  where entry_id = draft_entry_id;
+  if draft_name is not null then
+    raise exception 'blank medication draft name should save as null';
+  end if;
 
   begin
     insert into public.medication_details (entry_id, name, dose, is_chronic_therapy)
@@ -140,7 +145,7 @@ begin
   from public.patient_entries
   where patient_id = '00000000-0000-4000-8000-000000000251'
     and kind = 'medication';
-  if medication_count <> 2 then
+  if medication_count <> 3 then
     raise exception 'failed medication saves must not leave orphan entries';
   end if;
 end $$;

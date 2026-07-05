@@ -7,6 +7,7 @@ import {
 import {
   formatDailyFormMissingFields,
   getDailyFormMissingFields,
+  hasDailyFormProgress,
   toDailyFormDraft,
   type DailyFormField,
 } from '@project4/forms';
@@ -26,6 +27,8 @@ import {
   createPatientNote,
   getPatientBaseline,
   getPatientDailyForm,
+  listCompletePatientMealEntryIds,
+  listCompletePatientMedicationEntryIds,
   listRecentPatientEntries,
   updateEntryTimestamp,
   type AppSupabaseClient,
@@ -128,6 +131,8 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
   const [exerciseCompleted, setExerciseCompleted] = useState(false);
   const [medicationRequired, setMedicationRequired] = useState(false);
   const [medicationCompleted, setMedicationCompleted] = useState(false);
+  const [completeMealEntryIds, setCompleteMealEntryIds] = useState<string[]>([]);
+  const [completeMedicationEntryIds, setCompleteMedicationEntryIds] = useState<string[]>([]);
   const [periodRequired, setPeriodRequired] = useState(false);
   const [periodCompleted, setPeriodCompleted] = useState(false);
   const [showMenstruationForm, setShowMenstruationForm] = useState(false);
@@ -267,19 +272,39 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
           ]),
           ONLINE_LOAD_TIMEOUT_MS,
         );
+        const [nextCompleteMealEntryIds, nextCompleteMedicationEntryIds] = await withTimeout(
+          Promise.all([
+            listCompletePatientMealEntryIds(
+              client,
+              nextEntries.filter((entry) => entry.kind === 'meal').map((entry) => entry.id),
+            ),
+            listCompletePatientMedicationEntryIds(
+              client,
+              nextEntries.filter((entry) => entry.kind === 'medication').map((entry) => entry.id),
+            ),
+          ]),
+          ONLINE_LOAD_TIMEOUT_MS,
+        );
         setOfflineMode(false);
         await saveCachedRecentEntries(profile.id, nextEntries);
         await saveCachedOpenedDayEntries(profile.id, nextEntries, (entry) =>
           toLocalDateInput(new Date(entry.occurredAt)),
           recentLocalDays(),
         );
-        setEntries(filterPatientTimelineEntries(nextEntries, baseline?.sex));
+        const dailyDraft = dailyForm ? toDailyFormDraft(dailyForm.details) : null;
+        const visibleDailyEntryIds =
+          dailyForm && (dailyForm.details.completedAt || hasDailyFormProgress(dailyDraft ?? {}))
+            ? [dailyForm.entryId]
+            : [];
+        setEntries(
+          filterPatientTimelineEntries(nextEntries, baseline?.sex, { visibleDailyEntryIds }),
+        );
         setDailyEntryId(dailyForm?.entryId ?? null);
         setDailyCompleted(Boolean(dailyForm?.details.completedAt));
         setDailyMissingFields(
-          dailyForm
+          dailyForm && dailyDraft
             ? getDailyFormMissingFields(
-                toDailyFormDraft(dailyForm.details),
+                dailyDraft,
                 baseline?.sex === 'female',
                 Boolean(baseline?.chronicTherapy?.trim()),
               )
@@ -290,7 +315,16 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
         setPeriodRequired(dailyForm?.details.hadMenstruation === true);
         setSymptomsCompleted(hasTodayEntry(nextEntries, 'symptom'));
         setExerciseCompleted(hasTodayEntry(nextEntries, 'exercise'));
-        setMedicationCompleted(hasTodayEntry(nextEntries, 'medication'));
+        setCompleteMealEntryIds(nextCompleteMealEntryIds);
+        setCompleteMedicationEntryIds(nextCompleteMedicationEntryIds);
+        setMedicationCompleted(
+          nextEntries.some(
+            (entry) =>
+              entry.kind === 'medication' &&
+              nextCompleteMedicationEntryIds.includes(entry.id) &&
+              toLocalDateInput(new Date(entry.occurredAt)) === toLocalDateInput(new Date()),
+          ),
+        );
         setPeriodCompleted(hasTodayEntry(nextEntries, 'menstruation'));
         setCanTrackMenstruation(baseline?.sex === 'female');
       } catch {
@@ -301,6 +335,8 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
         setOfflineMode(true);
         if (cachedEntries.length) {
           setEntries(filterPatientTimelineEntries(cachedEntries, null));
+          setCompleteMealEntryIds([]);
+          setCompleteMedicationEntryIds([]);
           setError(null);
         } else {
           setError(t(locale, 'entry.loadError'));
@@ -576,6 +612,8 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
       exerciseRequired={exerciseRequired}
       loading={loading}
       medicationCompleted={medicationCompleted}
+      completeMedicationEntryIds={completeMedicationEntryIds}
+      completeMealEntryIds={completeMealEntryIds}
       medicationRequired={medicationRequired}
       periodCompleted={periodCompleted}
       periodRequired={periodRequired}
