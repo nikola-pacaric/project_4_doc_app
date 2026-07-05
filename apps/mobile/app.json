@@ -14,7 +14,10 @@
       "@react-native-community/datetimepicker"
     ],
     "android": {
-      "package": "com.anonymous.patientresearchtracking"
+      "package": "com.anonymous.patientresearchtracking",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     }
   }
 }

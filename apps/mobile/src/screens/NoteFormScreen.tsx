@@ -8,6 +8,7 @@ import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { TimePickerField } from '../components/TimePickerField';
+import { VoiceTextField } from '../components/VoiceTextField';
 import { colors, sharedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
@@ -69,7 +70,7 @@ export function NoteFormScreen({
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'note.title')} />
         <Text style={sharedStyles.body}>{t(locale, 'note.subtitle')}</Text>
 
-        <FormField
+        <VoiceTextField
           autoCapitalize="sentences"
           label={t(locale, 'note.text')}
           multiline
