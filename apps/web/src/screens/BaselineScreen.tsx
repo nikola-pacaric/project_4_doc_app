@@ -14,6 +14,7 @@ import {
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { VoiceTextField } from '../components/VoiceTextField';
 
 interface BaselineScreenProps {
   client: AppSupabaseClient;
@@ -214,13 +215,13 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
               />
             </fieldset>
             <fieldset className="structured-fieldset">
-              <legend>{t(locale, 'baseline.occupation')}</legend>
-              <input
-                aria-label={t(locale, 'baseline.occupation')}
-                onChange={(event) =>
-                  setDraft((value) => ({ ...value, occupation: event.target.value }))
+              <VoiceTextField
+                label={t(locale, 'baseline.occupation')}
+                onChange={(val) =>
+                  setDraft((value) => ({ ...value, occupation: val }))
                 }
                 required
+                type="text"
                 value={draft.occupation ?? ''}
               />
             </fieldset>
@@ -282,20 +283,19 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
             </div>
             {draft.recentMajorWeightChange === 'yes' ? (
               <div className="conditional-field-bubble">
-                <label>
-                  <span>{t(locale, 'baseline.recentWeightChangeDescription')}</span>
-                  <textarea
-                    onChange={(event) =>
-                      setDraft((value) => ({
-                        ...value,
-                        recentMajorWeightChangeDescription: event.target.value,
-                      }))
-                    }
-                    required
-                    rows={3}
-                    value={draft.recentMajorWeightChangeDescription ?? ''}
-                  />
-                </label>
+                <VoiceTextField
+                  label={t(locale, 'baseline.recentWeightChangeDescription')}
+                  onChange={(val) =>
+                    setDraft((value) => ({
+                      ...value,
+                      recentMajorWeightChangeDescription: val,
+                    }))
+                  }
+                  required
+                  rows={3}
+                  type="textarea"
+                  value={draft.recentMajorWeightChangeDescription ?? ''}
+                />
               </div>
             ) : null}
           </fieldset>
@@ -331,23 +331,22 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
               <div className="conditional-field-bubble repeatable-field">
                 {chronicDiseaseNames.map((name, index) => (
                   <div className="repeatable-item" key={index}>
-                    <label>
-                      <span>{t(locale, 'baseline.chronicDiseaseName')}</span>
-                      <input
-                        onChange={(event) => {
-                          const next = chronicDiseaseNames.map((current, currentIndex) =>
-                            currentIndex === index ? event.target.value : current,
-                          );
-                          setChronicDiseaseNames(next);
-                          setDraft((value) => ({
-                            ...value,
-                            chronicDiseases: serializeDiseaseNames(next),
-                          }));
-                        }}
-                        required
-                        value={name}
-                      />
-                    </label>
+                    <VoiceTextField
+                      label={t(locale, 'baseline.chronicDiseaseName')}
+                      onChange={(val) => {
+                        const next = chronicDiseaseNames.map((current, currentIndex) =>
+                          currentIndex === index ? val : current,
+                        );
+                        setChronicDiseaseNames(next);
+                        setDraft((value) => ({
+                          ...value,
+                          chronicDiseases: serializeDiseaseNames(next),
+                        }));
+                      }}
+                      required
+                      type="text"
+                      value={name}
+                    />
                     {chronicDiseaseNames.length > 1 ? (
                       <button
                         className="remove-inline-button"
@@ -404,45 +403,42 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
               <div className="conditional-field-bubble repeatable-field">
                 {chronicTherapies.map((therapy, index) => (
                   <div className="repeatable-item" key={index}>
-                    <label>
-                      <span>{t(locale, 'baseline.chronicTherapyName')}</span>
-                      <input
-                        autoCapitalize="words"
-                        onChange={(event) => {
-                          const next = chronicTherapies.map((current, currentIndex) =>
-                            currentIndex === index
-                              ? { ...current, name: event.target.value }
-                              : current,
-                          );
-                          setChronicTherapies(next);
-                          setDraft((value) => ({
-                            ...value,
-                            chronicTherapy: serializeChronicTherapies(next),
-                          }));
-                        }}
-                        required
-                        value={therapy.name}
-                      />
-                    </label>
-                    <label>
-                      <span>{t(locale, 'baseline.chronicTherapyDose')}</span>
-                      <input
-                        onChange={(event) => {
-                          const next = chronicTherapies.map((current, currentIndex) =>
-                            currentIndex === index
-                              ? { ...current, dose: event.target.value }
-                              : current,
-                          );
-                          setChronicTherapies(next);
-                          setDraft((value) => ({
-                            ...value,
-                            chronicTherapy: serializeChronicTherapies(next),
-                          }));
-                        }}
-                        required
-                        value={therapy.dose}
-                      />
-                    </label>
+                    <VoiceTextField
+                      label={t(locale, 'baseline.chronicTherapyName')}
+                      onChange={(val) => {
+                        const next = chronicTherapies.map((current, currentIndex) =>
+                          currentIndex === index
+                            ? { ...current, name: val }
+                            : current,
+                        );
+                        setChronicTherapies(next);
+                        setDraft((value) => ({
+                          ...value,
+                          chronicTherapy: serializeChronicTherapies(next),
+                        }));
+                      }}
+                      required
+                      type="text"
+                      value={therapy.name}
+                    />
+                    <VoiceTextField
+                      label={t(locale, 'baseline.chronicTherapyDose')}
+                      onChange={(val) => {
+                        const next = chronicTherapies.map((current, currentIndex) =>
+                          currentIndex === index
+                            ? { ...current, dose: val }
+                            : current,
+                        );
+                        setChronicTherapies(next);
+                        setDraft((value) => ({
+                          ...value,
+                          chronicTherapy: serializeChronicTherapies(next),
+                        }));
+                      }}
+                      required
+                      type="text"
+                      value={therapy.dose}
+                    />
                     {chronicTherapies.length > 1 ? (
                       <button
                         className="remove-inline-button"
@@ -477,13 +473,13 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
           </fieldset>
           {draft.sex === 'female' ? (
             <fieldset className="structured-fieldset">
-              <legend>{t(locale, 'baseline.menstrualHistory')}</legend>
-              <textarea
-                aria-label={t(locale, 'baseline.menstrualHistory')}
-                onChange={(event) =>
-                  setDraft((value) => ({ ...value, menstrualHistory: event.target.value }))
+              <VoiceTextField
+                label={t(locale, 'baseline.menstrualHistory')}
+                onChange={(val) =>
+                  setDraft((value) => ({ ...value, menstrualHistory: val }))
                 }
                 rows={3}
+                type="textarea"
                 value={draft.menstrualHistory ?? ''}
               />
             </fieldset>

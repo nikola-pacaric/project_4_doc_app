@@ -8,6 +8,7 @@ import {
 } from '@project4/contracts';
 import type { SymptomDraft, SymptomIntensity } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { VoiceTextField } from './VoiceTextField';
 
 interface SymptomFieldsProps {
   drafts: SymptomDraft[];
@@ -61,13 +62,12 @@ export function SymptomFields({
           <span>{t(locale, 'symptom.detailsRequired')}</span>
         </div>
         {type === 'other' ? (
-          <label>
-            <span>{t(locale, 'symptom.customType')}</span>
-            <input
-              onChange={(event) => update({ customType: event.target.value })}
-              value={draft.customType ?? ''}
-            />
-          </label>
+          <VoiceTextField
+            label={t(locale, 'symptom.customType')}
+            onChange={(val) => update({ customType: val })}
+            type="text"
+            value={draft.customType ?? ''}
+          />
         ) : null}
         <div className="time-field-row">
           <label>
@@ -126,15 +126,14 @@ export function SymptomFields({
             ))}
           </div>
         </div>
-        <label>
-          <span>{t(locale, 'symptom.modifyingFactors')}</span>
-          <textarea
-            onChange={(event) => update({ modifyingFactors: event.target.value })}
-            placeholder={t(locale, 'symptom.modifyingFactorsPlaceholder')}
-            rows={3}
-            value={draft.modifyingFactors ?? ''}
-          />
-        </label>
+        <VoiceTextField
+          label={t(locale, 'symptom.modifyingFactors')}
+          onChange={(val) => update({ modifyingFactors: val })}
+          placeholder={t(locale, 'symptom.modifyingFactorsPlaceholder')}
+          rows={3}
+          type="textarea"
+          value={draft.modifyingFactors ?? ''}
+        />
         <div className="choice-field">
           <span className="choice-label">{t(locale, 'symptom.sleepInterruption')}</span>
           <div className="choice-row" role="radiogroup">
@@ -173,13 +172,12 @@ export function SymptomFields({
               </select>
             </label>
             {draft.painLocation === 'other' ? (
-              <label>
-                <span>{t(locale, 'symptom.painLocationCustom')}</span>
-                <input
-                  onChange={(event) => update({ painLocationCustom: event.target.value })}
-                  value={draft.painLocationCustom ?? ''}
-                />
-              </label>
+              <VoiceTextField
+                label={t(locale, 'symptom.painLocationCustom')}
+                onChange={(val) => update({ painLocationCustom: val })}
+                type="text"
+                value={draft.painLocationCustom ?? ''}
+              />
             ) : null}
             <div className="choice-field">
               <span className="choice-label">{t(locale, 'symptom.painRadiates')}</span>
@@ -199,13 +197,12 @@ export function SymptomFields({
               </div>
             </div>
             {draft.painRadiates ? (
-              <label>
-                <span>{t(locale, 'symptom.painRadiation')}</span>
-                <input
-                  onChange={(event) => update({ painRadiation: event.target.value })}
-                  value={draft.painRadiation ?? ''}
-                />
-              </label>
+              <VoiceTextField
+                label={t(locale, 'symptom.painRadiation')}
+                onChange={(val) => update({ painRadiation: val })}
+                type="text"
+                value={draft.painRadiation ?? ''}
+              />
             ) : null}
             <label>
               <span>{t(locale, 'symptom.painDescription')}</span>
@@ -226,14 +223,13 @@ export function SymptomFields({
               </select>
             </label>
             {draft.painDescription === 'other' ? (
-              <label>
-                <span>{t(locale, 'symptom.painDescriptionCustom')}</span>
-                <textarea
-                  onChange={(event) => update({ painDescriptionCustom: event.target.value })}
-                  rows={3}
-                  value={draft.painDescriptionCustom ?? ''}
-                />
-              </label>
+              <VoiceTextField
+                label={t(locale, 'symptom.painDescriptionCustom')}
+                onChange={(val) => update({ painDescriptionCustom: val })}
+                rows={3}
+                type="textarea"
+                value={draft.painDescriptionCustom ?? ''}
+              />
             ) : null}
           </div>
         ) : null}

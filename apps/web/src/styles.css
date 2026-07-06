@@ -820,6 +820,14 @@ button:focus-visible {
   background: #f1fbf5;
 }
 
+.daily-status.centered {
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  min-height: 54px;
+  display: flex;
+}
+
 .time-field-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2252,4 +2260,224 @@ button:focus-visible {
   .web-action-card small {
     font-size: 8px;
   }
+}
+
+/* Voice & Photo additions */
+.voice-text-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.voice-text-field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.voice-mic-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #f45b7a;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.voice-mic-button:hover {
+  background-color: rgba(244, 91, 122, 0.1);
+}
+
+.voice-mic-button:active {
+  transform: scale(0.92);
+}
+
+.voice-mic-button.listening {
+  background-color: #edf8f2;
+  color: #2e7d32;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.voice-message {
+  margin: 0;
+  font-size: 13px;
+  color: #8a767d;
+}
+
+/* Photo Upload Styles */
+.photo-uploader {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.photo-uploader-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.photo-action-button {
+  min-height: 36px;
+  height: 36px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+
+.photo-preview-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.photo-size-summary {
+  margin: 0;
+  font-size: 12px;
+  color: #8a767d;
+}
+
+.photo-existing-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.photo-thumbnail-container {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  border-radius: 12px;
+  border: 1px solid #f0dfe1;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+.photo-thumbnail-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-remove-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  color: #fff;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  line-height: 22px;
+}
+
+.photo-remove-btn:hover {
+  background: rgba(217, 73, 105, 0.9);
+}
+
+/* Timeline entry photos */
+.timeline-entry-photos {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.timeline-entry-photo-button {
+  width: 72px;
+  height: 72px;
+  min-height: 72px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.timeline-entry-photo-thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #f0dfe1;
+  transition: transform 0.2s;
+}
+
+.timeline-entry-photo-button:hover .timeline-entry-photo-thumb {
+  transform: scale(1.05);
+}
+
+/* Photo Modal / Lightbox */
+.photo-lightbox {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(20, 16, 18, 0.92);
+  display: grid;
+  place-items: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.photo-lightbox-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.photo-lightbox-img {
+  max-width: 100%;
+  max-height: 80vh;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  object-fit: contain;
+}
+
+.photo-lightbox-close {
+  position: absolute;
+  top: -48px;
+  right: 0;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 32px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.photo-lightbox-label {
+  color: #fff;
+  margin-top: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
 }

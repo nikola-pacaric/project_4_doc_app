@@ -18,6 +18,7 @@ import {
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { VoiceTextField } from '../components/VoiceTextField';
 
 interface MenstruationFormScreenProps {
   client: AppSupabaseClient;
@@ -196,12 +197,12 @@ export function MenstruationFormScreen({
           </fieldset>
         </div>
         <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'menstruation.notes')}</legend>
-          <textarea
-            aria-label={t(locale, 'menstruation.notes')}
-            onChange={(event) => update('notes', event.target.value)}
+          <VoiceTextField
+            label={t(locale, 'menstruation.notes')}
+            onChange={(value) => update('notes', value)}
             placeholder={t(locale, 'menstruation.notesPlaceholder')}
             rows={4}
+            type="textarea"
             value={draft.notes ?? ''}
           />
         </fieldset>

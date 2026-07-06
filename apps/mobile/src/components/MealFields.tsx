@@ -80,31 +80,31 @@ export function MealFields({ createMeal, meals, onAddPhoto, onChange }: MealFiel
                 onChangeText={(value) => updateMeal(index, { description: value })}
                 value={meal.description ?? ''}
               />
-            </View>
-          ) : null}
-          {meal.localPhoto ? (
-            <View style={styles.photoPreviewContainer}>
-              <Image source={{ uri: meal.localPhoto.photo.uri }} style={styles.photoPreview} />
-              <PrimaryButton
-                label={t(locale, 'common.remove')}
-                onPress={() => updateMeal(index, { localPhoto: null })}
-                variant="danger"
-              />
-            </View>
-          ) : onAddPhoto ? (
-            <View style={styles.photoAction}>
-              <PrimaryButton
-                label={t(locale, 'photo.add')}
-                onPress={() => onAddPhoto(meal, index)}
-                variant="secondary"
-              />
-            </View>
-          ) : null}
-          {meal.existingPhotoUris?.length ? (
-            <View style={styles.existingPhotos}>
-              {meal.existingPhotoUris.map((uri) => (
-                <Image key={uri} source={{ uri }} style={styles.photoPreview} />
-              ))}
+              {meal.localPhoto ? (
+                <View style={styles.photoPreviewContainer}>
+                  <Image source={{ uri: meal.localPhoto.photo.uri }} style={styles.photoPreview} />
+                  <PrimaryButton
+                    label={t(locale, 'common.remove')}
+                    onPress={() => updateMeal(index, { localPhoto: null })}
+                    variant="danger"
+                  />
+                </View>
+              ) : onAddPhoto ? (
+                <View style={styles.photoAction}>
+                  <PrimaryButton
+                    label={t(locale, 'photo.add')}
+                    onPress={() => onAddPhoto(meal, index)}
+                    variant="secondary"
+                  />
+                </View>
+              ) : null}
+              {meal.existingPhotoUris?.length ? (
+                <View style={styles.existingPhotos}>
+                  {meal.existingPhotoUris.map((uri) => (
+                    <Image key={uri} source={{ uri }} style={styles.photoPreview} />
+                  ))}
+                </View>
+              ) : null}
             </View>
           ) : null}
           {meals.length > 1 || isMealDraftStarted(meal) ? (

@@ -1,7 +1,6 @@
 import type { UserProfile } from '@project4/contracts';
 import {
   dailyFormDefaults,
-  formatDailyFormMissingFields,
   getDailyFormMissingFields,
   hasDailyFormProgress,
   isCompleteDailyForm,
@@ -18,6 +17,7 @@ import {
 import { useEffect, useState } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { VoiceTextField } from '../components/VoiceTextField';
 
 interface DailyFormScreenProps {
   client: AppSupabaseClient;
@@ -153,12 +153,12 @@ export function DailyFormScreen({
   function textField(field: keyof DailyFormDraft, key: TranslationKey, rows = 3) {
     return (
       <fieldset className="structured-fieldset">
-        <legend>{t(locale, key)}</legend>
-        <textarea
-          onChange={(event) => setDraft((value) => ({ ...value, [field]: event.target.value }))}
-          required
-          rows={rows}
+        <VoiceTextField
+          label={t(locale, key)}
           value={String(draft[field] ?? '')}
+          onChange={(val) => setDraft((value) => ({ ...value, [field]: val }))}
+          rows={rows}
+          type="textarea"
         />
       </fieldset>
     );
@@ -230,13 +230,7 @@ export function DailyFormScreen({
     );
   }
 
-  const missingFields = getDailyFormMissingFields(draft, includeMenstruation, hasChronicTherapy);
-  const draftStatusTitle = missingFields.length
-    ? t(locale, 'daily.statusDraft')
-    : t(locale, 'home.action.completed');
-  const draftStatusHelp = missingFields.length
-    ? formatDailyFormMissingFields(locale, missingFields)
-    : t(locale, 'daily.readyForHomeSubmit');
+  const showDraftStatus = Boolean(existingEntryId && !completedAt && hasDailyFormProgress(draft));
 
   return (
     <main className="baseline-layout structured-entry-layout">
@@ -248,10 +242,12 @@ export function DailyFormScreen({
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading ? (
         <form className="structured-entry-form daily-form">
-          <div className={`daily-status ${completedAt ? 'complete' : 'draft'}`}>
-            <strong>{completedAt ? t(locale, 'daily.statusComplete') : draftStatusTitle}</strong>
-            <span>{completedAt ? t(locale, 'daily.statusCompleteHelp') : draftStatusHelp}</span>
-          </div>
+          {completedAt || showDraftStatus ? (
+            <div className={`daily-status ${completedAt ? 'complete' : 'draft'} ${showDraftStatus ? 'centered' : ''}`}>
+              <strong>{completedAt ? t(locale, 'daily.statusComplete') : t(locale, 'daily.statusDraft')}</strong>
+              {completedAt ? <span>{t(locale, 'daily.statusCompleteHelp')}</span> : null}
+            </div>
+          ) : null}
           <fieldset className="structured-fieldset">
             <legend>{t(locale, 'daily.sleepNotes')}</legend>
             <div className="time-field-row">
@@ -433,17 +429,16 @@ export function DailyFormScreen({
             </div>
             {draft.hadNaps ? (
               <div className="conditional-field-bubble">
-                <label>
-                  <span>{t(locale, 'daily.napsDetails')}</span>
-                  <textarea
-                    onChange={(event) =>
-                      setDraft((value) => ({ ...value, naps: event.target.value }))
-                    }
-                    required
-                    rows={3}
-                    value={draft.naps ?? ''}
-                  />
-                </label>
+                <VoiceTextField
+                  label={t(locale, 'daily.napsDetails')}
+                  onChange={(val) =>
+                    setDraft((value) => ({ ...value, naps: val }))
+                  }
+                  required
+                  rows={3}
+                  type="textarea"
+                  value={draft.naps ?? ''}
+                />
               </div>
             ) : null}
           </fieldset>

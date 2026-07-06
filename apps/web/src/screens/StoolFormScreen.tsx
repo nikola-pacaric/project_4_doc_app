@@ -15,6 +15,7 @@ import {
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { VoiceTextField } from '../components/VoiceTextField';
 
 interface StoolFormScreenProps {
   client: AppSupabaseClient;
@@ -270,12 +271,12 @@ export function StoolFormScreen({
         </fieldset>
 
         <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'stool.notes')}</legend>
-          <textarea
-            aria-label={t(locale, 'stool.notes')}
-            onChange={(event) => update('notes', event.target.value)}
+          <VoiceTextField
+            label={t(locale, 'stool.notes')}
+            onChange={(value) => update('notes', value)}
             placeholder={t(locale, 'stool.notesPlaceholder')}
             rows={4}
+            type="textarea"
             value={draft.notes ?? ''}
           />
         </fieldset>

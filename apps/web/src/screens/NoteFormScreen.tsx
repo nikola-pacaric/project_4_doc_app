@@ -15,6 +15,7 @@ import { createPatientNote, type AppSupabaseClient } from '@project4/supabase-cl
 import { useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { VoiceTextField } from '../components/VoiceTextField';
 
 interface NoteFormScreenProps {
   client: AppSupabaseClient;
@@ -125,11 +126,9 @@ export function NoteFormScreen({
 
       <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
         <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'note.text')}</legend>
-          <textarea
-            aria-label={t(locale, 'note.text')}
-            autoFocus
-            onChange={(event) => update('text', event.target.value)}
+          <VoiceTextField
+            label={t(locale, 'note.text')}
+            onChange={(val) => update('text', val)}
             placeholder={t(locale, 'note.textPlaceholder')}
             required
             rows={7}

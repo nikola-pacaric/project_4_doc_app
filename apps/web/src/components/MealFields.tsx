@@ -1,10 +1,19 @@
 import { isMealDraftStarted, type MealDraft, type MealType } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { PhotoUploader } from './PhotoUploader';
+import { VoiceTextField } from './VoiceTextField';
+import type { WebPreparedPhoto } from '../utils/photoHelper';
+
+export interface ClientMealDraft extends MealDraft {
+  localId?: string;
+  existingPhotoUris?: string[];
+  localPhoto?: WebPreparedPhoto | null;
+}
 
 interface MealFieldsProps {
-  createMeal: () => MealDraft;
-  meals: MealDraft[];
-  onChange: (meals: MealDraft[]) => void;
+  createMeal: () => ClientMealDraft;
+  meals: ClientMealDraft[];
+  onChange: (meals: ClientMealDraft[]) => void;
 }
 
 const mealTypes: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack', 'other'];
@@ -12,7 +21,7 @@ const mealTypes: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack', 'other']
 export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
   const locale = DEFAULT_LOCALE;
 
-  function updateMeal(index: number, update: Partial<MealDraft>) {
+  function updateMeal(index: number, update: Partial<ClientMealDraft>) {
     onChange(meals.map((meal, mealIndex) => (mealIndex === index ? { ...meal, ...update } : meal)));
   }
 
@@ -26,7 +35,7 @@ export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
       <legend>{t(locale, 'meal.sectionTitle')}</legend>
       <p className="field-help">{t(locale, 'meal.sectionHelp')}</p>
       {meals.map((meal, index) => (
-        <div className="meal-card" key={meal.entryId ?? `new-${index}`}>
+        <div className="meal-card" key={meal.localId ?? meal.entryId ?? `new-${index}`}>
           <fieldset className="meal-type-selector">
             <legend>{t(locale, 'meal.type')}</legend>
             <div className="meal-type-grid" role="radiogroup">
@@ -60,27 +69,36 @@ export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
                   value={meal.occurredAt?.slice(11, 16) ?? ''}
                 />
               </label>
-              <label>
-                <span>{t(locale, 'meal.name')}</span>
-                <input
-                  onChange={(event) => updateMeal(index, { name: event.target.value })}
-                  required
-                  value={meal.name ?? ''}
+              <VoiceTextField
+                label={t(locale, 'meal.name')}
+                onChange={(val) => updateMeal(index, { name: val })}
+                required
+                type="text"
+                value={meal.name ?? ''}
+              />
+              <VoiceTextField
+                label={t(locale, 'meal.description')}
+                onChange={(val) => updateMeal(index, { description: val })}
+                rows={3}
+                type="textarea"
+                value={meal.description ?? ''}
+              />
+
+              <div style={{ marginBottom: '12px' }}>
+                <span className="choice-label" style={{ display: 'block', marginBottom: '6px' }}>{t(locale, 'photo.title')}</span>
+                <PhotoUploader
+                  existingPhotoUris={meal.existingPhotoUris}
+                  localPhoto={meal.localPhoto}
+                  onPhotoSelected={(photo) => updateMeal(index, { localPhoto: photo })}
                 />
-              </label>
-              <label>
-                <span>{t(locale, 'meal.description')}</span>
-                <textarea
-                  onChange={(event) => updateMeal(index, { description: event.target.value })}
-                  rows={3}
-                  value={meal.description ?? ''}
-                />
-              </label>
+              </div>
+
               {meals.length > 1 || isMealDraftStarted(meal) ? (
                 <button
                   className="text-button danger"
                   onClick={() => removeMeal(index)}
                   type="button"
+                  style={{ marginTop: '8px' }}
                 >
                   {t(locale, 'meal.remove')}
                 </button>

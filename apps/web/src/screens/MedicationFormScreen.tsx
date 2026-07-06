@@ -8,11 +8,17 @@ import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import {
   createPatientMedication,
   getPatientMedication,
+  listEntryPhotos,
+  createEntryPhotoSignedUrl,
+  uploadPreparedEntryPhoto,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { PhotoUploader } from '../components/PhotoUploader';
+import { VoiceTextField } from '../components/VoiceTextField';
+import { type WebPreparedPhoto } from '../utils/photoHelper';
 
 interface MedicationFormScreenProps {
   client: AppSupabaseClient;
@@ -22,20 +28,25 @@ interface MedicationFormScreenProps {
   profile: UserProfile;
 }
 
+export interface ClientMedicationDraft extends MedicationDraft {
+  existingPhotoUris?: string[];
+  localPhoto?: WebPreparedPhoto | null;
+}
+
 function toLocalDateTime(value: Date): string {
   const offset = value.getTimezoneOffset() * 60_000;
   const localValue = new Date(value.getTime() - offset).toISOString();
   return `${localValue.slice(0, 10)} ${localValue.slice(11, 16)}`;
 }
 
-function createInitialDraft(): MedicationDraft {
+function createInitialDraft(): ClientMedicationDraft {
   return {
     ...medicationDraftDefaults,
     takenAt: toLocalDateTime(new Date()),
   };
 }
 
-function toDraft(record: MedicationRecord): MedicationDraft {
+function toDraft(record: MedicationRecord): ClientMedicationDraft {
   return {
     entryId: record.entryId,
     name: record.name ?? '',
@@ -46,6 +57,10 @@ function toDraft(record: MedicationRecord): MedicationDraft {
   };
 }
 
+function createPhotoId(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function MedicationFormScreen({
   client,
   entryToEdit,
@@ -54,29 +69,45 @@ export function MedicationFormScreen({
   profile,
 }: MedicationFormScreenProps) {
   const locale = DEFAULT_LOCALE;
-  const [draft, setDraft] = useState<MedicationDraft>(createInitialDraft);
+  const [draft, setDraft] = useState<ClientMedicationDraft>(createInitialDraft);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!entryToEdit) {
-      setDraft(createInitialDraft());
-      setLoading(false);
+      setTimeout(() => {
+        setDraft(createInitialDraft());
+        setLoading(false);
+      }, 0);
       return;
     }
 
     let active = true;
-    setLoading(true);
-    setError(null);
-    void getPatientMedication(client, entryToEdit.id, entryToEdit.occurredAt)
-      .then((record) => {
+    const loadingTimer = window.setTimeout(() => {
+      if (!active) return;
+      setLoading(true);
+      setError(null);
+    }, 0);
+    void Promise.all([
+      getPatientMedication(client, entryToEdit.id, entryToEdit.occurredAt),
+      listEntryPhotos(client, entryToEdit.id),
+    ])
+      .then(async ([record, photos]) => {
         if (!active) return;
         if (!record) {
           setError(t(locale, 'medication.loadError'));
           return;
         }
-        setDraft(toDraft(record));
+
+        const draftData = toDraft(record);
+        const existingPhotoUris = await Promise.all(
+          photos
+            .filter((photo) => photo.contextType === 'medication' || photo.contextType === null)
+            .map((photo) => createEntryPhotoSignedUrl(client, photo.thumbnailPath)),
+        );
+
+        setDraft({ ...draftData, existingPhotoUris });
       })
       .catch(() => {
         if (active) setError(t(locale, 'medication.loadError'));
@@ -87,10 +118,11 @@ export function MedicationFormScreen({
 
     return () => {
       active = false;
+      window.clearTimeout(loadingTimer);
     };
   }, [client, entryToEdit, locale]);
 
-  function update<K extends keyof MedicationDraft>(field: K, value: MedicationDraft[K]) {
+  function update<K extends keyof ClientMedicationDraft>(field: K, value: ClientMedicationDraft[K]) {
     setError(null);
     setDraft((current) => ({ ...current, [field]: value }));
   }
@@ -110,7 +142,20 @@ export function MedicationFormScreen({
     setSaving(true);
     setError(null);
     try {
-      await createPatientMedication(client, profile.id, draft);
+      const saved = await createPatientMedication(client, profile.id, draft);
+      if (draft.localPhoto) {
+        const photoId = createPhotoId();
+        await uploadPreparedEntryPhoto(client, {
+          contextLabel: saved.name || undefined,
+          contextType: 'medication',
+          entryId: saved.entryId,
+          patientId: profile.id,
+          photoId,
+          photoBody: draft.localPhoto.photoBody,
+          thumbnailBody: draft.localPhoto.thumbnailBody,
+          metadata: draft.localPhoto.metadata,
+        });
+      }
       onSaved();
     } catch {
       setError(t(locale, 'medication.saveError'));
@@ -135,22 +180,20 @@ export function MedicationFormScreen({
       {!loading ? (
       <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
         <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'medication.name')}</legend>
-          <input
-            aria-label={t(locale, 'medication.name')}
-            autoComplete="off"
-            onChange={(event) => update('name', event.target.value)}
+          <VoiceTextField
+            label={t(locale, 'medication.name')}
+            onChange={(value) => update('name', value)}
             placeholder={t(locale, 'medication.namePlaceholder')}
+            type="text"
             value={draft.name ?? ''}
           />
         </fieldset>
         <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'medication.dose')}</legend>
-          <input
-            aria-label={t(locale, 'medication.dose')}
-            autoComplete="off"
-            onChange={(event) => update('dose', event.target.value)}
+          <VoiceTextField
+            label={t(locale, 'medication.dose')}
+            onChange={(value) => update('dose', value)}
             placeholder={t(locale, 'medication.dosePlaceholder')}
+            type="text"
             value={draft.dose ?? ''}
           />
         </fieldset>
@@ -186,13 +229,22 @@ export function MedicationFormScreen({
           />
         </fieldset>
         <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'medication.reason')}</legend>
-          <textarea
-            aria-label={t(locale, 'medication.reason')}
-            onChange={(event) => update('reason', event.target.value)}
+          <VoiceTextField
+            label={t(locale, 'medication.reason')}
+            onChange={(value) => update('reason', value)}
             placeholder={t(locale, 'medication.reasonPlaceholder')}
             rows={4}
+            type="textarea"
             value={draft.reason ?? ''}
+          />
+        </fieldset>
+
+        <fieldset className="structured-fieldset">
+          <legend>{t(locale, 'photo.title')}</legend>
+          <PhotoUploader
+            existingPhotoUris={draft.existingPhotoUris}
+            localPhoto={draft.localPhoto}
+            onPhotoSelected={(photo) => update('localPhoto', photo)}
           />
         </fieldset>
 

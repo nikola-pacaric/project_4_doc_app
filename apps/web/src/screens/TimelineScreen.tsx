@@ -7,12 +7,9 @@ import {
 } from '@project4/contracts';
 import type { DailyFormDetails } from '@project4/contracts';
 import {
-  formatDailyFormMissingFields,
-  getDailyFormMissingFields,
   hasDailyFormProgress,
   isCompleteDailyForm,
   type DailyFormDraft,
-  type DailyFormField,
 } from '@project4/forms';
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
 import {
@@ -28,10 +25,14 @@ import {
 import {
   completePatientDailyForm,
   createPatientNote,
+  createEntryPhotoSignedUrl,
   getPatientBaseline,
   getPatientDailyForm,
+  listEntryPhotos,
   listRecentPatientEntries,
   updateEntryTimestamp,
+  listCompletePatientMealEntryIds,
+  listCompletePatientMedicationEntryIds,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
@@ -63,6 +64,13 @@ interface TimelineScreenProps {
 
 interface LoadEntriesOptions {
   showLoading?: boolean;
+}
+
+interface TimelineEntryPhoto {
+  id: string;
+  label: string;
+  photoUrl: string;
+  thumbnailUrl: string;
 }
 
 const ONLINE_LOAD_TIMEOUT_MS = 2_500;
@@ -150,10 +158,6 @@ function greetingKey(hour: number): TranslationKey {
   return 'home.greeting.evening';
 }
 
-function isTodayDailyEntry(entry: PatientEntry, today: string): boolean {
-  return entry.kind === 'daily' && localDateValue(new Date(entry.occurredAt)) === today;
-}
-
 const quickActions = [
   { id: 'daily', icon: '☀️', labelKey: 'home.action.daily', kind: 'daily' },
   { id: 'food', icon: '🍽️', labelKey: 'home.action.food', kind: 'meal' },
@@ -205,7 +209,6 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [dailyEntryId, setDailyEntryId] = useState<string | null>(null);
   const [dailyCompleted, setDailyCompleted] = useState(false);
   const [dailyReadyToSubmit, setDailyReadyToSubmit] = useState(false);
-  const [dailyMissingFields, setDailyMissingFields] = useState<DailyFormField[]>([]);
   const [submittingDay, setSubmittingDay] = useState(false);
   const [showTimelineList, setShowTimelineList] = useState(false);
   const [showMenstruationForm, setShowMenstruationForm] = useState(false);
@@ -216,6 +219,10 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [noteEntryToEdit, setNoteEntryToEdit] = useState<PatientEntry | null>(null);
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
   const [pendingEntries, setPendingEntries] = useState<LocalPendingEntry[]>([]);
+  const [entryPhotos, setEntryPhotos] = useState<Record<string, TimelineEntryPhoto[]>>({});
+  const [lightboxPhoto, setLightboxPhoto] = useState<{ url: string; label: string } | null>(null);
+  const [completeMealEntryIds, setCompleteMealEntryIds] = useState<string[]>([]);
+  const [completeMedicationEntryIds, setCompleteMedicationEntryIds] = useState<string[]>([]);
   const syncPendingPromiseRef = useRef<Promise<LocalPendingEntry[]> | null>(null);
   const loadEntriesPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -315,6 +322,14 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
         setEntries(
           filterPatientTimelineEntries(nextEntries, baseline?.sex, { visibleDailyEntryIds }),
         );
+        const mealIds = nextEntries.filter((entry) => entry.kind === 'meal').map((entry) => entry.id);
+        const medIds = nextEntries.filter((entry) => entry.kind === 'medication').map((entry) => entry.id);
+        const [nextCompleteMealEntryIds, nextCompleteMedicationEntryIds] = await Promise.all([
+          listCompletePatientMealEntryIds(client, mealIds),
+          listCompletePatientMedicationEntryIds(client, medIds),
+        ]);
+        setCompleteMealEntryIds(nextCompleteMealEntryIds);
+        setCompleteMedicationEntryIds(nextCompleteMedicationEntryIds);
         setCanTrackMenstruation(includeMenstruation);
         setDailyEntryId(dailyForm?.entryId ?? null);
         setDailyCompleted(Boolean(dailyForm?.details.completedAt));
@@ -327,20 +342,18 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
               )
             : false,
         );
-        setDailyMissingFields(
-          dailyForm && dailyDraft
-            ? getDailyFormMissingFields(
-                dailyDraft,
-                includeMenstruation,
-                nextHasChronicTherapy,
-              )
-            : [],
-        );
         setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
         setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
         setPeriodRequired(dailyForm?.details.hadMenstruation === true);
         setExerciseCompleted(hasTodayEntry(nextEntries, 'exercise'));
-        setMedicationCompleted(hasTodayEntry(nextEntries, 'medication'));
+        setMedicationCompleted(
+          nextEntries.some(
+            (entry) =>
+              entry.kind === 'medication' &&
+              nextCompleteMedicationEntryIds.includes(entry.id) &&
+              localDateValue(new Date(entry.occurredAt)) === localDateValue(new Date()),
+          ),
+        );
         setPeriodCompleted(hasTodayEntry(nextEntries, 'menstruation'));
       } catch {
         const cachedOpenedDayEntries = loadCachedOpenedDayEntries(profile.id);
@@ -348,6 +361,10 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
           ? cachedOpenedDayEntries
           : loadCachedRecentEntries(profile.id);
         setOfflineMode(true);
+        setCompleteMealEntryIds([]);
+        setCompleteMedicationEntryIds([]);
+        setEntryPhotos({});
+        setLightboxPhoto(null);
         if (cachedEntries.length) {
           setEntries(filterPatientTimelineEntries(cachedEntries, null));
           setError(null);
@@ -369,10 +386,12 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
 
   useEffect(() => {
     let active = true;
-    loadPendingQueue();
-    void loadEntries().finally(() => {
-      if (!active) return;
-    });
+    void Promise.resolve()
+      .then(() => loadPendingQueue())
+      .then(() => loadEntries())
+      .finally(() => {
+        if (!active) return;
+      });
 
     return () => {
       active = false;
@@ -387,6 +406,55 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [loadEntries]);
+
+  useEffect(() => {
+    let active = true;
+    const photoEntries = entries.filter(
+      (entry) =>
+        (entry.kind === 'meal' || entry.kind === 'fluid' || entry.kind === 'medication') &&
+        !isPendingEntryId(entry.id),
+    );
+
+    void (async () => {
+      if (offlineMode || !photoEntries.length) {
+        if (active) setEntryPhotos({});
+        return;
+      }
+
+      try {
+        const nextEntryPhotos: Record<string, TimelineEntryPhoto[]> = {};
+        await Promise.all(
+          photoEntries.map(async (entry) => {
+            const photos = (await listEntryPhotos(client, entry.id)).filter(
+              (photo) => photo.contextType === entry.kind || photo.contextType === null,
+            );
+
+            const signedPhotos = await Promise.all(
+              photos.map(async (photo) => ({
+                id: photo.id,
+                label: photo.contextLabel?.trim() || t(locale, `entry.kind.${entry.kind}` as TranslationKey),
+                photoUrl: await createEntryPhotoSignedUrl(client, photo.photoPath),
+                thumbnailUrl: await createEntryPhotoSignedUrl(client, photo.thumbnailPath),
+              })),
+            );
+
+            if (signedPhotos.length) {
+              nextEntryPhotos[entry.id] = signedPhotos;
+            }
+          }),
+        );
+
+        if (active) setEntryPhotos(nextEntryPhotos);
+      } catch (photoError) {
+        console.error('Failed to load timeline entry photos:', photoError);
+        if (active) setEntryPhotos({});
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [client, entries, locale, offlineMode]);
 
   useEffect(() => {
     const retryTimer = window.setInterval(() => {
@@ -461,6 +529,31 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     } finally {
       setSubmittingDay(false);
     }
+  }
+
+  function renderEntryPhotos(entry: PatientEntry, title: string) {
+    const photos = entryPhotos[entry.id];
+    if (!photos?.length) return null;
+
+    return (
+      <div className="timeline-entry-photos">
+        {photos.map((photo) => (
+          <button
+            aria-label={photo.label}
+            className="timeline-entry-photo-button"
+            key={photo.id}
+            onClick={() => setLightboxPhoto({ url: photo.photoUrl, label: photo.label })}
+            type="button"
+          >
+            <img
+              alt={title}
+              className="timeline-entry-photo-thumb"
+              src={photo.thumbnailUrl}
+            />
+          </button>
+        ))}
+      </div>
+    );
   }
 
   if (showBaseline) {
@@ -644,9 +737,16 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   });
   const completedKinds = new Set(todayEntries.filter((entry) => !pendingIds.has(entry.id)).map((entry) => entry.kind));
   const stoolCompleted = hasTodayEntry(visibleEntries, 'stool') || hasTodayNoStoolEntry(visibleEntries);
+  const foodCompleted = todayEntries.some(
+    (entry) =>
+      entry.kind === 'meal' &&
+      completeMealEntryIds.includes(entry.id)
+  );
   const completedItems = progressActions.filter((action) => {
     if (action.id === 'daily') return dailyCompleted || dailyReadyToSubmit;
     if (action.id === 'stool') return stoolCompleted;
+    if (action.id === 'food') return foodCompleted;
+    if (action.id === 'medication') return medicationCompleted;
     return completedKinds.has(action.kind);
   }).length;
   const progress = Math.round((completedItems / Math.max(progressActions.length, 1)) * 100);
@@ -665,17 +765,27 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     (exerciseRequired && !exerciseCompleted) ||
     (medicationRequired && !medicationCompleted) ||
     (periodRequired && !periodCompleted);
+  const symptomsCompleted = completedKinds.has('symptom');
+
+  const missingSubmitSections = [
+    !dailyCompleted && !dailyReadyToSubmit ? t(locale, 'home.action.daily') : null,
+    !foodCompleted ? t(locale, 'home.action.food') : null,
+    !symptomsCompleted ? t(locale, 'home.action.symptoms') : null,
+    !stoolCompleted ? t(locale, 'home.action.stool') : null,
+    exerciseRequired && !exerciseCompleted ? t(locale, 'home.action.exercise') : null,
+    medicationRequired && !medicationCompleted ? t(locale, 'home.action.medication') : null,
+    periodRequired && !periodCompleted ? t(locale, 'home.action.period') : null,
+  ].filter(Boolean) as string[];
+
   const submitHelp = dailyCompleted
     ? t(locale, 'home.submitCompletedHelp')
     : offlineMode
       ? t(locale, 'offline.actionsDisabled')
       : !dailyEntryId
         ? t(locale, 'home.submitDailyFirst')
-      : dailyMissingFields.length
-        ? formatDailyFormMissingFields(locale, dailyMissingFields)
-        : dailyReadyToSubmit
-        ? t(locale, 'home.submitHelp')
-        : t(locale, 'daily.statusDraftHelp');
+        : missingSubmitSections.length
+        ? t(locale, 'home.submitMissing').replace('\n', ' ').replace('{sections}', missingSubmitSections.join(', '))
+        : t(locale, 'home.submitHelp');
 
   if (showTimelineList) {
     return (
@@ -713,13 +823,19 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
               ? t(locale, 'stool.noStoolToday')
               : entry.text?.trim() || kindLabel;
             const pending = pendingIds.has(entry.id);
-            const todayDailyEntry = isTodayDailyEntry(entry, today);
-            const dailyStatusKey =
-              dailyCompleted || dailyReadyToSubmit ? 'home.action.completed' : 'daily.statusDraft';
+            const entryCompleted =
+              entry.kind === 'daily'
+                ? dailyCompleted
+                : entry.kind === 'meal'
+                  ? completeMealEntryIds.includes(entry.id)
+                : entry.kind === 'medication'
+                  ? completeMedicationEntryIds.includes(entry.id)
+                : true;
+            const entryStatusClass = entryCompleted || (entry.kind === 'daily' && dailyReadyToSubmit) ? 'complete' : 'draft';
             return (
               <article
                 className={`web-recent-entry ${pending ? 'pending' : ''} ${
-                  todayDailyEntry && !dailyCompleted && !dailyReadyToSubmit ? 'draft' : ''
+                  !entryCompleted && !(entry.kind === 'daily' && dailyReadyToSubmit) ? 'draft' : ''
                 }`}
                 key={entry.id}
               >
@@ -738,21 +854,38 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
                   </span>
                   <span className="web-entry-trailing">
                     {pending ? <small className="web-entry-pending">{t(locale, 'sync.pending')}</small> : null}
-                    {!pending && todayDailyEntry ? (
-                      <small
-                        className={`web-entry-status ${
-                          dailyCompleted || dailyReadyToSubmit ? 'complete' : 'draft'
-                        }`}
-                      >
-                        {t(locale, dailyStatusKey)}
+                    {!pending ? (
+                      <small className={`web-entry-status ${entryStatusClass}`}>
+                        {t(
+                          locale,
+                          entryCompleted || (entry.kind === 'daily' && dailyReadyToSubmit)
+                            ? 'home.action.completed'
+                            : 'daily.statusDraft'
+                        )}
                       </small>
                     ) : null}
                   </span>
                 </div>
+                {renderEntryPhotos(entry, title)}
               </article>
             );
           })}
         </div>
+        {lightboxPhoto ? (
+          <div className="photo-lightbox" onClick={() => setLightboxPhoto(null)}>
+            <div className="photo-lightbox-content" onClick={(event) => event.stopPropagation()}>
+              <button
+                className="photo-lightbox-close"
+                onClick={() => setLightboxPhoto(null)}
+                type="button"
+              >
+                &times;
+              </button>
+              <img src={lightboxPhoto.url} alt={lightboxPhoto.label} className="photo-lightbox-img" />
+              <p className="photo-lightbox-label">{lightboxPhoto.label}</p>
+            </div>
+          </div>
+        ) : null}
       </main>
     );
   }
@@ -837,7 +970,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
               (action.id === 'daily' && (dailyCompleted || dailyReadyToSubmit)) ||
               (action.id === 'stool' && stoolCompleted) ||
               (action.id === 'symptoms' && completedKinds.has('symptom')) ||
-              (action.id === 'food' && completedKinds.has('meal')) ||
+              (action.id === 'food' && foodCompleted) ||
               (action.id === 'exercise' && exerciseCompleted) ||
               (action.id === 'medication' && medicationCompleted) ||
               (action.id === 'period' && periodCompleted);
@@ -922,13 +1055,19 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
             const pending = pendingIds.has(entry.id);
             const offlineDisabled =
               offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
-            const todayDailyEntry = isTodayDailyEntry(entry, today);
-            const dailyStatusKey =
-              dailyCompleted || dailyReadyToSubmit ? 'home.action.completed' : 'daily.statusDraft';
+            const entryCompleted =
+              entry.kind === 'daily'
+                ? dailyCompleted
+                : entry.kind === 'meal'
+                  ? completeMealEntryIds.includes(entry.id)
+                : entry.kind === 'medication'
+                  ? completeMedicationEntryIds.includes(entry.id)
+                : true;
+            const entryStatusClass = entryCompleted || (entry.kind === 'daily' && dailyReadyToSubmit) ? 'complete' : 'draft';
             return (
               <article
                 className={`web-recent-entry ${pending ? 'pending' : ''} ${
-                  todayDailyEntry && !dailyCompleted && !dailyReadyToSubmit ? 'draft' : ''
+                  !entryCompleted && !(entry.kind === 'daily' && dailyReadyToSubmit) ? 'draft' : ''
                 } ${offlineDisabled ? 'offline-disabled' : ''}`}
                 key={entry.id}
               >
@@ -955,22 +1094,39 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
                         {t(locale, 'offline.onlyNotes')}
                       </small>
                     ) : null}
-                    {!pending && todayDailyEntry ? (
-                      <small
-                        className={`web-entry-status ${
-                          dailyCompleted || dailyReadyToSubmit ? 'complete' : 'draft'
-                        }`}
-                      >
-                        {t(locale, dailyStatusKey)}
+                    {!pending ? (
+                      <small className={`web-entry-status ${entryStatusClass}`}>
+                        {t(
+                          locale,
+                          entryCompleted || (entry.kind === 'daily' && dailyReadyToSubmit)
+                            ? 'home.action.completed'
+                            : 'daily.statusDraft'
+                        )}
                       </small>
                     ) : null}
                   </span>
                 </button>
+                {renderEntryPhotos(entry, entry.text?.trim() || kindLabel)}
               </article>
             );
           })}
         </div>
       </section>
+      {lightboxPhoto ? (
+        <div className="photo-lightbox" onClick={() => setLightboxPhoto(null)}>
+          <div className="photo-lightbox-content" onClick={(event) => event.stopPropagation()}>
+            <button
+              className="photo-lightbox-close"
+              onClick={() => setLightboxPhoto(null)}
+              type="button"
+            >
+              &times;
+            </button>
+            <img src={lightboxPhoto.url} alt={lightboxPhoto.label} className="photo-lightbox-img" />
+            <p className="photo-lightbox-label">{lightboxPhoto.label}</p>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

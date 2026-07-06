@@ -9,6 +9,7 @@ import {
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { VoiceTextField } from '../components/VoiceTextField';
 
 interface ExerciseFormScreenProps {
   client: AppSupabaseClient;
@@ -161,12 +162,11 @@ export function ExerciseFormScreen({
       {!loading ? (
       <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
         <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'exercise.activity')}</legend>
-          <input
-            aria-label={t(locale, 'exercise.activity')}
-            autoComplete="off"
-            onChange={(event) => update('activity', event.target.value)}
+          <VoiceTextField
+            label={t(locale, 'exercise.activity')}
+            onChange={(value) => update('activity', value)}
             placeholder={t(locale, 'exercise.activityPlaceholder')}
+            type="text"
             value={draft.activity ?? ''}
           />
         </fieldset>
@@ -224,12 +224,12 @@ export function ExerciseFormScreen({
           </fieldset>
         </div>
         <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'exercise.notes')}</legend>
-          <textarea
-            aria-label={t(locale, 'exercise.notes')}
-            onChange={(event) => update('notes', event.target.value)}
+          <VoiceTextField
+            label={t(locale, 'exercise.notes')}
+            onChange={(value) => update('notes', value)}
             placeholder={t(locale, 'exercise.notesPlaceholder')}
             rows={4}
+            type="textarea"
             value={draft.notes ?? ''}
           />
         </fieldset>

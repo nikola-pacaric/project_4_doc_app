@@ -38,7 +38,7 @@ export function OtherFluidFields({
 
   function removeFluid(index: number) {
     const remainingFluids = fluids.filter((_, fluidIndex) => fluidIndex !== index);
-    onChange(remainingFluids.length ? remainingFluids : [createFluid()]);
+    onChange(remainingFluids);
   }
 
   function updateFluidTime(index: number, value: string) {
