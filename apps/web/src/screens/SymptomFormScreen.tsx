@@ -90,15 +90,25 @@ export function SymptomFormScreen({ client, onBack, onSaved, profile }: SymptomF
 
   function toggle(type: SymptomType) {
     const selected = drafts.some((draft) => draft.type === type);
+    if (!selected && type === 'none') {
+      setDrafts([createSymptomDraft(type, currentLocalDateTime())]);
+      setExpanded([]);
+      setInvalid([]);
+      return;
+    }
+
     setDrafts((current) =>
       selected
         ? current.filter((draft) => draft.type !== type)
-        : [...current, createSymptomDraft(type, currentLocalDateTime())],
+        : [
+            ...current.filter((draft) => draft.type !== 'none'),
+            createSymptomDraft(type, currentLocalDateTime()),
+          ],
     );
     setExpanded((current) =>
       selected
         ? current.filter((candidate) => candidate !== type)
-        : [...current.filter((candidate) => candidate !== type), type],
+        : [...current.filter((candidate) => candidate !== type && candidate !== 'none'), type],
     );
     setInvalid((current) => current.filter((candidate) => candidate !== type));
   }

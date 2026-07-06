@@ -186,6 +186,46 @@ begin
     and kind = 'symptom';
   if symptom_count <> 1 then raise exception 'deselected symptom should be removed'; end if;
 
+  perform public.save_patient_symptoms(
+    '2026-06-22 00:00:00+02',
+    '2026-06-23 00:00:00+02',
+    '[{"symptom_type":"none","started_at":"2026-06-22T12:00:00+02:00","ended_at":null,"intensity":1,"modifying_factors":null,"woke_from_sleep":false}]'::jsonb
+  );
+
+  select count(*) into symptom_count
+  from public.patient_entries entry
+  join public.symptom_details details on details.entry_id = entry.id
+  where entry.patient_id = '00000000-0000-4000-8000-000000000801'
+    and entry.kind = 'symptom'
+    and details.symptom_type = 'none';
+  if symptom_count <> 1 then raise exception 'no-symptom checkpoint should replace symptoms'; end if;
+
+  begin
+    perform public.save_patient_symptoms(
+      '2026-06-22 00:00:00+02',
+      '2026-06-23 00:00:00+02',
+      jsonb_build_array(
+        jsonb_build_object(
+          'symptom_type', 'none',
+          'started_at', '2026-06-22T12:00:00+02:00',
+          'ended_at', null,
+          'intensity', 1,
+          'modifying_factors', null,
+          'woke_from_sleep', false
+        ),
+        jsonb_build_object(
+          'symptom_type', 'nausea',
+          'started_at', '2026-06-22T13:00:00+02:00',
+          'ended_at', null,
+          'intensity', 1,
+          'woke_from_sleep', false
+        )
+      )
+    );
+    raise exception 'none should not combine with other symptoms';
+  exception when invalid_parameter_value then null;
+  end;
+
   begin
     insert into public.symptom_details (
       entry_id, symptom_type, started_at, intensity, woke_from_sleep

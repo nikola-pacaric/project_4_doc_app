@@ -84,9 +84,28 @@ export async function listPatientSymptoms(
   });
 }
 
-function toDetailRow(entryId: string, draft: SymptomDraft) {
-  const startedAt = normalizeSymptomDateTime(draft.startedAt);
+function toDetailRow(entryId: string, draft: SymptomDraft, fallbackStartedAt?: string) {
+  const startedAt = normalizeSymptomDateTime(draft.startedAt) ?? fallbackStartedAt ?? null;
   const endedAt = normalizeSymptomDateTime(draft.endedAt);
+  if (draft.type === 'none' && startedAt) {
+    return {
+      entry_id: entryId,
+      symptom_type: draft.type,
+      custom_type: null,
+      started_at: startedAt,
+      ended_at: null,
+      intensity: 1 as SymptomIntensity,
+      modifying_factors: null,
+      woke_from_sleep: false,
+      pain_location: null,
+      pain_location_custom: null,
+      pain_radiates: null,
+      pain_radiation: null,
+      pain_description: null,
+      pain_description_custom: null,
+    };
+  }
+
   if (!draft.type || !startedAt || !draft.intensity || draft.wokeFromSleep === undefined) {
     throw new Error('Cannot persist an incomplete symptom draft.');
   }
@@ -119,8 +138,8 @@ export interface SymptomSaveRange {
   end: string;
 }
 
-function toSymptomSaveItem(draft: SymptomDraft) {
-  const row = toDetailRow(draft.entryId ?? '', draft);
+function toSymptomSaveItem(draft: SymptomDraft, range: SymptomSaveRange) {
+  const row = toDetailRow(draft.entryId ?? '', draft, range.start);
   return {
     entry_id: draft.entryId ?? null,
     symptom_type: row.symptom_type,
@@ -149,7 +168,7 @@ export async function savePatientSymptoms(
   const { data, error } = await client.rpc('save_patient_symptoms', {
     p_day_start: range.start,
     p_day_end: range.end,
-    p_symptoms: drafts.map(toSymptomSaveItem),
+    p_symptoms: drafts.map((draft) => toSymptomSaveItem(draft, range)),
   });
   if (error) throw error;
   if (data !== drafts.length) throw new Error('Symptom save returned an invalid item count.');

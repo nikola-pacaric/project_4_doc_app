@@ -251,6 +251,7 @@ export function SymptomFields({
         const checked = Boolean(draft);
         const isExpanded = expanded.includes(type);
         const label = t(locale, `symptom.type.${type}`);
+        const hasDetails = type !== 'none';
         return (
           <div className="symptom-item" key={type}>
             <div className={`symptom-option ${checked ? 'selected' : ''}`}>
@@ -261,16 +262,18 @@ export function SymptomFields({
                 type="checkbox"
               />
               <button
-                aria-expanded={checked && isExpanded}
-                disabled={!checked}
+                aria-expanded={hasDetails && checked && isExpanded}
+                disabled={!checked || !hasDetails}
                 onClick={() => onToggleExpanded(type)}
                 type="button"
               >
                 <span>{label}</span>
-                {checked ? <span aria-hidden="true">{isExpanded ? '▲' : '▼'}</span> : null}
+                {checked && hasDetails ? (
+                  <span aria-hidden="true">{isExpanded ? '▲' : '▼'}</span>
+                ) : null}
               </button>
             </div>
-            {draft && isExpanded ? details(draft) : null}
+            {hasDetails && draft && isExpanded ? details(draft) : null}
           </div>
         );
       })}

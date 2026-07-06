@@ -72,6 +72,26 @@ describe('savePatientSymptoms', () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it('sends a no-symptom checkpoint without requiring visible detail fields', async () => {
+    const { client, rpc } = createClientMock();
+
+    await savePatientSymptoms(client, range, [{ type: 'none' }]);
+
+    expect(rpc).toHaveBeenCalledWith('save_patient_symptoms', {
+      p_day_start: range.start,
+      p_day_end: range.end,
+      p_symptoms: [
+        expect.objectContaining({
+          symptom_type: 'none',
+          started_at: range.start,
+          intensity: 1,
+          woke_from_sleep: false,
+          ended_at: null,
+        }),
+      ],
+    });
+  });
+
   it('rejects an unexpected RPC count', async () => {
     const { client } = createClientMock(0);
     await expect(savePatientSymptoms(client, range, [completeSymptom])).rejects.toThrow(

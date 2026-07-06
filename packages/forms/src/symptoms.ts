@@ -80,6 +80,8 @@ export function validateSymptom(draft: SymptomDraft): SymptomValidationResult {
   const errors: SymptomValidationResult['errors'] = {};
 
   if (!draft.type) errors.type = 'required';
+  if (draft.type === 'none') return { valid: Object.keys(errors).length === 0, errors };
+
   if (draft.type === 'other' && !draft.customType?.trim()) errors.customType = 'required';
   if (![1, 2, 3].includes(draft.intensity ?? 0)) errors.intensity = 'required';
   if (draft.wokeFromSleep === undefined) errors.wokeFromSleep = 'required';
@@ -115,5 +117,9 @@ export function validateSymptom(draft: SymptomDraft): SymptomValidationResult {
 }
 
 export function validateSymptoms(drafts: SymptomDraft[]): boolean {
-  return drafts.length > 0 && drafts.every((draft) => validateSymptom(draft).valid);
+  return (
+    drafts.length > 0 &&
+    drafts.every((draft) => validateSymptom(draft).valid) &&
+    (drafts.some((draft) => draft.type === 'none') ? drafts.length === 1 : true)
+  );
 }

@@ -15,6 +15,7 @@ export const symptomTypes = [
   'painful_swallowing',
   'false_urge_to_defecate',
   'other',
+  'none',
 ] as const;
 
 export const painLocations = [

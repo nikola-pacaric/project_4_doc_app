@@ -25,6 +25,12 @@ describe('symptom validation', () => {
     });
   });
 
+  it('accepts none as an exclusive no-symptom checkpoint', () => {
+    expect(validateSymptom({ type: 'none' })).toEqual({ valid: true, errors: {} });
+    expect(validateSymptoms([{ type: 'none' }])).toBe(true);
+    expect(validateSymptoms([{ type: 'none' }, completeDraft])).toBe(false);
+  });
+
   it('requires a custom name for the other option', () => {
     expect(
       validateSymptom({ ...completeDraft, type: 'other', customType: '' }).errors.customType,

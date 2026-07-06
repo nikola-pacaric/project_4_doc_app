@@ -49,15 +49,23 @@ export function SymptomFormScreen({
   function toggleSymptom(type: SymptomType) {
     setShowErrors(false);
     const selected = drafts.some((draft) => draft.type === type);
+    if (!selected && type === 'none') {
+      setExpandedTypes([]);
+      setDrafts([createSymptomDraft(type, currentLocalDateTime())]);
+      return;
+    }
     setExpandedTypes((expanded) =>
       selected
         ? expanded.filter((candidate) => candidate !== type)
-        : [...expanded.filter((candidate) => candidate !== type), type],
+        : [...expanded.filter((candidate) => candidate !== type && candidate !== 'none'), type],
     );
     setDrafts((current) =>
       selected
         ? current.filter((draft) => draft.type !== type)
-        : [...current, createSymptomDraft(type, currentLocalDateTime())],
+        : [
+            ...current.filter((draft) => draft.type !== 'none'),
+            createSymptomDraft(type, currentLocalDateTime()),
+          ],
     );
   }
 
@@ -106,6 +114,7 @@ export function SymptomFormScreen({
             onToggle={toggleSymptom}
             onToggleExpanded={toggleExpanded}
             renderDetails={(type) => {
+              if (type === 'none') return null;
               const draft = drafts.find((candidate) => candidate.type === type);
               return draft ? (
                 <SymptomDetailsCard

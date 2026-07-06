@@ -29,6 +29,7 @@ export function SymptomSelector({
         const checked = selected.includes(type);
         const isExpanded = expanded.includes(type);
         const label = t(locale, `symptom.type.${type}`);
+        const hasDetails = type !== 'none';
 
         return (
           <Fragment key={type}>
@@ -51,16 +52,21 @@ export function SymptomSelector({
                   isExpanded ? 'symptom.collapseDetails' : 'symptom.expandDetails',
                 )}`}
                 accessibilityRole="button"
-                accessibilityState={{ disabled: !checked, expanded: checked && isExpanded }}
-                disabled={!checked}
+                accessibilityState={{
+                  disabled: !checked || !hasDetails,
+                  expanded: hasDetails && checked && isExpanded,
+                }}
+                disabled={!checked || !hasDetails}
                 onPress={() => onToggleExpanded(type)}
                 style={styles.labelTarget}
               >
                 <Text style={[styles.label, checked && styles.labelSelected]}>{label}</Text>
-                {checked ? <Text style={styles.chevron}>{isExpanded ? '▲' : '▼'}</Text> : null}
+                {checked && hasDetails ? (
+                  <Text style={styles.chevron}>{isExpanded ? '▲' : '▼'}</Text>
+                ) : null}
               </Pressable>
             </View>
-            {checked && isExpanded ? renderDetails?.(type) : null}
+            {hasDetails && checked && isExpanded ? renderDetails?.(type) : null}
           </Fragment>
         );
       })}
