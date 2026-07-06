@@ -60,6 +60,7 @@ export function SymptomDetailsCard({ draft, invalid, onChange }: SymptomDetailsC
 
       {draft.type === 'other' ? (
         <FormField
+          enableVoice
           label={t(locale, 'symptom.customType')}
           onChangeText={(value) => update('customType', value)}
           value={draft.customType}
@@ -116,6 +117,7 @@ export function SymptomDetailsCard({ draft, invalid, onChange }: SymptomDetailsC
       />
 
       <FormField
+        enableVoice
         label={t(locale, 'symptom.modifyingFactors')}
         multiline
         onChangeText={(value) => update('modifyingFactors', value)}
@@ -148,6 +150,7 @@ export function SymptomDetailsCard({ draft, invalid, onChange }: SymptomDetailsC
           />
           {draft.painLocation === 'other' ? (
             <FormField
+              enableVoice
               label={t(locale, 'symptom.painLocationCustom')}
               onChangeText={(value) => update('painLocationCustom', value)}
               value={draft.painLocationCustom}
@@ -164,6 +167,7 @@ export function SymptomDetailsCard({ draft, invalid, onChange }: SymptomDetailsC
           />
           {draft.painRadiates ? (
             <FormField
+              enableVoice
               label={t(locale, 'symptom.painRadiation')}
               onChangeText={(value) => update('painRadiation', value)}
               value={draft.painRadiation}
@@ -181,6 +185,7 @@ export function SymptomDetailsCard({ draft, invalid, onChange }: SymptomDetailsC
           />
           {draft.painDescription === 'other' ? (
             <FormField
+              enableVoice
               label={t(locale, 'symptom.painDescriptionCustom')}
               multiline
               onChangeText={(value) => update('painDescriptionCustom', value)}

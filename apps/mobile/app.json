@@ -15,6 +15,7 @@
     ],
     "android": {
       "package": "com.anonymous.patientresearchtracking",
+      "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ]

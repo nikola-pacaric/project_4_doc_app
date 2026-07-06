@@ -68,11 +68,13 @@ export function MealFields({ createMeal, meals, onAddPhoto, onChange }: MealFiel
           {meal.type ? (
             <View style={styles.details}>
               <FormField
+                enableVoice
                 label={t(locale, 'meal.name')}
                 onChangeText={(value) => updateMeal(index, { name: value })}
                 value={meal.name ?? ''}
               />
               <FormField
+                enableVoice
                 label={t(locale, 'meal.description')}
                 multiline
                 onChangeText={(value) => updateMeal(index, { description: value })}

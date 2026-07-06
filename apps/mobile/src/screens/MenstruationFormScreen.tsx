@@ -138,6 +138,7 @@ export function MenstruationFormScreen({
           value={time}
         />
         <FormField
+          enableVoice
           label={t(locale, 'menstruation.notes')}
           multiline
           onChangeText={(value) => update('notes', value)}

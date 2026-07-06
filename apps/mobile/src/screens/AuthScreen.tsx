@@ -94,11 +94,12 @@ export function AuthScreen({ client }: AuthScreenProps) {
   return (
     <SafeAreaView style={sharedStyles.formScreen}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
       >
         <ScrollView
-          contentContainerStyle={sharedStyles.scrollContent}
+          contentContainerStyle={[sharedStyles.scrollContent, styles.keyboardContent]}
+          keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
         >
           <ScreenHeader
@@ -176,6 +177,9 @@ export function AuthScreen({ client }: AuthScreenProps) {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+  },
+  keyboardContent: {
+    paddingBottom: spacing.xl * 3,
   },
   tabs: {
     flexDirection: 'row',

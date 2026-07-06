@@ -72,6 +72,7 @@ export function ExerciseFormScreen({
 
         <FormField
           autoCapitalize="sentences"
+          enableVoice
           label={t(locale, 'exercise.activity')}
           onChangeText={(value) => update('activity', value)}
           placeholder={t(locale, 'exercise.activityPlaceholder')}
@@ -123,6 +124,7 @@ export function ExerciseFormScreen({
           value={time}
         />
         <FormField
+          enableVoice
           label={t(locale, 'exercise.notes')}
           multiline
           onChangeText={(value) => update('notes', value)}

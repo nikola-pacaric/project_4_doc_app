@@ -5,7 +5,6 @@ import {
   type UserProfile,
 } from '@project4/contracts';
 import {
-  formatDailyFormMissingFields,
   getDailyFormMissingFields,
   hasDailyFormProgress,
   toDailyFormDraft,
@@ -70,6 +69,11 @@ interface LoadEntriesOptions {
 const ONLINE_LOAD_TIMEOUT_MS = 2_500;
 const ONLINE_MODE_CHECK_MS = 2_000;
 const OFFLINE_MODE_CHECK_MS = 2_000;
+
+function formatMissingSubmitSections(template: string, sections: string[]): string {
+  if (!sections.length) return '';
+  return template.replace('{sections}', sections.map((section) => `- ${section}`).join('\n'));
+}
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -573,6 +577,14 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
     (medicationRequired && !medicationCompleted) ||
     (periodRequired && !periodCompleted);
   const dailyReadyToSubmit = Boolean(dailyEntryId && dailyMissingFields.length === 0);
+  const today = toLocalDateInput(new Date());
+  const foodCompleted = entries.some(
+    (entry) =>
+      entry.kind === 'meal' &&
+      completeMealEntryIds.includes(entry.id) &&
+      toLocalDateInput(new Date(entry.occurredAt)) === today,
+  );
+  const stoolCompleted = hasTodayEntry(entries, 'stool') || hasTodayNoStoolEntry(entries);
 
   async function submitDay() {
     if (!dailyEntryId || submitDisabled) return;
@@ -594,11 +606,23 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
       ? t(locale, 'offline.actionsDisabled')
       : dailyCompleted
       ? t(locale, 'home.submitCompletedHelp')
-      : !dailyEntryId
-        ? t(locale, 'home.submitDailyFirst')
-        : dailyMissingFields.length
-          ? formatDailyFormMissingFields(locale, dailyMissingFields)
-          : t(locale, 'home.submitHelp');
+      : (() => {
+          const missingSubmitSections = [
+            !dailyCompleted && !dailyReadyToSubmit ? t(locale, 'home.action.daily') : null,
+            !foodCompleted ? t(locale, 'home.action.food') : null,
+            !symptomsCompleted ? t(locale, 'home.action.symptoms') : null,
+            !stoolCompleted ? t(locale, 'home.action.stool') : null,
+            exerciseRequired && !exerciseCompleted ? t(locale, 'home.action.exercise') : null,
+            medicationRequired && !medicationCompleted
+              ? t(locale, 'home.action.medication')
+              : null,
+            periodRequired && !periodCompleted ? t(locale, 'home.action.period') : null,
+          ].filter(Boolean) as string[];
+
+          return missingSubmitSections.length
+            ? formatMissingSubmitSections(t(locale, 'home.submitMissing'), missingSubmitSections)
+            : t(locale, 'home.submitHelp');
+        })();
   const visibleEntries = mergePendingTextEntries(entries, pendingEntries);
   const pendingIds = pendingTimelineEntryIds(pendingEntries);
 
@@ -617,7 +641,7 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
       medicationRequired={medicationRequired}
       periodCompleted={periodCompleted}
       periodRequired={periodRequired}
-      stoolCompleted={hasTodayEntry(entries, 'stool') || hasTodayNoStoolEntry(entries)}
+      stoolCompleted={stoolCompleted}
       onOpenBaseline={() => setShowBaseline(true)}
       onOpenDaily={() => setShowDailyForm(true)}
       onOpenExercise={() => {

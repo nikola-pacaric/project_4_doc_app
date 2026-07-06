@@ -237,6 +237,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
               value={draft.birthYear?.toString() ?? ''}
             />
             <FormField
+              enableVoice
               label={t(locale, 'baseline.occupation')}
               onChangeText={(value) => setDraft((state) => ({ ...state, occupation: value }))}
               value={draft.occupation ?? ''}
@@ -288,6 +289,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
             {draft.recentMajorWeightChange === 'yes' ? (
               <View style={styles.conditionalBubble}>
                 <FormField
+                  enableVoice
                   label={t(locale, 'baseline.recentWeightChangeDescription')}
                   multiline
                   onChangeText={(value) =>
@@ -341,6 +343,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
                 {chronicDiseaseNames.map((name, index) => (
                   <View key={index} style={styles.repeatableRow}>
                     <FormField
+                      enableVoice
                       label={t(locale, 'baseline.chronicDiseaseName')}
                       onChangeText={(value) => {
                         const next = chronicDiseaseNames.map((current, currentIndex) =>
@@ -421,6 +424,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
                   <View key={index} style={styles.repeatableRow}>
                     <FormField
                       autoCapitalize="words"
+                      enableVoice
                       label={t(locale, 'baseline.chronicTherapyName')}
                       onChangeText={(value) => {
                         const next = chronicTherapies.map((current, currentIndex) =>
@@ -435,6 +439,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
                       value={therapy.name}
                     />
                     <FormField
+                      enableVoice
                       label={t(locale, 'baseline.chronicTherapyDose')}
                       onChangeText={(value) => {
                         const next = chronicTherapies.map((current, currentIndex) =>
@@ -483,6 +488,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
             ) : null}
             {draft.sex === 'female' ? (
               <FormField
+                enableVoice
                 label={t(locale, 'baseline.menstrualHistory')}
                 multiline
                 onChangeText={(value) =>

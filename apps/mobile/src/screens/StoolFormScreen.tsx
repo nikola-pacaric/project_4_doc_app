@@ -167,6 +167,7 @@ export function StoolFormScreen({
         </View>
 
         <FormField
+          enableVoice
           label={t(locale, 'stool.notes')}
           multiline
           onChangeText={(value) => update('notes', value)}

@@ -60,6 +60,7 @@ export function OtherFluidFields({
             value={fluid.occurredAt?.slice(11, 16) ?? ''}
           />
           <FormField
+            enableVoice
             label={t(locale, 'fluid.name')}
             onChangeText={(value) => updateFluid(index, { name: value })}
             value={fluid.name ?? ''}

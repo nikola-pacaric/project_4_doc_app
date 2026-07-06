@@ -105,6 +105,21 @@ function greetingKey(hour: number): TranslationKey {
   return 'home.greeting.evening';
 }
 
+function fitTextSize(
+  text: string,
+  availableWidth: number,
+  maxSize: number,
+  minSize: number,
+  widthFactor = 0.6,
+): number {
+  const longestWord = text
+    .split(/\s+/)
+    .map((word) => word.trim().length)
+    .reduce((max, length) => Math.max(max, length), 1);
+  const sizeForWidth = Math.floor(availableWidth / Math.max(1, longestWord * widthFactor));
+  return Math.max(minSize, Math.min(maxSize, sizeForWidth));
+}
+
 export function DailyProgressHomeScreen({
   onOpenDaily,
   onOpenBaseline,
@@ -175,27 +190,64 @@ export function DailyProgressHomeScreen({
   ).length;
   const progress = Math.round((completedItems / progressActions.length) * 100);
   const actionColumns = 4;
-  const actionGridWidth = width - spacing.lg * 2 - spacing.sm * (actionColumns - 1);
+  const isSmallPhone = width < 360;
+  const isVerySmallPhone = width < 330;
+  const horizontalPadding = isSmallPhone ? spacing.md : spacing.lg;
+  const actionGridWidth = width - horizontalPadding * 2 - spacing.sm * (actionColumns - 1);
   const actionCardWidth = Math.min(112, actionGridWidth / actionColumns);
+  const actionCardHeight = actionCardWidth;
+  const actionCardScale = Math.max(0.68, Math.min(1, actionCardWidth / 112));
+  const actionCardPadding = Math.max(3, Math.round(actionCardWidth * 0.06));
+  const actionCardGap = Math.max(1, Math.round(actionCardWidth * 0.035));
+  const actionIconBoxSize = Math.round(actionCardWidth * 0.27);
+  const actionIconFontSize = Math.round(actionIconBoxSize * 0.58);
+  const actionTextWidth = actionCardWidth - actionCardPadding * 2;
+  const actionStatusSlotHeight = Math.round(actionCardHeight * 0.13);
+  const actionLabelSlotHeight =
+    actionCardHeight -
+    actionCardPadding * 2 -
+    actionIconBoxSize -
+    actionStatusSlotHeight -
+    actionCardGap * 2;
   const displayName = profile.displayName?.trim() || t(locale, 'role.patient');
   const dateLabel = new Intl.DateTimeFormat(locale, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
   }).format(now);
+  const submitHelpIsList = submitHelp.includes('\n- ');
 
   return (
     <SafeAreaView style={[sharedStyles.screen, styles.safeArea]}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          isSmallPhone && styles.contentCompact,
+        ]}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         style={sharedStyles.screen}
       >
         <View style={styles.headerGroup}>
-          <View style={styles.topBar}>
-            <View />
-            <View style={styles.accountActions}>
+          <View style={[styles.topBar, isVerySmallPhone && styles.topBarStacked]}>
+            <View style={styles.greetingBlock}>
+              <Text style={styles.date}>{dateLabel}</Text>
+              <Text
+                adjustsFontSizeToFit
+                minimumFontScale={0.82}
+                numberOfLines={1}
+                style={[styles.greeting, isSmallPhone && styles.greetingCompact]}
+              >
+                {t(locale, greetingKey(now.getHours()))},
+              </Text>
+              <Text
+                style={[styles.greetingName, isSmallPhone && styles.greetingNameCompact]}
+                numberOfLines={2}
+              >
+                {displayName}
+              </Text>
+            </View>
+            <View style={[styles.accountActions, isVerySmallPhone && styles.accountActionsStacked]}>
               <Pressable
                 accessibilityRole="button"
                 onPress={() => void onSignOut()}
@@ -219,13 +271,6 @@ export function DailyProgressHomeScreen({
                 <Text style={styles.avatarText}>{displayName.slice(0, 2).toUpperCase()}</Text>
               </Pressable>
             </View>
-          </View>
-
-          <View style={styles.greetingBlock}>
-            <Text style={styles.date}>{dateLabel}</Text>
-            <Text style={styles.greeting}>
-              {t(locale, greetingKey(now.getHours()))}, {displayName}
-            </Text>
           </View>
         </View>
 
@@ -292,10 +337,67 @@ export function DailyProgressHomeScreen({
                 (showMedicationStatus && medicationRequired && !medicationCompleted) ||
                 (showPeriodStatus && periodRequired && !periodCompleted);
               const offlineDisabled = offlineMode && action.id !== 'notes';
+              const actionLabel = t(locale, action.labelKey);
+              let actionStatusText: string | null = null;
+              let actionStatusStyle = null;
+
+              if (offlineDisabled) {
+                actionStatusText = t(locale, 'offline.onlyNotes');
+                actionStatusStyle = styles.actionStatusOffline;
+              } else if (showExerciseStatus) {
+                actionStatusText = t(locale, exerciseStatusKey);
+                actionStatusStyle =
+                  exerciseRequired && !exerciseCompleted
+                    ? styles.actionStatusRequired
+                    : exerciseCompleted
+                      ? styles.actionStatusCompleted
+                      : null;
+              } else if (showMedicationStatus) {
+                actionStatusText = t(locale, medicationStatusKey);
+                actionStatusStyle =
+                  medicationRequired && !medicationCompleted
+                    ? styles.actionStatusRequired
+                    : medicationCompleted
+                      ? styles.actionStatusCompleted
+                      : null;
+              } else if (showPeriodStatus) {
+                actionStatusText = t(locale, periodStatusKey);
+                actionStatusStyle =
+                  periodRequired && !periodCompleted
+                    ? styles.actionStatusRequired
+                    : periodCompleted
+                      ? styles.actionStatusCompleted
+                      : null;
+              } else if (
+                showDailyCompleted ||
+                showDailyReady ||
+                showStoolCompleted ||
+                showSymptomsCompleted
+              ) {
+                actionStatusText = t(locale, 'home.action.completed');
+                actionStatusStyle = styles.actionStatusCompleted;
+              }
+
+              const maxLabelSizeByHeight = Math.floor(actionLabelSlotHeight / 2) - 1;
+              const actionLabelFontSize = Math.min(
+                fitTextSize(actionLabel, actionTextWidth, 12, 7.5),
+                Math.max(7.5, maxLabelSizeByHeight),
+              );
+              const actionLabelLineHeight = Math.max(
+                9,
+                Math.floor(actionLabelSlotHeight / 2),
+              );
+              const actionStatusFontSize = actionStatusText
+                ? Math.min(
+                    fitTextSize(actionStatusText, actionTextWidth, 10, 7, 0.64),
+                    Math.max(7, actionStatusSlotHeight - 3),
+                  )
+                : 10;
+              const actionStatusLineHeight = Math.max(8, actionStatusSlotHeight);
 
               return (
                 <Pressable
-                  accessibilityLabel={t(locale, action.labelKey)}
+                  accessibilityLabel={actionLabel}
                   accessibilityHint={
                     offlineDisabled ? t(locale, 'offline.actionsDisabled') : undefined
                   }
@@ -310,66 +412,60 @@ export function DailyProgressHomeScreen({
                     actionRequired && styles.actionCardRequired,
                     offlineDisabled && styles.actionCardDisabled,
                     pressed && !offlineDisabled && styles.actionCardPressed,
-                    { height: actionCardWidth, width: actionCardWidth },
+                    {
+                      gap: actionCardGap,
+                      height: actionCardHeight,
+                      paddingHorizontal: actionCardPadding,
+                      paddingVertical: actionCardPadding,
+                      width: actionCardWidth,
+                    },
                   ]}
                 >
-                  <View style={styles.actionIconContainer}>
-                    <Text style={styles.actionIcon}>{action.icon}</Text>
+                  <View
+                    style={[
+                      styles.actionIconContainer,
+                      {
+                        borderRadius: actionIconBoxSize / 2,
+                        height: actionIconBoxSize,
+                        width: actionIconBoxSize,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.actionIcon,
+                        { fontSize: actionIconFontSize, lineHeight: actionIconBoxSize },
+                      ]}
+                    >
+                      {action.icon}
+                    </Text>
                   </View>
-                  <Text numberOfLines={2} style={styles.actionLabel}>
-                    {t(locale, action.labelKey)}
+                  <Text
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.72}
+                    numberOfLines={2}
+                    style={[
+                      styles.actionLabel,
+                      { fontSize: actionLabelFontSize, lineHeight: actionLabelLineHeight },
+                    ]}
+                  >
+                    {actionLabel}
                   </Text>
-                  {showExerciseStatus ? (
+                  {actionStatusText ? (
                     <Text
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.72}
+                      numberOfLines={1}
                       style={[
                         styles.actionStatus,
-                        exerciseRequired && !exerciseCompleted && styles.actionStatusRequired,
-                        exerciseCompleted && styles.actionStatusCompleted,
+                        {
+                          fontSize: actionStatusFontSize,
+                          lineHeight: actionStatusLineHeight,
+                        },
+                        actionStatusStyle,
                       ]}
                     >
-                      {t(locale, exerciseStatusKey)}
-                    </Text>
-                  ) : null}
-                  {showMedicationStatus ? (
-                    <Text
-                      style={[
-                        styles.actionStatus,
-                        medicationRequired && !medicationCompleted && styles.actionStatusRequired,
-                        medicationCompleted && styles.actionStatusCompleted,
-                      ]}
-                    >
-                      {t(locale, medicationStatusKey)}
-                    </Text>
-                  ) : null}
-                  {showPeriodStatus ? (
-                    <Text
-                      style={[
-                        styles.actionStatus,
-                        periodRequired && !periodCompleted && styles.actionStatusRequired,
-                        periodCompleted && styles.actionStatusCompleted,
-                      ]}
-                    >
-                      {t(locale, periodStatusKey)}
-                    </Text>
-                  ) : null}
-                  {showDailyCompleted || showDailyReady ? (
-                    <Text style={[styles.actionStatus, styles.actionStatusCompleted]}>
-                      {t(locale, 'home.action.completed')}
-                    </Text>
-                  ) : null}
-                  {showStoolCompleted ? (
-                    <Text style={[styles.actionStatus, styles.actionStatusCompleted]}>
-                      {t(locale, 'home.action.completed')}
-                    </Text>
-                  ) : null}
-                  {showSymptomsCompleted ? (
-                    <Text style={[styles.actionStatus, styles.actionStatusCompleted]}>
-                      {t(locale, 'home.action.completed')}
-                    </Text>
-                  ) : null}
-                  {offlineDisabled ? (
-                    <Text style={[styles.actionStatus, styles.actionStatusOffline]}>
-                      {t(locale, 'offline.onlyNotes')}
+                      {actionStatusText}
                     </Text>
                   ) : null}
                 </Pressable>
@@ -474,7 +570,13 @@ export function DailyProgressHomeScreen({
             onPress={() => void onSubmitDay()}
             variant={dailyCompleted ? 'secondary' : 'primary'}
           />
-          <Text style={[styles.submitHelp, dailyCompleted && styles.submitHelpCompleted]}>
+          <Text
+            style={[
+              styles.submitHelp,
+              submitHelpIsList && styles.submitHelpList,
+              dailyCompleted && styles.submitHelpCompleted,
+            ]}
+          >
             {submitHelp}
           </Text>
         </View>
@@ -490,20 +592,36 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    gap: spacing.xl,
+    gap: spacing.lg,
     padding: spacing.lg,
     paddingBottom: spacing.xl + spacing.lg,
+  },
+  contentCompact: {
+    padding: spacing.md,
+    paddingBottom: spacing.xl + spacing.md,
   },
   headerGroup: {
     gap: spacing.md,
   },
   topBar: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
+    gap: spacing.sm,
     justifyContent: 'space-between',
   },
+  topBarStacked: {
+    alignItems: 'stretch',
+    flexDirection: 'column',
+  },
   pressed: { opacity: 0.7 },
-  accountActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
+  accountActions: {
+    alignItems: 'flex-end',
+    flexShrink: 0,
+    gap: spacing.sm,
+  },
+  accountActionsStacked: {
+    alignSelf: 'flex-end',
+  },
   signOutButton: {
     alignItems: 'center',
     borderColor: colors.border,
@@ -523,14 +641,23 @@ const styles = StyleSheet.create({
     width: 48,
   },
   avatarText: { color: '#ffffff', fontSize: 15, fontWeight: '800' },
-  greetingBlock: { gap: spacing.xs },
+  greetingBlock: {
+    flex: 1,
+    flexBasis: '64%',
+    gap: spacing.xs,
+    minWidth: 0,
+    paddingTop: spacing.xs,
+  },
   date: {
     color: colors.mutedText,
     fontSize: 14,
     fontWeight: '700',
     textTransform: 'capitalize',
   },
-  greeting: { color: colors.text, fontSize: 29, fontWeight: '800', lineHeight: 36 },
+  greeting: { color: colors.text, fontSize: 25, fontWeight: '800', lineHeight: 30 },
+  greetingCompact: { fontSize: 23, lineHeight: 28 },
+  greetingName: { color: colors.text, fontSize: 27, fontWeight: '800', lineHeight: 32 },
+  greetingNameCompact: { fontSize: 24, lineHeight: 29 },
   progressCard: {
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -580,8 +707,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: spacing.xs,
     justifyContent: 'center',
+    overflow: 'hidden',
     paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   actionCardEnabled: { borderColor: colors.accent },
   actionCardRequired: { backgroundColor: '#fff4e5', borderColor: '#d97706' },
@@ -595,24 +723,22 @@ const styles = StyleSheet.create({
   actionIconContainer: {
     alignItems: 'center',
     backgroundColor: colors.background,
-    borderRadius: 16,
-    height: 32,
     justifyContent: 'center',
-    width: 32,
   },
-  actionIcon: { fontSize: 18 },
+  actionIcon: { lineHeight: 22 },
   actionLabel: {
+    alignSelf: 'stretch',
     color: colors.text,
-    fontSize: 12,
     fontWeight: '700',
     lineHeight: 15,
     textAlign: 'center',
   },
   actionStatus: {
+    alignSelf: 'stretch',
     color: colors.mutedText,
-    fontSize: 10,
     fontWeight: '800',
     lineHeight: 12,
+    textAlign: 'center',
     textTransform: 'uppercase',
   },
   actionStatusRequired: { color: '#b42318' },
@@ -655,6 +781,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
+  },
+  submitHelpList: {
+    alignSelf: 'stretch',
+    textAlign: 'left',
   },
   submitHelpCompleted: { color: '#16794b', fontWeight: '700' },
 });

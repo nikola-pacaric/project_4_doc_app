@@ -1,7 +1,6 @@
 import type { UserProfile } from '@project4/contracts';
 import {
   dailyFormDefaults,
-  formatDailyFormMissingFields,
   getDailyFormMissingFields,
   hasDailyFormProgress,
   isCompleteDailyForm,
@@ -174,12 +173,7 @@ export function DailyFormScreen({
   }
 
   const missingFields = getDailyFormMissingFields(draft, includeMenstruation, hasChronicTherapy);
-  const draftStatusTitle = missingFields.length
-    ? t(locale, 'daily.statusDraft')
-    : t(locale, 'home.action.completed');
-  const draftStatusHelp = missingFields.length
-    ? formatDailyFormMissingFields(locale, missingFields)
-    : t(locale, 'daily.readyForHomeSubmit');
+  const showDraftStatus = Boolean(existingEntryId && !completedAt && hasDailyFormProgress(draft));
 
   return (
     <SafeAreaView style={sharedStyles.formScreen}>
@@ -192,14 +186,22 @@ export function DailyFormScreen({
         {loading ? <ActivityIndicator color={colors.accent} size="large" /> : null}
         {!loading ? (
           <View style={styles.form}>
-            <View style={[styles.status, completedAt ? styles.completeStatus : styles.draftStatus]}>
-              <Text style={styles.statusTitle}>
-                {completedAt ? t(locale, 'daily.statusComplete') : draftStatusTitle}
-              </Text>
-              <Text style={styles.statusHelp}>
-                {completedAt ? t(locale, 'daily.statusCompleteHelp') : draftStatusHelp}
-              </Text>
-            </View>
+            {completedAt || showDraftStatus ? (
+              <View
+                style={[
+                  styles.status,
+                  completedAt ? styles.completeStatus : styles.draftStatus,
+                  showDraftStatus && styles.draftStatusCentered,
+                ]}
+              >
+                <Text style={[styles.statusTitle, showDraftStatus && styles.statusTitleCentered]}>
+                  {completedAt ? t(locale, 'daily.statusComplete') : t(locale, 'daily.statusDraft')}
+                </Text>
+                {completedAt ? (
+                  <Text style={styles.statusHelp}>{t(locale, 'daily.statusCompleteHelp')}</Text>
+                ) : null}
+              </View>
+            ) : null}
             <TimePickerField
               label={t(locale, 'daily.wakeTime')}
               onChange={(value) =>
@@ -353,6 +355,7 @@ export function DailyFormScreen({
               text={draft.naps ?? ''}
             />
             <FormField
+              enableVoice
               label={t(locale, 'daily.dayDescription')}
               multiline
               onChangeText={(dayDescription) =>
@@ -388,9 +391,15 @@ export function DailyFormScreen({
 const styles = StyleSheet.create({
   form: { gap: spacing.lg },
   status: { borderRadius: 16, borderWidth: 1, gap: spacing.xs, padding: spacing.md },
+  draftStatusCentered: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 54,
+  },
   draftStatus: { backgroundColor: '#fff8e8', borderColor: '#ead8a8' },
   completeStatus: { backgroundColor: '#edf8f2', borderColor: '#b9dfc9' },
   statusTitle: { color: colors.text, fontSize: 17, fontWeight: '800' },
+  statusTitleCentered: { textAlign: 'center' },
   statusHelp: { color: colors.mutedText, fontSize: 14, lineHeight: 21 },
   exerciseRequirement: {
     backgroundColor: '#fff4e5',

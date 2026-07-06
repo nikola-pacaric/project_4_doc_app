@@ -88,12 +88,14 @@ export function MedicationFormScreen({
 
         <FormField
           autoCapitalize="words"
+          enableVoice
           label={t(locale, 'medication.name')}
           onChangeText={(value) => update('name', value)}
           placeholder={t(locale, 'medication.namePlaceholder')}
           value={draft.name ?? ''}
         />
         <FormField
+          enableVoice
           label={t(locale, 'medication.dose')}
           onChangeText={(value) => update('dose', value)}
           placeholder={t(locale, 'medication.dosePlaceholder')}
@@ -126,6 +128,7 @@ export function MedicationFormScreen({
           value={draft.takenAt?.slice(11, 16) ?? ''}
         />
         <FormField
+          enableVoice
           label={t(locale, 'medication.reason')}
           multiline
           onChangeText={(value) => update('reason', value)}

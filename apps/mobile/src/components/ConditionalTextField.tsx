@@ -41,6 +41,7 @@ export function ConditionalTextField({
       {answer ? (
         <View style={styles.bubble}>
           <FormField
+            enableVoice
             label={t(locale, detailKey)}
             multiline
             onChangeText={onTextChange}
