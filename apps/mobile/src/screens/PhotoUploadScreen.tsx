@@ -6,16 +6,9 @@ import { spacing } from '@project4/ui-tokens';
 import { manipulateAsync, SaveFormat, type ImageResult } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { colors, sharedStyles } from '../theme';
@@ -213,7 +206,9 @@ export function PhotoUploadScreen({
 
   return (
     <SafeAreaView style={sharedStyles.formScreen}>
-      <ScrollView
+      <KeyboardAwareScrollView
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={sharedStyles.formScrollContent}
         contentInsetAdjustmentBehavior="automatic"
       >
@@ -225,6 +220,8 @@ export function PhotoUploadScreen({
             {t(locale, `photo.context.${contextType}` as TranslationKey)}
           </Text>
         </View>
+
+        <Text style={styles.warning}>{t(locale, 'photo.storageWarning')}</Text>
 
         {preparedPhoto ? (
           <View style={styles.previewBlock}>
@@ -272,7 +269,7 @@ export function PhotoUploadScreen({
             onPress={() => void handleFinalAction()}
           />
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
@@ -288,6 +285,7 @@ const styles = StyleSheet.create({
   },
   entryTitle: { color: colors.text, fontSize: 16, fontWeight: '800', lineHeight: 22 },
   entryMeta: { color: colors.mutedText, fontSize: 13, fontWeight: '700' },
+  warning: { color: colors.mutedText, fontSize: 14, fontWeight: '700', lineHeight: 20 },
   previewBlock: { gap: spacing.sm },
   preview: {
     aspectRatio: 1,

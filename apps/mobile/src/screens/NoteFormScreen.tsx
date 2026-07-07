@@ -2,8 +2,9 @@ import { noteDraftDefaults, validateNote, type NoteDraft } from '@project4/forms
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -62,7 +63,8 @@ export function NoteFormScreen({
 
   return (
     <SafeAreaView style={sharedStyles.formScreen}>
-      <ScrollView
+      <KeyboardAwareScrollView
+        keyboardDismissMode="on-drag"
         contentContainerStyle={sharedStyles.formScrollContent}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
@@ -114,7 +116,7 @@ export function NoteFormScreen({
             <PrimaryButton busy={busy} label={t(locale, 'common.save')} onPress={save} />
           </View>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

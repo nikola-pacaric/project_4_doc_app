@@ -1607,6 +1607,11 @@ button:focus-visible {
   background: #f5fbf7;
 }
 
+.web-action-card.draft {
+  border-color: #e7bd76;
+  background: #fff9ef;
+}
+
 .web-action-icon {
   width: 32px;
   height: 32px;

@@ -279,6 +279,8 @@ export const dictionaries = {
     'photo.saveFirst': 'Save first',
     'photo.savedPhotos': 'Saved photos',
     'photo.sizeSummary': 'Prepared JPEG: {width} x {height}, about {kilobytes} KB.',
+    'photo.storageWarning':
+      'Photos use study storage. Add only needed meal, fluid, or medication photos and avoid repeated test uploads.',
     'photo.take': 'Take picture',
     'photo.title': 'Attach photo',
     'photo.upload': 'Upload photo',
@@ -754,6 +756,8 @@ export const dictionaries = {
     'photo.saveFirst': 'Prvo sacuvaj',
     'photo.savedPhotos': 'Sacuvane fotografije',
     'photo.sizeSummary': 'Pripremljen JPEG: {width} x {height}, oko {kilobytes} KB.',
+    'photo.storageWarning':
+      'Fotografije koriste prostor istrazivanja. Dodajte samo potrebne fotografije obroka, tecnosti ili leka i izbegavajte ponovljena probna otpremanja.',
     'photo.take': 'Slikaj',
     'photo.title': 'Dodaj fotografiju',
     'photo.upload': 'Otpremi fotografiju',

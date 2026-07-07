@@ -9,8 +9,9 @@ import {
 } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { colors, sharedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
@@ -128,7 +129,9 @@ export function PatientStoolScreen({
 
   if (savedStool || savedNoStool) {
     return (
-      <ScrollView
+      <KeyboardAwareScrollView
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic"
         style={sharedStyles.screen}
@@ -163,7 +166,7 @@ export function PatientStoolScreen({
           />
           <PrimaryButton label={t(locale, 'stool.done')} onPress={onBack} variant="secondary" />
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     );
   }
 

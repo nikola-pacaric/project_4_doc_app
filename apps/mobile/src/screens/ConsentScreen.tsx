@@ -1,8 +1,9 @@
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { SafeAreaView, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { colors, sharedStyles } from '../theme';
@@ -39,7 +40,9 @@ export function ConsentScreen({ displayName, onAccept, onSignOut }: ConsentScree
 
   return (
     <SafeAreaView style={sharedStyles.screen}>
-      <ScrollView contentContainerStyle={sharedStyles.scrollContent}>
+      <KeyboardAwareScrollView
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled" contentContainerStyle={sharedStyles.scrollContent}>
         <ScreenHeader
           eyebrow={displayName ?? t(locale, 'role.patient')}
           title={t(locale, 'consent.title')}
@@ -68,7 +71,7 @@ export function ConsentScreen({ displayName, onAccept, onSignOut }: ConsentScree
             variant="secondary"
           />
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

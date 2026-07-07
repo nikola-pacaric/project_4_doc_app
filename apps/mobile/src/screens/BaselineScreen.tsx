@@ -13,19 +13,9 @@ import {
 } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  LayoutAnimation,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  UIManager,
-  View,
-} from 'react-native';
+import { ActivityIndicator, LayoutAnimation, Platform, Pressable, SafeAreaView, StyleSheet, Text, UIManager, View } from 'react-native';
 
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -196,7 +186,8 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
 
   return (
     <SafeAreaView style={sharedStyles.formScreen}>
-      <ScrollView
+      <KeyboardAwareScrollView
+        keyboardDismissMode="on-drag"
         contentContainerStyle={sharedStyles.formScrollContent}
         keyboardShouldPersistTaps="handled"
       >
@@ -517,7 +508,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
             </View>
           </View>
         ) : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

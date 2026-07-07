@@ -7,7 +7,6 @@ import {
   parseOtherFluids,
   serializeOtherFluids,
   normalizeMealDateTime,
-  validateMeal,
   validateOtherFluid,
   type FoodHydrationDraft,
   type MealDraft,
@@ -28,8 +27,9 @@ import {
 } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { FormField } from '../components/FormField';
 import { MealFields, type ClientMealDraft } from '../components/MealFields';
 import { OptionButtons } from '../components/OptionButtons';
@@ -281,19 +281,20 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
 
   async function save() {
     const mealsToSave = meals.filter(
-      (meal) => meal.entryId || meal.localPhoto || validateMeal(meal).valid,
+      (meal) => meal.localPhoto || getStartedMeals([meal]).length > 0,
     );
     const fluidsToSave = otherFluids.filter(
       (fluid) => fluid.entryId || fluid.localPhoto || validateOtherFluid(fluid),
     );
-    const shouldSaveOtherFluids = hydration.hasOtherFluids === true && fluidsToSave.length > 0;
     const normalizedWaterText = normalizeWaterLitersText(waterText);
     const parsedWaterLiters = parseWaterLitersInput(normalizedWaterText);
     const normalizedHydration: FoodHydrationDraft = {
       ...hydration,
       waterLiters: parsedWaterLiters,
-      hasOtherFluids: shouldSaveOtherFluids,
-      otherFluids: shouldSaveOtherFluids ? serializeOtherFluids(fluidsToSave) : '',
+      hasOtherFluids: hydration.hasOtherFluids,
+      otherFluids: hydration.hasOtherFluids === true && fluidsToSave.length > 0
+        ? serializeOtherFluids(fluidsToSave)
+        : undefined,
     };
 
     setWaterText(normalizedWaterText);
@@ -328,7 +329,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
         : [];
       const nextOtherFluids = toOtherFluidDrafts(fluidRecords, nextHydration.otherFluids);
 
-      if (!shouldSaveOtherFluids && nextFoodEntryId) {
+      if (hydration.hasOtherFluids !== true && nextFoodEntryId) {
         const legacyFluidPhotos = (await listEntryPhotos(client, nextFoodEntryId)).filter(
           (photo) => photo.contextType === 'fluid',
         );
@@ -465,7 +466,8 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
 
   return (
     <SafeAreaView style={sharedStyles.formScreen}>
-      <ScrollView
+      <KeyboardAwareScrollView
+        keyboardDismissMode="on-drag"
         contentContainerStyle={sharedStyles.formScrollContent}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
@@ -566,7 +568,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
             </View>
           </View>
         ) : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

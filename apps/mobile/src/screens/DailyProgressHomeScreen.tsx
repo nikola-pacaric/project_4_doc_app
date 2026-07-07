@@ -1,19 +1,9 @@
+import { ActivityIndicator, Platform, Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { EntryKind, PatientEntry, UserProfile } from '@project4/contracts';
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
 
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { CircularProgress } from '../components/CircularProgress';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { colors, sharedStyles } from '../theme';
@@ -46,6 +36,8 @@ interface DailyProgressHomeScreenProps {
   periodRequired: boolean;
   stoolCompleted: boolean;
   symptomsCompleted: boolean;
+  foodCompleted: boolean;
+  foodStarted: boolean;
   profile: UserProfile;
   pendingEntryIds?: string[];
   recentEntries: PatientEntry[];
@@ -147,6 +139,8 @@ export function DailyProgressHomeScreen({
   periodRequired,
   stoolCompleted,
   symptomsCompleted,
+  foodCompleted,
+  foodStarted,
   profile,
   pendingEntryIds = [],
   recentEntries,
@@ -185,8 +179,8 @@ export function DailyProgressHomeScreen({
       : action.id === 'stool'
         ? stoolCompleted
         : action.id === 'food'
-          ? allTodayEntries.some((entry) => entry.kind === 'meal' && completeMealIds.has(entry.id))
-        : completedKinds.has(actionEntryKinds[action.id]),
+          ? foodCompleted
+          : completedKinds.has(actionEntryKinds[action.id]),
   ).length;
   const progress = Math.round((completedItems / progressActions.length) * 100);
   const actionColumns = 4;
@@ -219,7 +213,8 @@ export function DailyProgressHomeScreen({
 
   return (
     <SafeAreaView style={[sharedStyles.screen, styles.safeArea]}>
-      <ScrollView
+      <KeyboardAwareScrollView
+        keyboardDismissMode="on-drag"
         contentContainerStyle={[
           styles.content,
           isSmallPhone && styles.contentCompact,
@@ -368,6 +363,14 @@ export function DailyProgressHomeScreen({
                     : periodCompleted
                       ? styles.actionStatusCompleted
                       : null;
+              } else if (action.id === 'food') {
+                if (foodCompleted) {
+                  actionStatusText = t(locale, 'home.action.completed');
+                  actionStatusStyle = styles.actionStatusCompleted;
+                } else if (foodStarted) {
+                  actionStatusText = t(locale, 'daily.statusDraft');
+                  actionStatusStyle = styles.actionStatusDraft;
+                }
               } else if (
                 showDailyCompleted ||
                 showDailyReady ||
@@ -498,7 +501,7 @@ export function DailyProgressHomeScreen({
                   entry.kind === 'daily'
                     ? dailyCompleted
                     : entry.kind === 'meal'
-                      ? completeMealIds.has(entry.id)
+                      ? completeMealIds.has(entry.id) && foodCompleted
                     : entry.kind === 'medication'
                       ? completeMedicationIds.has(entry.id)
                       : true;
@@ -580,7 +583,7 @@ export function DailyProgressHomeScreen({
             {submitHelp}
           </Text>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
@@ -744,6 +747,7 @@ const styles = StyleSheet.create({
   actionStatusRequired: { color: '#b42318' },
   actionStatusCompleted: { color: '#16794b' },
   actionStatusOffline: { color: colors.mutedText },
+  actionStatusDraft: { color: '#a15c00' },
   entryList: { gap: spacing.sm },
   entryCard: {
     alignItems: 'center',

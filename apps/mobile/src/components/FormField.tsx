@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
 import { colors, sharedStyles } from '../theme';
+import { useKeyboardAwareInput } from './KeyboardAwareScrollView';
 import {
   appendVoiceTranscript,
   isVoiceInputSupported,
@@ -18,6 +19,7 @@ interface FormFieldProps extends TextInputProps {
 
 export function FormField({ enableVoice = false, label, ...props }: FormFieldProps) {
   const locale = DEFAULT_LOCALE;
+  const keyboardAwareInput = useKeyboardAwareInput();
   const [supported, setSupported] = useState<boolean | null>(null);
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -72,6 +74,10 @@ export function FormField({ enableVoice = false, label, ...props }: FormFieldPro
         <TextInput
           accessibilityLabel={label}
           autoCorrect={false}
+          onFocus={(event) => {
+            keyboardAwareInput?.onInputFocus();
+            props.onFocus?.(event);
+          }}
           placeholderTextColor="#a28d94"
           spellCheck={false}
           style={[

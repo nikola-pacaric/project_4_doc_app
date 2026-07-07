@@ -3,12 +3,16 @@ import {
   isNoStoolTodayEntry,
   type PatientEntry,
   type UserProfile,
+  type FoodFormRecord,
 } from '@project4/contracts';
 import {
   getDailyFormMissingFields,
   hasDailyFormProgress,
   toDailyFormDraft,
+  isFoodFormComplete,
+  isFoodFormStarted,
   type DailyFormField,
+  type FoodHydrationDraft,
 } from '@project4/forms';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import {
@@ -26,6 +30,7 @@ import {
   createPatientNote,
   getPatientBaseline,
   getPatientDailyForm,
+  getPatientFoodForm,
   listCompletePatientMealEntryIds,
   listCompletePatientMedicationEntryIds,
   listRecentPatientEntries,
@@ -148,6 +153,7 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
   const [showTimeline, setShowTimeline] = useState(false);
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
   const [pendingEntries, setPendingEntries] = useState<LocalPendingEntry[]>([]);
+  const [foodForm, setFoodForm] = useState<FoodFormRecord | null>(null);
   const syncPendingPromiseRef = useRef<Promise<LocalPendingEntry[]> | null>(null);
   const loadEntriesPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -268,11 +274,12 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
       try {
         await withTimeout(syncPendingQueue(), ONLINE_LOAD_TIMEOUT_MS);
         const range = localDayRange(toLocalDateInput(new Date()));
-        const [nextEntries, baseline, dailyForm] = await withTimeout(
+        const [nextEntries, baseline, dailyForm, foodFormDetails] = await withTimeout(
           Promise.all([
             listRecentPatientEntries(client, profile.id),
             getPatientBaseline(client, profile.id),
             getPatientDailyForm(client, profile.id, range.start, range.end),
+            getPatientFoodForm(client, profile.id, range.start, range.end),
           ]),
           ONLINE_LOAD_TIMEOUT_MS,
         );
@@ -290,6 +297,7 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
           ONLINE_LOAD_TIMEOUT_MS,
         );
         setOfflineMode(false);
+        setFoodForm(foodFormDetails);
         await saveCachedRecentEntries(profile.id, nextEntries);
         await saveCachedOpenedDayEntries(profile.id, nextEntries, (entry) =>
           toLocalDateInput(new Date(entry.occurredAt)),
@@ -337,6 +345,7 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
           ? cachedOpenedDayEntries
           : await loadCachedRecentEntries(profile.id);
         setOfflineMode(true);
+        setFoodForm(null);
         if (cachedEntries.length) {
           setEntries(filterPatientTimelineEntries(cachedEntries, null));
           setCompleteMealEntryIds([]);
@@ -566,6 +575,30 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
     );
   }
 
+  const dailyReadyToSubmit = Boolean(dailyEntryId && dailyMissingFields.length === 0);
+  const today = toLocalDateInput(new Date());
+  const todayMeals = entries.filter(
+    (entry) =>
+      entry.kind === 'meal' &&
+      toLocalDateInput(new Date(entry.occurredAt)) === today,
+  );
+  const mappedMeals = todayMeals.map((m) => {
+    const isComplete = completeMealEntryIds.includes(m.id);
+    return {
+      type: isComplete ? 'breakfast' : null,
+      name: isComplete ? 'Meal' : null,
+    };
+  });
+  const hydrationDraft: FoodHydrationDraft | null = foodForm?.details
+    ? {
+        waterLiters: foodForm.details.waterLiters ?? undefined,
+        hasOtherFluids: foodForm.details.hasOtherFluids ?? undefined,
+        otherFluids: foodForm.details.otherFluids ?? undefined,
+      }
+    : null;
+  const foodCompleted = isFoodFormComplete(hydrationDraft, mappedMeals);
+  const foodStarted = isFoodFormStarted(hydrationDraft, todayMeals);
+  const stoolCompleted = hasTodayEntry(entries, 'stool') || hasTodayNoStoolEntry(entries);
   const submitDisabled =
     loading ||
     offlineMode ||
@@ -573,18 +606,10 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
     dailyCompleted ||
     !dailyEntryId ||
     dailyMissingFields.length > 0 ||
+    !foodCompleted ||
     (exerciseRequired && !exerciseCompleted) ||
     (medicationRequired && !medicationCompleted) ||
     (periodRequired && !periodCompleted);
-  const dailyReadyToSubmit = Boolean(dailyEntryId && dailyMissingFields.length === 0);
-  const today = toLocalDateInput(new Date());
-  const foodCompleted = entries.some(
-    (entry) =>
-      entry.kind === 'meal' &&
-      completeMealEntryIds.includes(entry.id) &&
-      toLocalDateInput(new Date(entry.occurredAt)) === today,
-  );
-  const stoolCompleted = hasTodayEntry(entries, 'stool') || hasTodayNoStoolEntry(entries);
 
   async function submitDay() {
     if (!dailyEntryId || submitDisabled) return;
@@ -638,6 +663,8 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
       medicationCompleted={medicationCompleted}
       completeMedicationEntryIds={completeMedicationEntryIds}
       completeMealEntryIds={completeMealEntryIds}
+      foodCompleted={foodCompleted}
+      foodStarted={foodStarted}
       medicationRequired={medicationRequired}
       periodCompleted={periodCompleted}
       periodRequired={periodRequired}

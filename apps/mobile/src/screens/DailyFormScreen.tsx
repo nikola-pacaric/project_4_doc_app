@@ -16,8 +16,9 @@ import {
 } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { ConditionalTextField } from '../components/ConditionalTextField';
 import { FormField } from '../components/FormField';
 import { OptionButtons } from '../components/OptionButtons';
@@ -177,7 +178,8 @@ export function DailyFormScreen({
 
   return (
     <SafeAreaView style={sharedStyles.formScreen}>
-      <ScrollView
+      <KeyboardAwareScrollView
+        keyboardDismissMode="on-drag"
         contentContainerStyle={sharedStyles.formScrollContent}
         keyboardShouldPersistTaps="handled"
       >
@@ -383,7 +385,7 @@ export function DailyFormScreen({
             </View>
           </View>
         ) : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

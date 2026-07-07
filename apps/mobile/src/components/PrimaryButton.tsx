@@ -1,5 +1,5 @@
 import { spacing, typography } from '@project4/ui-tokens';
-import { ActivityIndicator, Pressable, StyleSheet, Text, type PressableProps } from 'react-native';
+import { ActivityIndicator, Keyboard, Pressable, StyleSheet, Text, type PressableProps } from 'react-native';
 
 import { colors } from '../theme';
 
@@ -13,6 +13,7 @@ export function PrimaryButton({
   label,
   busy = false,
   disabled,
+  onPress,
   variant = 'primary',
   ...props
 }: PrimaryButtonProps) {
@@ -22,6 +23,10 @@ export function PrimaryButton({
     <Pressable
       accessibilityRole="button"
       disabled={isDisabled}
+      onPress={(event) => {
+        Keyboard.dismiss();
+        onPress?.(event);
+      }}
       style={({ pressed }) => [
         styles.button,
         variant === 'primary' && styles.primary,

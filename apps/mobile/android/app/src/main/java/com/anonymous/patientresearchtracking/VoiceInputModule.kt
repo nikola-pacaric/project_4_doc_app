@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import com.facebook.react.bridge.ActivityEventListener
 import com.facebook.react.bridge.BaseActivityEventListener
 import com.facebook.react.bridge.Promise
@@ -56,12 +55,12 @@ class VoiceInputModule(private val reactContext: ReactApplicationContext) :
 
   @ReactMethod
   fun isAvailable(promise: Promise) {
-    promise.resolve(SpeechRecognizer.isRecognitionAvailable(reactContext))
+    promise.resolve(hasVoiceRecognitionActivity())
   }
 
   @ReactMethod
   fun start(localeTag: String, prompt: String, promise: Promise) {
-    if (!SpeechRecognizer.isRecognitionAvailable(reactContext)) {
+    if (!hasVoiceRecognitionActivity()) {
       promise.reject("unavailable", "Speech recognition is not available on this device.")
       return
     }
@@ -94,6 +93,11 @@ class VoiceInputModule(private val reactContext: ReactApplicationContext) :
       pendingPromise = null
       promise.reject("unavailable", "Speech recognition is not available on this device.", error)
     }
+  }
+
+  private fun hasVoiceRecognitionActivity(): Boolean {
+    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+    return intent.resolveActivity(reactContext.packageManager) != null
   }
 
   companion object {

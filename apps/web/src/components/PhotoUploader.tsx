@@ -99,6 +99,8 @@ export function PhotoUploader({
         </div>
       ) : null}
 
+      <p className="field-help">{t(locale, 'photo.storageWarning')}</p>
+
       <div className="photo-uploader-actions">
         <button
           type="button"

@@ -10,16 +10,9 @@ import {
 } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  RefreshControl,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, RefreshControl, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { colors, sharedStyles } from '../theme';
@@ -139,7 +132,9 @@ export function DoctorPendingScreen({ client, onSignOut }: DoctorPendingScreenPr
 
   return (
     <SafeAreaView style={sharedStyles.formScreen}>
-      <ScrollView
+      <KeyboardAwareScrollView
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={sharedStyles.formScrollContent}
         refreshControl={
           <RefreshControl
@@ -268,7 +263,7 @@ export function DoctorPendingScreen({ client, onSignOut }: DoctorPendingScreenPr
           onPress={() => void onSignOut()}
           variant="secondary"
         />
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

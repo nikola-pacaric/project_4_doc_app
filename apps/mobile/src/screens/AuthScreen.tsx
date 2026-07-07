@@ -3,17 +3,9 @@ import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import { signInForRole, signUpPatient, type AppSupabaseClient } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { FormField } from '../components/FormField';
 import { PasswordField } from '../components/PasswordField';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -97,7 +89,7 @@ export function AuthScreen({ client }: AuthScreenProps) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
       >
-        <ScrollView
+        <KeyboardAwareScrollView
           contentContainerStyle={[sharedStyles.scrollContent, styles.keyboardContent]}
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
@@ -168,7 +160,7 @@ export function AuthScreen({ client }: AuthScreenProps) {
               onPress={() => void submit()}
             />
           </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

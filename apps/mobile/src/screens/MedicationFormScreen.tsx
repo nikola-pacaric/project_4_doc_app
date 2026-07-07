@@ -6,8 +6,9 @@ import {
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
-import { Image, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { FormField } from '../components/FormField';
 import { OptionButtons } from '../components/OptionButtons';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -78,7 +79,8 @@ export function MedicationFormScreen({
 
   return (
     <SafeAreaView style={sharedStyles.formScreen}>
-      <ScrollView
+      <KeyboardAwareScrollView
+        keyboardDismissMode="on-drag"
         contentContainerStyle={sharedStyles.formScrollContent}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
@@ -185,7 +187,7 @@ export function MedicationFormScreen({
             <PrimaryButton busy={busy} label={t(locale, 'common.save')} onPress={save} />
           </View>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

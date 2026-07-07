@@ -1,12 +1,12 @@
 import type { FoodFormDetails, UserProfile } from '@project4/contracts';
 import {
   foodHydrationDefaults,
+  getStartedMeals,
   mealDraftDefaults,
   normalizeFoodWaterLiters,
   parseOtherFluids,
   serializeOtherFluids,
   normalizeMealDateTime,
-  validateMeal,
   validateOtherFluid,
   type FoodHydrationDraft,
 } from '@project4/forms';
@@ -299,19 +299,20 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
 
   async function save() {
     const mealsToSave = meals.filter(
-      (meal) => meal.entryId || meal.localPhoto || validateMeal(meal).valid,
+      (meal) => meal.localPhoto || getStartedMeals([meal]).length > 0,
     );
     const fluidsToSave = otherFluids.filter(
       (fluid) => fluid.entryId || fluid.localPhoto || validateOtherFluid(fluid),
     );
-    const shouldSaveOtherFluids = hydration.hasOtherFluids === true && fluidsToSave.length > 0;
     const normalizedWaterText = normalizeWaterLitersText(waterText);
     const parsedWaterLiters = parseWaterLitersInput(normalizedWaterText);
     const normalizedHydration: FoodHydrationDraft = {
       ...hydration,
       waterLiters: parsedWaterLiters,
-      hasOtherFluids: shouldSaveOtherFluids,
-      otherFluids: shouldSaveOtherFluids ? serializeOtherFluids(fluidsToSave) : '',
+      hasOtherFluids: hydration.hasOtherFluids,
+      otherFluids: hydration.hasOtherFluids === true && fluidsToSave.length > 0
+        ? serializeOtherFluids(fluidsToSave)
+        : undefined,
     };
 
     setWaterText(normalizedWaterText);
@@ -342,7 +343,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
       const fluidRecords = foodEntryId ? await listPatientOtherFluids(client, foodEntryId) : [];
 
       // Clean up legacy photo records if other fluids were disabled
-      if (!shouldSaveOtherFluids && foodEntryId) {
+      if (hydration.hasOtherFluids !== true && foodEntryId) {
         const legacyFluidPhotos = (await listEntryPhotos(client, foodEntryId)).filter(
           (photo) => photo.contextType === 'fluid',
         );

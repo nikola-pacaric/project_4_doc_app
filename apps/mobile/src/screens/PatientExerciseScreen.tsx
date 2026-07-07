@@ -8,8 +8,9 @@ import {
 } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { colors, sharedStyles } from '../theme';
 import { ExerciseFormScreen } from './ExerciseFormScreen';
@@ -104,7 +105,9 @@ export function PatientExerciseScreen({
 
   if (savedExercise) {
     return (
-      <ScrollView
+      <KeyboardAwareScrollView
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic"
         style={sharedStyles.screen}
@@ -133,7 +136,7 @@ export function PatientExerciseScreen({
           />
           <PrimaryButton label={t(locale, 'exercise.done')} onPress={onBack} variant="secondary" />
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     );
   }
 

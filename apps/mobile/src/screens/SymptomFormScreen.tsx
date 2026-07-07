@@ -8,8 +8,9 @@ import {
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SymptomDetailsCard } from '../components/SymptomDetailsCard';
@@ -95,7 +96,8 @@ export function SymptomFormScreen({
   const selectedTypes = drafts.flatMap((draft) => (draft.type ? [draft.type] : []));
   return (
     <SafeAreaView style={sharedStyles.formScreen}>
-      <ScrollView
+      <KeyboardAwareScrollView
+        keyboardDismissMode="on-drag"
         contentContainerStyle={sharedStyles.formScrollContent}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
@@ -145,7 +147,7 @@ export function SymptomFormScreen({
             <PrimaryButton busy={busy} label={t(locale, 'common.save')} onPress={save} />
           </View>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

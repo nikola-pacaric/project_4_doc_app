@@ -4,12 +4,16 @@ import {
   type EntryKind,
   type PatientEntry,
   type UserProfile,
+  type FoodFormRecord,
 } from '@project4/contracts';
 import type { DailyFormDetails } from '@project4/contracts';
 import {
   hasDailyFormProgress,
   isCompleteDailyForm,
+  isFoodFormComplete,
+  isFoodFormStarted,
   type DailyFormDraft,
+  type FoodHydrationDraft,
 } from '@project4/forms';
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
 import {
@@ -28,6 +32,7 @@ import {
   createEntryPhotoSignedUrl,
   getPatientBaseline,
   getPatientDailyForm,
+  getPatientFoodForm,
   listEntryPhotos,
   listRecentPatientEntries,
   updateEntryTimestamp,
@@ -218,6 +223,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [noteEntryToEdit, setNoteEntryToEdit] = useState<PatientEntry | null>(null);
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
+  const [foodForm, setFoodForm] = useState<FoodFormRecord | null>(null);
   const [pendingEntries, setPendingEntries] = useState<LocalPendingEntry[]>([]);
   const [entryPhotos, setEntryPhotos] = useState<Record<string, TimelineEntryPhoto[]>>({});
   const [lightboxPhoto, setLightboxPhoto] = useState<{ url: string; label: string } | null>(null);
@@ -298,15 +304,17 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
       try {
         await withTimeout(syncPendingQueue(), ONLINE_LOAD_TIMEOUT_MS);
         const range = dayRange(localDateValue(new Date()));
-        const [nextEntries, baseline, dailyForm] = await withTimeout(
+        const [nextEntries, baseline, dailyForm, foodFormDetails] = await withTimeout(
           Promise.all([
             listRecentPatientEntries(client, profile.id),
             getPatientBaseline(client, profile.id),
             getPatientDailyForm(client, profile.id, range.start, range.end),
+            getPatientFoodForm(client, profile.id, range.start, range.end),
           ]),
           ONLINE_LOAD_TIMEOUT_MS,
         );
         setOfflineMode(false);
+        setFoodForm(foodFormDetails);
         saveCachedRecentEntries(profile.id, nextEntries);
         saveCachedOpenedDayEntries(profile.id, nextEntries, (entry) =>
           localDateValue(new Date(entry.occurredAt)),
@@ -361,6 +369,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
           ? cachedOpenedDayEntries
           : loadCachedRecentEntries(profile.id);
         setOfflineMode(true);
+        setFoodForm(null);
         setCompleteMealEntryIds([]);
         setCompleteMedicationEntryIds([]);
         setEntryPhotos({});
@@ -737,11 +746,23 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   });
   const completedKinds = new Set(todayEntries.filter((entry) => !pendingIds.has(entry.id)).map((entry) => entry.kind));
   const stoolCompleted = hasTodayEntry(visibleEntries, 'stool') || hasTodayNoStoolEntry(visibleEntries);
-  const foodCompleted = todayEntries.some(
-    (entry) =>
-      entry.kind === 'meal' &&
-      completeMealEntryIds.includes(entry.id)
-  );
+  const todayMeals = todayEntries.filter((entry) => entry.kind === 'meal');
+  const mappedMeals = todayMeals.map((m) => {
+    const isComplete = completeMealEntryIds.includes(m.id);
+    return {
+      type: isComplete ? 'breakfast' : null,
+      name: isComplete ? 'Meal' : null,
+    };
+  });
+  const hydrationDraft: FoodHydrationDraft | null = foodForm?.details
+    ? {
+        waterLiters: foodForm.details.waterLiters ?? undefined,
+        hasOtherFluids: foodForm.details.hasOtherFluids ?? undefined,
+        otherFluids: foodForm.details.otherFluids ?? undefined,
+      }
+    : null;
+  const foodCompleted = isFoodFormComplete(hydrationDraft, mappedMeals);
+  const foodStarted = isFoodFormStarted(hydrationDraft, todayMeals);
   const completedItems = progressActions.filter((action) => {
     if (action.id === 'daily') return dailyCompleted || dailyReadyToSubmit;
     if (action.id === 'stool') return stoolCompleted;
@@ -756,16 +777,17 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
     month: 'long',
     day: 'numeric',
   }).format(now);
+  const symptomsCompleted = completedKinds.has('symptom');
   const submitDisabled =
     submittingDay ||
     offlineMode ||
     dailyCompleted ||
     !dailyEntryId ||
     !dailyReadyToSubmit ||
+    !foodCompleted ||
     (exerciseRequired && !exerciseCompleted) ||
     (medicationRequired && !medicationCompleted) ||
     (periodRequired && !periodCompleted);
-  const symptomsCompleted = completedKinds.has('symptom');
 
   const missingSubmitSections = [
     !dailyCompleted && !dailyReadyToSubmit ? t(locale, 'home.action.daily') : null,
@@ -827,7 +849,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
               entry.kind === 'daily'
                 ? dailyCompleted
                 : entry.kind === 'meal'
-                  ? completeMealEntryIds.includes(entry.id)
+                  ? completeMealEntryIds.includes(entry.id) && foodCompleted
                 : entry.kind === 'medication'
                   ? completeMedicationEntryIds.includes(entry.id)
                 : true;
@@ -966,6 +988,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
               (action.id === 'exercise' && exerciseRequired && !exerciseCompleted) ||
               (action.id === 'medication' && medicationRequired && !medicationCompleted) ||
               (action.id === 'period' && periodRequired && !periodCompleted);
+            const isDraft = action.id === 'food' && !foodCompleted && foodStarted;
             const completed =
               (action.id === 'daily' && (dailyCompleted || dailyReadyToSubmit)) ||
               (action.id === 'stool' && stoolCompleted) ||
@@ -976,10 +999,12 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
               (action.id === 'period' && periodCompleted);
             const statusKey = completed
               ? 'home.action.completed'
-              : required
-                ? 'home.action.required'
-                : 'home.action.optional';
-            const showStatus = showsConditionalStatus || completed;
+              : isDraft
+                ? 'daily.statusDraft'
+                : required
+                  ? 'home.action.required'
+                  : 'home.action.optional';
+            const showStatus = showsConditionalStatus || completed || isDraft;
             const offlineDisabled = offlineMode && action.id !== 'notes';
             const onClick =
               action.id === 'daily'
@@ -1017,7 +1042,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
               <button
                 className={`web-action-card ${required ? 'required' : ''} ${
                   completed ? 'completed' : ''
-                } ${offlineDisabled ? 'offline-disabled' : ''}`}
+                } ${isDraft ? 'draft' : ''} ${offlineDisabled ? 'offline-disabled' : ''}`}
                 disabled={offlineDisabled}
                 key={action.id}
                 onClick={onClick}
@@ -1059,7 +1084,7 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
               entry.kind === 'daily'
                 ? dailyCompleted
                 : entry.kind === 'meal'
-                  ? completeMealEntryIds.includes(entry.id)
+                  ? completeMealEntryIds.includes(entry.id) && foodCompleted
                 : entry.kind === 'medication'
                   ? completeMedicationEntryIds.includes(entry.id)
                 : true;

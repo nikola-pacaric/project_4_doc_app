@@ -2,6 +2,7 @@ import { spacing } from '@project4/ui-tokens';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { colors, sharedStyles } from '../theme';
+import { useKeyboardAwareInput } from './KeyboardAwareScrollView';
 
 interface PasswordFieldProps {
   hidden: boolean;
@@ -22,6 +23,8 @@ export function PasswordField({
   toggleLabel,
   value,
 }: PasswordFieldProps) {
+  const keyboardAwareInput = useKeyboardAwareInput();
+
   return (
     <View style={styles.field}>
       <Text style={sharedStyles.fieldLabel}>{label}</Text>
@@ -32,6 +35,7 @@ export function PasswordField({
           autoComplete={textContentType === 'newPassword' ? 'new-password' : 'password'}
           autoCorrect={false}
           onChangeText={onChangeText}
+          onFocus={keyboardAwareInput?.onInputFocus}
           placeholderTextColor="#a28d94"
           secureTextEntry={hidden}
           spellCheck={false}

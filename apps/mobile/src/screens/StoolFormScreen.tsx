@@ -3,8 +3,9 @@ import { stoolDraftDefaults, validateStool, type StoolDraft } from '@project4/fo
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -64,7 +65,8 @@ export function StoolFormScreen({
 
   return (
     <SafeAreaView style={sharedStyles.formScreen}>
-      <ScrollView
+      <KeyboardAwareScrollView
+        keyboardDismissMode="on-drag"
         contentContainerStyle={sharedStyles.formScrollContent}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
@@ -198,7 +200,7 @@ export function StoolFormScreen({
             <PrimaryButton busy={busy} label={t(locale, 'common.save')} onPress={save} />
           </View>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
