@@ -11,7 +11,6 @@ alter table public.stool_details
   add constraint stool_details_urgency_level_check
   check (urgency_level in ('none', 'mild', 'moderate', 'severe'));
 
--- Existing draft rows cannot be safely inferred. New and updated rows are still checked.
 alter table public.stool_details
   add constraint stool_details_required_fields_check
   check (

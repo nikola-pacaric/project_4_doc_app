@@ -15,7 +15,6 @@ alter table public.exercise_details
   add constraint exercise_details_intensity_check
   check (intensity in ('light', 'moderate', 'vigorous')) not valid;
 
--- Existing draft rows cannot be safely inferred. New and updated rows are still checked.
 alter table public.exercise_details
   add constraint exercise_details_required_fields_check
   check (

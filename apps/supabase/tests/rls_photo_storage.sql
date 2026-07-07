@@ -26,8 +26,11 @@ on conflict (id) do nothing;
 
 insert into public.patient_entries (id, patient_id, kind, occurred_at, text)
 values
-  ('10000000-0000-4000-8000-000000000041', '00000000-0000-4000-8000-000000000041', 'note', now(), 'Patient A photo entry'),
-  ('10000000-0000-4000-8000-000000000042', '00000000-0000-4000-8000-000000000042', 'note', now(), 'Patient B photo entry')
+  ('10000000-0000-4000-8000-000000000041', '00000000-0000-4000-8000-000000000041', 'meal', now(), 'Patient A meal photo entry'),
+  ('10000000-0000-4000-8000-000000000141', '00000000-0000-4000-8000-000000000041', 'fluid', now(), 'Patient A fluid photo entry'),
+  ('10000000-0000-4000-8000-000000000241', '00000000-0000-4000-8000-000000000041', 'medication', now(), 'Patient A medication photo entry'),
+  ('10000000-0000-4000-8000-000000000341', '00000000-0000-4000-8000-000000000041', 'note', now(), 'Patient A note entry'),
+  ('10000000-0000-4000-8000-000000000042', '00000000-0000-4000-8000-000000000042', 'meal', now(), 'Patient B meal photo entry')
 on conflict (id) do nothing;
 
 set local role authenticated;
@@ -68,10 +71,79 @@ begin
     'Breakfast oatmeal'
   );
 
+  insert into public.entry_photos (
+    id,
+    entry_id,
+    patient_id,
+    photo_path,
+    thumbnail_path,
+    original_filename,
+    mime_type,
+    width_px,
+    height_px,
+    size_bytes,
+    thumbnail_size_bytes,
+    context_type,
+    context_label
+  )
+  values (
+    '30000000-0000-4000-8000-000000000141',
+    '10000000-0000-4000-8000-000000000141',
+    '00000000-0000-4000-8000-000000000041',
+    'patients/00000000-0000-4000-8000-000000000041/entries/10000000-0000-4000-8000-000000000141/photos/fluid-a.jpg',
+    'patients/00000000-0000-4000-8000-000000000041/entries/10000000-0000-4000-8000-000000000141/thumbs/fluid-a.jpg',
+    'fluid-a.jpg',
+    'image/jpeg',
+    1280,
+    960,
+    310000,
+    31000,
+    'fluid',
+    'Tea'
+  );
+
+  insert into public.entry_photos (
+    id,
+    entry_id,
+    patient_id,
+    photo_path,
+    thumbnail_path,
+    original_filename,
+    mime_type,
+    width_px,
+    height_px,
+    size_bytes,
+    thumbnail_size_bytes,
+    context_type,
+    context_label
+  )
+  values (
+    '30000000-0000-4000-8000-000000000241',
+    '10000000-0000-4000-8000-000000000241',
+    '00000000-0000-4000-8000-000000000041',
+    'patients/00000000-0000-4000-8000-000000000041/entries/10000000-0000-4000-8000-000000000241/photos/medication-a.jpg',
+    'patients/00000000-0000-4000-8000-000000000041/entries/10000000-0000-4000-8000-000000000241/thumbs/medication-a.jpg',
+    'medication-a.jpg',
+    'image/jpeg',
+    1280,
+    960,
+    300000,
+    30000,
+    'medication',
+    'Morning medication'
+  );
+
   select count(*) into visible_photos from public.entry_photos;
-  if visible_photos <> 1 then
-    raise exception 'patient A should see exactly 1 own photo, saw %', visible_photos;
+  if visible_photos <> 3 then
+    raise exception 'patient A should see exactly 3 own photos, saw %', visible_photos;
   end if;
+
+  begin
+    truncate table public.entry_photos;
+    raise exception 'authenticated users should not be able to truncate photo metadata';
+  exception
+    when insufficient_privilege then null;
+  end;
 
   begin
     insert into public.entry_photos (
@@ -81,7 +153,8 @@ begin
       thumbnail_path,
       mime_type,
       width_px,
-      height_px
+      height_px,
+      context_type
     )
     values (
       '10000000-0000-4000-8000-000000000042',
@@ -90,7 +163,8 @@ begin
       'patients/00000000-0000-4000-8000-000000000042/entries/10000000-0000-4000-8000-000000000042/thumbs/photo-b.jpg',
       'image/jpeg',
       1280,
-      960
+      960,
+      'meal'
     );
     raise exception 'patient A should not insert photo metadata for patient B';
   exception
@@ -105,7 +179,138 @@ begin
       thumbnail_path,
       mime_type,
       width_px,
-      height_px
+      height_px,
+      context_type
+    )
+    values (
+      '10000000-0000-4000-8000-000000000041',
+      '00000000-0000-4000-8000-000000000042',
+      'patients/00000000-0000-4000-8000-000000000042/entries/10000000-0000-4000-8000-000000000041/photos/patient-mismatch.jpg',
+      'patients/00000000-0000-4000-8000-000000000042/entries/10000000-0000-4000-8000-000000000041/thumbs/patient-mismatch.jpg',
+      'image/jpeg',
+      1280,
+      960,
+      'meal'
+    );
+    raise exception 'photo metadata patient_id must match the referenced entry owner';
+  exception
+    when insufficient_privilege or check_violation or invalid_text_representation or with_check_option_violation then null;
+  end;
+
+  begin
+    insert into public.entry_photos (
+      entry_id,
+      patient_id,
+      photo_path,
+      thumbnail_path,
+      mime_type,
+      width_px,
+      height_px,
+      context_type
+    )
+    values (
+      '10000000-0000-4000-8000-000000000241',
+      '00000000-0000-4000-8000-000000000041',
+      'patients/00000000-0000-4000-8000-000000000041/entries/10000000-0000-4000-8000-000000000241/photos/meal-on-medication.jpg',
+      'patients/00000000-0000-4000-8000-000000000041/entries/10000000-0000-4000-8000-000000000241/thumbs/meal-on-medication.jpg',
+      'image/jpeg',
+      1280,
+      960,
+      'meal'
+    );
+    raise exception 'meal photo context must not be accepted for a medication entry';
+  exception
+    when insufficient_privilege or check_violation or invalid_text_representation or with_check_option_violation then null;
+  end;
+
+  begin
+    insert into public.entry_photos (
+      entry_id,
+      patient_id,
+      photo_path,
+      thumbnail_path,
+      mime_type,
+      width_px,
+      height_px,
+      context_type
+    )
+    values (
+      '10000000-0000-4000-8000-000000000041',
+      '00000000-0000-4000-8000-000000000041',
+      'patients/00000000-0000-4000-8000-000000000041/entries/10000000-0000-4000-8000-000000000041/photos/fluid-on-meal.jpg',
+      'patients/00000000-0000-4000-8000-000000000041/entries/10000000-0000-4000-8000-000000000041/thumbs/fluid-on-meal.jpg',
+      'image/jpeg',
+      1280,
+      960,
+      'fluid'
+    );
+    raise exception 'fluid photo context must not be accepted for a meal entry';
+  exception
+    when insufficient_privilege or check_violation or invalid_text_representation or with_check_option_violation then null;
+  end;
+
+  begin
+    insert into public.entry_photos (
+      entry_id,
+      patient_id,
+      photo_path,
+      thumbnail_path,
+      mime_type,
+      width_px,
+      height_px,
+      context_type
+    )
+    values (
+      '10000000-0000-4000-8000-000000000141',
+      '00000000-0000-4000-8000-000000000041',
+      'patients/00000000-0000-4000-8000-000000000041/entries/10000000-0000-4000-8000-000000000141/photos/medication-on-fluid.jpg',
+      'patients/00000000-0000-4000-8000-000000000041/entries/10000000-0000-4000-8000-000000000141/thumbs/medication-on-fluid.jpg',
+      'image/jpeg',
+      1280,
+      960,
+      'medication'
+    );
+    raise exception 'medication photo context must not be accepted for a fluid entry';
+  exception
+    when insufficient_privilege or check_violation or invalid_text_representation or with_check_option_violation then null;
+  end;
+
+  begin
+    insert into public.entry_photos (
+      entry_id,
+      patient_id,
+      photo_path,
+      thumbnail_path,
+      mime_type,
+      width_px,
+      height_px,
+      context_type
+    )
+    values (
+      '10000000-0000-4000-8000-000000000341',
+      '00000000-0000-4000-8000-000000000041',
+      'patients/00000000-0000-4000-8000-000000000041/entries/10000000-0000-4000-8000-000000000341/photos/meal-on-note.jpg',
+      'patients/00000000-0000-4000-8000-000000000041/entries/10000000-0000-4000-8000-000000000341/thumbs/meal-on-note.jpg',
+      'image/jpeg',
+      1280,
+      960,
+      'meal'
+    );
+    raise exception 'photo contexts must not be accepted for note entries';
+  exception
+    when insufficient_privilege or check_violation or invalid_text_representation or with_check_option_violation then null;
+  end;
+
+  begin
+    insert into public.entry_photos (
+      entry_id,
+      patient_id,
+      photo_path,
+      thumbnail_path,
+      mime_type,
+      width_px,
+      height_px,
+      context_type
     )
     values (
       '10000000-0000-4000-8000-000000000041',
@@ -114,7 +319,8 @@ begin
       'patients/00000000-0000-4000-8000-000000000041/entries/10000000-0000-4000-8000-000000000041/thumbs/base64.jpg',
       'image/jpeg',
       1280,
-      960
+      960,
+      'meal'
     );
     raise exception 'photo metadata must reject base64 path markers';
   exception
@@ -229,7 +435,7 @@ declare
   changed_rows integer;
 begin
   select count(*) into visible_photos from public.entry_photos;
-  if visible_photos <> 1 then
+  if visible_photos <> 3 then
     raise exception 'linked doctor should see linked patient photo metadata, saw %', visible_photos;
   end if;
 
