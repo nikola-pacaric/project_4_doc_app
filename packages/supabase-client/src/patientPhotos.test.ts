@@ -43,16 +43,26 @@ function createUploadClientMock() {
   };
 }
 
+function jpegBytes(size: number): Uint8Array {
+  const bytes = new Uint8Array(size);
+  bytes[0] = 0xff;
+  bytes[1] = 0xd8;
+  bytes[2] = 0xff;
+  return bytes;
+}
+
 describe('uploadPreparedEntryPhoto', () => {
   it('uploads compressed JPEG and thumbnail before inserting metadata', async () => {
     const { client, from, insert, storageFrom, upload } = createUploadClientMock();
+    const photoBody = jpegBytes(320 * 1024);
+    const thumbnailBody = jpegBytes(32 * 1024);
 
     const result = await uploadPreparedEntryPhoto(client, {
       patientId: '00000000-0000-4000-8000-000000000001',
       entryId: '10000000-0000-4000-8000-000000000001',
       photoId: 'photo-1',
-      photoBody: new Uint8Array([1, 2, 3]),
-      thumbnailBody: new Uint8Array([4, 5, 6]),
+      photoBody,
+      thumbnailBody,
       metadata: {
         originalFilename: 'meal.jpg',
         mimeType: PHOTO_MIME_TYPE,
@@ -105,8 +115,8 @@ describe('uploadPreparedEntryPhoto', () => {
         patientId: '00000000-0000-4000-8000-000000000001',
         entryId: '10000000-0000-4000-8000-000000000001',
         photoId: 'photo-1',
-        photoBody: new Uint8Array([1]),
-        thumbnailBody: new Uint8Array([2]),
+        photoBody: jpegBytes(320 * 1024),
+        thumbnailBody: jpegBytes(32 * 1024),
         metadata: {
           mimeType: PHOTO_MIME_TYPE,
           widthPx: 1281,
@@ -125,6 +135,62 @@ describe('uploadPreparedEntryPhoto', () => {
     expect(insert).not.toHaveBeenCalled();
   });
 
+  it('rejects tiny or non-JPEG payloads before upload', async () => {
+    const { client, upload, insert } = createUploadClientMock();
+
+    await expect(
+      uploadPreparedEntryPhoto(client, {
+        patientId: '00000000-0000-4000-8000-000000000001',
+        entryId: '10000000-0000-4000-8000-000000000001',
+        photoId: 'photo-1',
+        photoBody: new Uint8Array(14),
+        thumbnailBody: new Uint8Array(14),
+        metadata: {
+          mimeType: PHOTO_MIME_TYPE,
+          widthPx: 1280,
+          heightPx: 960,
+          sizeBytes: 14,
+          thumbnail: {
+            widthPx: 320,
+            heightPx: 240,
+            sizeBytes: 14,
+          },
+        },
+      }),
+    ).rejects.toThrow('PHOTO_SIZE_TOO_SMALL');
+
+    expect(upload).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('rejects payloads that do not match metadata size', async () => {
+    const { client, upload, insert } = createUploadClientMock();
+
+    await expect(
+      uploadPreparedEntryPhoto(client, {
+        patientId: '00000000-0000-4000-8000-000000000001',
+        entryId: '10000000-0000-4000-8000-000000000001',
+        photoId: 'photo-1',
+        photoBody: jpegBytes(2048),
+        thumbnailBody: jpegBytes(2048),
+        metadata: {
+          mimeType: PHOTO_MIME_TYPE,
+          widthPx: 1280,
+          heightPx: 960,
+          sizeBytes: 320 * 1024,
+          thumbnail: {
+            widthPx: 320,
+            heightPx: 240,
+            sizeBytes: 32 * 1024,
+          },
+        },
+      }),
+    ).rejects.toThrow('PHOTO_BODY_SIZE_MISMATCH');
+
+    expect(upload).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+  });
+
   it('removes uploaded objects when metadata insert fails', async () => {
     const { client, remove } = createUploadClientMock();
     const failingSingle = vi.fn().mockResolvedValue({ data: null, error: new Error('insert failed') });
@@ -137,8 +203,8 @@ describe('uploadPreparedEntryPhoto', () => {
         patientId: '00000000-0000-4000-8000-000000000001',
         entryId: '10000000-0000-4000-8000-000000000001',
         photoId: 'photo-1',
-        photoBody: new Uint8Array([1, 2, 3]),
-        thumbnailBody: new Uint8Array([4, 5, 6]),
+        photoBody: jpegBytes(320 * 1024),
+        thumbnailBody: jpegBytes(32 * 1024),
         metadata: {
           mimeType: PHOTO_MIME_TYPE,
           widthPx: 1280,

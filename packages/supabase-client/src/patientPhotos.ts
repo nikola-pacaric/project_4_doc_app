@@ -59,6 +59,44 @@ export interface UploadPreparedEntryPhotoInput {
 const entryPhotoColumns =
   'id, entry_id, patient_id, photo_path, thumbnail_path, original_filename, mime_type, width_px, height_px, size_bytes, thumbnail_size_bytes, context_type, context_label, created_at';
 
+function bodyByteLength(body: PhotoUploadBody): number {
+  if (body instanceof Uint8Array) return body.byteLength;
+  if (body instanceof ArrayBuffer) return body.byteLength;
+  return body.size;
+}
+
+async function bodyStartsWithJpegSignature(body: PhotoUploadBody): Promise<boolean> {
+  const head =
+    body instanceof Uint8Array
+      ? body.subarray(0, 3)
+      : body instanceof ArrayBuffer
+        ? new Uint8Array(body, 0, Math.min(3, body.byteLength))
+        : new Uint8Array(await body.slice(0, 3).arrayBuffer());
+
+  return head.length >= 3 && head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+}
+
+async function validateUploadBodies(input: UploadPreparedEntryPhotoInput): Promise<string[]> {
+  const errors: string[] = [];
+  const photoBodyBytes = bodyByteLength(input.photoBody);
+  const thumbnailBodyBytes = bodyByteLength(input.thumbnailBody);
+
+  if (photoBodyBytes !== input.metadata.sizeBytes) {
+    errors.push('PHOTO_BODY_SIZE_MISMATCH');
+  }
+  if (thumbnailBodyBytes !== input.metadata.thumbnail.sizeBytes) {
+    errors.push('THUMBNAIL_BODY_SIZE_MISMATCH');
+  }
+  if (!(await bodyStartsWithJpegSignature(input.photoBody))) {
+    errors.push('PHOTO_BODY_NOT_JPEG');
+  }
+  if (!(await bodyStartsWithJpegSignature(input.thumbnailBody))) {
+    errors.push('THUMBNAIL_BODY_NOT_JPEG');
+  }
+
+  return errors;
+}
+
 export function toEntryPhoto(row: EntryPhotoRow): EntryPhoto {
   return {
     id: row.id,
@@ -113,9 +151,10 @@ export async function uploadPreparedEntryPhoto(
   const paths = buildEntryPhotoPaths(input.patientId, input.entryId, input.photoId);
   const pathErrors = validateEntryPhotoPaths(input.patientId, input.entryId, paths);
   const metadataValidation = validatePreparedPhotoMetadata(input.metadata);
+  const bodyErrors = await validateUploadBodies(input);
 
-  if (pathErrors.length || !metadataValidation.valid) {
-    throw new Error([...pathErrors, ...metadataValidation.errors].join(','));
+  if (pathErrors.length || !metadataValidation.valid || bodyErrors.length) {
+    throw new Error([...pathErrors, ...metadataValidation.errors, ...bodyErrors].join(','));
   }
 
   const bucket = client.storage.from(PHOTO_BUCKET);

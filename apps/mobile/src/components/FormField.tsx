@@ -44,7 +44,7 @@ export function FormField({ enableVoice = false, label, ...props }: FormFieldPro
   }, [canUseVoice]);
 
   async function startListening() {
-    if (!canUseVoice || listening || supported === false) return;
+    if (!canUseVoice || listening) return;
 
     setListening(true);
     setMessage(t(locale, 'voice.listening'));
@@ -64,8 +64,8 @@ export function FormField({ enableVoice = false, label, ...props }: FormFieldPro
     }
   }
 
-  const showVoiceButton = canUseVoice && supported !== false;
-  const voiceDisabled = supported !== true || listening;
+  const showVoiceButton = canUseVoice;
+  const voiceDisabled = listening;
 
   return (
     <View style={styles.field}>
@@ -75,8 +75,12 @@ export function FormField({ enableVoice = false, label, ...props }: FormFieldPro
           accessibilityLabel={label}
           autoCorrect={false}
           onFocus={(event) => {
-            keyboardAwareInput?.onInputFocus();
+            keyboardAwareInput?.onInputFocus(event.nativeEvent.target);
             props.onFocus?.(event);
+          }}
+          onContentSizeChange={(event) => {
+            keyboardAwareInput?.onInputContentChange();
+            props.onContentSizeChange?.(event);
           }}
           placeholderTextColor="#a28d94"
           spellCheck={false}

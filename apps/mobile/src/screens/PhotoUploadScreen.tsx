@@ -32,10 +32,49 @@ export interface PreparedPhoto {
   thumbnailBytes: Uint8Array;
 }
 
-async function uriToBytes(uri: string): Promise<Uint8Array> {
-  const response = await fetch(uri);
-  const buffer = await response.arrayBuffer();
-  return new Uint8Array(buffer);
+type ManipulatedImageResult = ImageResult & { base64?: string };
+
+function base64ToBytes(base64: string): Uint8Array {
+  const clean = base64.replace(/\s/g, '');
+  const padding = clean.endsWith('==') ? 2 : clean.endsWith('=') ? 1 : 0;
+  const byteLength = Math.floor((clean.length * 3) / 4) - padding;
+  const bytes = new Uint8Array(byteLength);
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const lookup: Record<string, number> = {};
+
+  for (let index = 0; index < chars.length; index += 1) {
+    lookup[chars.charAt(index)] = index;
+  }
+
+  function decode(char: string | undefined): number {
+    if (!char || lookup[char] === undefined) {
+      throw new Error('Prepared image bytes were not valid base64.');
+    }
+    return lookup[char];
+  }
+
+  let byteIndex = 0;
+  for (let index = 0; index < clean.length; index += 4) {
+    const first = decode(clean[index]);
+    const second = decode(clean[index + 1]);
+    const third = clean[index + 2] === '=' ? 0 : decode(clean[index + 2]);
+    const fourth = clean[index + 3] === '=' ? 0 : decode(clean[index + 3]);
+
+    const triplet = (first << 18) | (second << 12) | (third << 6) | fourth;
+    if (byteIndex < byteLength) bytes[byteIndex++] = (triplet >> 16) & 0xff;
+    if (byteIndex < byteLength) bytes[byteIndex++] = (triplet >> 8) & 0xff;
+    if (byteIndex < byteLength) bytes[byteIndex++] = triplet & 0xff;
+  }
+
+  return bytes;
+}
+
+function imageResultBytes(image: ManipulatedImageResult): Uint8Array {
+  if (!image.base64) {
+    throw new Error('Prepared image did not include JPEG bytes.');
+  }
+
+  return base64ToBytes(image.base64);
 }
 
 function createPhotoId(): string {
@@ -64,19 +103,18 @@ export function PhotoUploadScreen({
   const [error, setError] = useState<string | null>(null);
 
   async function prepareAsset(asset: ImagePicker.ImagePickerAsset) {
-    const photo = await manipulateAsync(
+    const photo = (await manipulateAsync(
       asset.uri,
       resizeActions(asset.width, PHOTO_MAX_WIDTH_PX),
-      { compress: PHOTO_JPEG_QUALITY, format: SaveFormat.JPEG },
-    );
-    const thumbnail = await manipulateAsync(photo.uri, resizeActions(photo.width, 320), {
+      { base64: true, compress: PHOTO_JPEG_QUALITY, format: SaveFormat.JPEG },
+    )) as ManipulatedImageResult;
+    const thumbnail = (await manipulateAsync(photo.uri, resizeActions(photo.width, 320), {
+      base64: true,
       compress: 0.72,
       format: SaveFormat.JPEG,
-    });
-    const [photoBytes, thumbnailBytes] = await Promise.all([
-      uriToBytes(photo.uri),
-      uriToBytes(thumbnail.uri),
-    ]);
+    })) as ManipulatedImageResult;
+    const photoBytes = imageResultBytes(photo);
+    const thumbnailBytes = imageResultBytes(thumbnail);
 
     setPreparedPhoto({
       originalFilename: asset.fileName ?? undefined,

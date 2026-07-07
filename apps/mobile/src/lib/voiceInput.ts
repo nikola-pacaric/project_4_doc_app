@@ -1,4 +1,4 @@
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules, PermissionsAndroid, Platform } from 'react-native';
 
 import type { Locale } from '@project4/i18n';
 
@@ -30,12 +30,29 @@ export async function isVoiceInputSupported(): Promise<boolean> {
   return nativeVoiceInput.isAvailable();
 }
 
+async function requestAndroidMicrophonePermission(): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
+
+  const alreadyGranted = await PermissionsAndroid.check(
+    PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+  );
+  if (alreadyGranted) return true;
+
+  const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+  return result === PermissionsAndroid.RESULTS.GRANTED;
+}
+
 export async function startVoiceInput(
   languageTag: VoiceLanguageTag,
   prompt: string
 ): Promise<string> {
   if (Platform.OS !== 'android' || !nativeVoiceInput) {
     throw new Error('Voice input is not available on this device.');
+  }
+
+  const hasMicrophonePermission = await requestAndroidMicrophonePermission();
+  if (!hasMicrophonePermission) {
+    throw new Error('Voice input needs microphone permission.');
   }
 
   return nativeVoiceInput.start(languageTag, prompt);

@@ -61,4 +61,23 @@ describe('prepared photo metadata', () => {
       warnings: ['PHOTO_SIZE_OUTSIDE_TARGET', 'THUMBNAIL_SIZE_OUTSIDE_TARGET'],
     });
   });
+
+  it('rejects implausibly tiny photo payload metadata', () => {
+    expect(
+      validatePreparedPhotoMetadata({
+        mimeType: PHOTO_MIME_TYPE,
+        widthPx: 1280,
+        heightPx: 960,
+        sizeBytes: 14,
+        thumbnail: {
+          widthPx: 320,
+          heightPx: 240,
+          sizeBytes: 14,
+        },
+      }),
+    ).toMatchObject({
+      valid: false,
+      errors: ['PHOTO_SIZE_TOO_SMALL', 'THUMBNAIL_SIZE_TOO_SMALL'],
+    });
+  });
 });

@@ -35,7 +35,9 @@ export function PasswordField({
           autoComplete={textContentType === 'newPassword' ? 'new-password' : 'password'}
           autoCorrect={false}
           onChangeText={onChangeText}
-          onFocus={keyboardAwareInput?.onInputFocus}
+          onFocus={(event) => {
+            keyboardAwareInput?.onInputFocus(event.nativeEvent.target);
+          }}
           placeholderTextColor="#a28d94"
           secureTextEntry={hidden}
           spellCheck={false}

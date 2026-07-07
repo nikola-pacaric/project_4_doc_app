@@ -6,6 +6,8 @@ export const PHOTO_TARGET_MIN_BYTES = 250 * 1024;
 export const PHOTO_TARGET_MAX_BYTES = 500 * 1024;
 export const PHOTO_THUMBNAIL_TARGET_MIN_BYTES = 20 * 1024;
 export const PHOTO_THUMBNAIL_TARGET_MAX_BYTES = 60 * 1024;
+export const PHOTO_MIN_VALID_BYTES = 1024;
+export const PHOTO_THUMBNAIL_MIN_VALID_BYTES = 1024;
 
 export interface PhotoStoragePaths {
   photoPath: string;
@@ -94,9 +96,13 @@ export function validatePreparedPhotoMetadata(
   }
   if (!Number.isInteger(metadata.sizeBytes) || metadata.sizeBytes < 1) {
     errors.push('PHOTO_SIZE_INVALID');
+  } else if (metadata.sizeBytes < PHOTO_MIN_VALID_BYTES) {
+    errors.push('PHOTO_SIZE_TOO_SMALL');
   }
   if (!Number.isInteger(metadata.thumbnail.sizeBytes) || metadata.thumbnail.sizeBytes < 1) {
     errors.push('THUMBNAIL_SIZE_INVALID');
+  } else if (metadata.thumbnail.sizeBytes < PHOTO_THUMBNAIL_MIN_VALID_BYTES) {
+    errors.push('THUMBNAIL_SIZE_TOO_SMALL');
   }
   if (
     metadata.sizeBytes > PHOTO_TARGET_MAX_BYTES ||
