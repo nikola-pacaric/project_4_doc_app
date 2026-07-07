@@ -1,3 +1,4 @@
+import type { UserProfile } from '@project4/contracts';
 import { DEFAULT_LOCALE, t } from '@project4/i18n';
 import {
   createDoctorInviteCode,
@@ -20,6 +21,7 @@ import { colors, sharedStyles } from '../theme';
 interface DoctorPendingScreenProps {
   client: AppSupabaseClient;
   onSignOut: () => Promise<void>;
+  profile: UserProfile;
 }
 
 type InviteStatus = 'active' | 'redeemed' | 'revoked' | 'expired';
@@ -44,7 +46,7 @@ function maskPatientId(patientId: string): string {
   return patientId.slice(0, 8).toUpperCase();
 }
 
-export function DoctorPendingScreen({ client, onSignOut }: DoctorPendingScreenProps) {
+export function DoctorPendingScreen({ client, onSignOut, profile }: DoctorPendingScreenProps) {
   const locale = DEFAULT_LOCALE;
   const [invites, setInvites] = useState<DoctorInviteCode[]>([]);
   const [patients, setPatients] = useState<LinkedPatientSummary[]>([]);
@@ -150,6 +152,25 @@ export function DoctorPendingScreen({ client, onSignOut }: DoctorPendingScreenPr
           subtitle={t(locale, 'doctor.dashboardSubtitle')}
         />
 
+        <View style={styles.profileCard}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{t(locale, 'doctor.profileTitle')}</Text>
+            <Text style={styles.statusPill}>{t(locale, 'doctor.accountReady')}</Text>
+          </View>
+          <View style={styles.profileRows}>
+            <View style={styles.profileRow}>
+              <Text style={styles.profileLabel}>{t(locale, 'auth.displayName')}</Text>
+              <Text style={styles.profileValue}>
+                {profile.displayName || t(locale, 'role.doctor')}
+              </Text>
+            </View>
+            <View style={styles.profileRow}>
+              <Text style={styles.profileLabel}>{t(locale, 'doctor.accessStatus')}</Text>
+              <Text style={styles.profileValue}>{t(locale, 'doctor.patientAccessReady')}</Text>
+            </View>
+          </View>
+        </View>
+
         {loading ? (
           <View style={styles.loadingPanel}>
             <ActivityIndicator color={colors.accent} />
@@ -244,7 +265,10 @@ export function DoctorPendingScreen({ client, onSignOut }: DoctorPendingScreenPr
                   </View>
                 ))
               ) : (
-                <Text style={sharedStyles.body}>{t(locale, 'doctor.noLinkedPatients')}</Text>
+                <View style={styles.emptyState}>
+                  <Text style={styles.rowTitle}>{t(locale, 'doctor.noLinkedPatients')}</Text>
+                  <Text style={sharedStyles.body}>{t(locale, 'doctor.noLinkedPatientsHelp')}</Text>
+                </View>
               )}
             </View>
           </>
@@ -274,6 +298,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.xl,
   },
+  profileCard: {
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+  },
   section: {
     gap: spacing.md,
     borderWidth: 1,
@@ -294,6 +326,35 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     fontSize: 14,
     lineHeight: 20,
+  },
+  statusPill: {
+    alignSelf: 'flex-start',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: 999,
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '800',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  profileRows: {
+    gap: spacing.sm,
+  },
+  profileRow: {
+    gap: spacing.xs,
+  },
+  profileLabel: {
+    color: colors.mutedText,
+    fontSize: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  profileValue: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '800',
   },
   inviteCodeBox: {
     gap: spacing.xs,
@@ -334,6 +395,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   patientRow: {
+    gap: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+  },
+  emptyState: {
     gap: spacing.xs,
     borderTopWidth: 1,
     borderTopColor: colors.border,

@@ -35,6 +35,7 @@ import {
   getPatientFoodForm,
   listEntryPhotos,
   listRecentPatientEntries,
+  redeemDoctorInviteCode,
   updateEntryTimestamp,
   listCompletePatientMealEntryIds,
   listCompletePatientMedicationEntryIds,
@@ -229,6 +230,9 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
   const [lightboxPhoto, setLightboxPhoto] = useState<{ url: string; label: string } | null>(null);
   const [completeMealEntryIds, setCompleteMealEntryIds] = useState<string[]>([]);
   const [completeMedicationEntryIds, setCompleteMedicationEntryIds] = useState<string[]>([]);
+  const [doctorInviteCode, setDoctorInviteCode] = useState('');
+  const [doctorInviteMessage, setDoctorInviteMessage] = useState<string | null>(null);
+  const [doctorInviteRedeeming, setDoctorInviteRedeeming] = useState(false);
   const syncPendingPromiseRef = useRef<Promise<LocalPendingEntry[]> | null>(null);
   const loadEntriesPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -537,6 +541,23 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
       setError(t(locale, 'daily.saveError'));
     } finally {
       setSubmittingDay(false);
+    }
+  }
+
+  async function redeemInviteCode() {
+    if (!doctorInviteCode.trim() || offlineMode || doctorInviteRedeeming) return;
+
+    setDoctorInviteRedeeming(true);
+    setDoctorInviteMessage(null);
+    try {
+      await redeemDoctorInviteCode(client, doctorInviteCode);
+      setDoctorInviteCode('');
+      setDoctorInviteMessage(t(locale, 'patientInvite.success'));
+      await loadEntries({ showLoading: false });
+    } catch {
+      setDoctorInviteMessage(t(locale, 'patientInvite.error'));
+    } finally {
+      setDoctorInviteRedeeming(false);
     }
   }
 
@@ -971,6 +992,55 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
           </button>
           <p>{submitHelp}</p>
         </div>
+      </section>
+
+      <section className="web-home-section web-invite-section">
+        <div className="web-section-heading">
+          <div>
+            <h2>{t(locale, 'patientInvite.title')}</h2>
+            <p>{t(locale, 'patientInvite.help')}</p>
+          </div>
+        </div>
+        <form
+          className="web-invite-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void redeemInviteCode();
+          }}
+        >
+          <label>
+            {t(locale, 'patientInvite.code')}
+            <input
+              autoCapitalize="characters"
+              disabled={offlineMode || doctorInviteRedeeming}
+              onChange={(event) => {
+                setDoctorInviteCode(event.target.value.toUpperCase());
+                setDoctorInviteMessage(null);
+              }}
+              placeholder={t(locale, 'patientInvite.placeholder')}
+              value={doctorInviteCode}
+            />
+          </label>
+          <button
+            className="secondary-button"
+            disabled={offlineMode || doctorInviteRedeeming || !doctorInviteCode.trim()}
+            type="submit"
+          >
+            {doctorInviteRedeeming ? t(locale, 'app.loading') : t(locale, 'patientInvite.redeem')}
+          </button>
+        </form>
+        {offlineMode && doctorInviteCode.trim() ? (
+          <p className="notice error">{t(locale, 'patientInvite.offline')}</p>
+        ) : null}
+        {doctorInviteMessage ? (
+          <p
+            className={`notice ${
+              doctorInviteMessage === t(locale, 'patientInvite.success') ? 'success' : 'error'
+            }`}
+          >
+            {doctorInviteMessage}
+          </p>
+        ) : null}
       </section>
 
       <section className="web-home-section">

@@ -94,7 +94,7 @@ export function App() {
       </main>
     );
   } else if (profile.role === 'doctor') {
-    content = <DoctorPendingScreen onSignOut={signOut} />;
+    content = <DoctorPendingScreen client={supabase} onSignOut={signOut} profile={profile} />;
   } else if (!profile.consentAcceptedAt) {
     content = (
       <ConsentScreen

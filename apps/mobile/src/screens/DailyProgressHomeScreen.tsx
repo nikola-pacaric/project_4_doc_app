@@ -5,6 +5,7 @@ import { spacing } from '@project4/ui-tokens';
 
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { CircularProgress } from '../components/CircularProgress';
+import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { colors, sharedStyles } from '../theme';
 import { formatEntryTime, toLocalDateInput } from '../utils/dateTime';
@@ -21,6 +22,7 @@ interface DailyProgressHomeScreenProps {
   onOpenSymptoms: () => void;
   onOpenEntry: (entry: PatientEntry) => void;
   onOpenTimeline: () => void;
+  onRedeemDoctorInvite: () => void | Promise<void>;
   onSubmitDay: () => void | Promise<void>;
   onSignOut: () => void | Promise<void>;
   canTrackMenstruation: boolean;
@@ -44,6 +46,10 @@ interface DailyProgressHomeScreenProps {
   error: string | null;
   loading: boolean;
   offlineMode: boolean;
+  doctorInviteCode: string;
+  doctorInviteMessage: string | null;
+  doctorInviteRedeeming: boolean;
+  onDoctorInviteCodeChange: (value: string) => void;
   submitDisabled: boolean;
   submitBusy: boolean;
   submitHelp: string;
@@ -124,6 +130,7 @@ export function DailyProgressHomeScreen({
   onOpenSymptoms,
   onOpenEntry,
   onOpenTimeline,
+  onRedeemDoctorInvite,
   onSubmitDay,
   onSignOut,
   canTrackMenstruation,
@@ -147,6 +154,10 @@ export function DailyProgressHomeScreen({
   error,
   loading,
   offlineMode,
+  doctorInviteCode,
+  doctorInviteMessage,
+  doctorInviteRedeeming,
+  onDoctorInviteCodeChange,
   submitDisabled,
   submitBusy,
   submitHelp,
@@ -283,6 +294,39 @@ export function DailyProgressHomeScreen({
                 .replace('{total}', String(progressActions.length))}
             </Text>
           </View>
+        </View>
+
+        <View style={styles.inviteCard}>
+          <View style={styles.inviteCopy}>
+            <Text style={styles.inviteTitle}>{t(locale, 'patientInvite.title')}</Text>
+            <Text style={styles.inviteHelp}>{t(locale, 'patientInvite.help')}</Text>
+          </View>
+          <FormField
+            autoCapitalize="characters"
+            editable={!offlineMode && !doctorInviteRedeeming}
+            label={t(locale, 'patientInvite.code')}
+            onChangeText={onDoctorInviteCodeChange}
+            placeholder={t(locale, 'patientInvite.placeholder')}
+            value={doctorInviteCode}
+          />
+          {doctorInviteMessage ? (
+            <Text
+              style={[
+                styles.inviteMessage,
+                doctorInviteMessage === t(locale, 'patientInvite.success') &&
+                  styles.inviteSuccess,
+              ]}
+            >
+              {doctorInviteMessage}
+            </Text>
+          ) : null}
+          <PrimaryButton
+            busy={doctorInviteRedeeming}
+            disabled={offlineMode || doctorInviteRedeeming || !doctorInviteCode.trim()}
+            label={t(locale, 'patientInvite.redeem')}
+            onPress={() => void onRedeemDoctorInvite()}
+            variant="secondary"
+          />
         </View>
 
         <View style={styles.section}>
@@ -680,6 +724,36 @@ const styles = StyleSheet.create({
   progressCopy: { flex: 1, gap: spacing.xs },
   progressTitle: { color: colors.text, fontSize: 19, fontWeight: '800' },
   progressDetail: { color: colors.mutedText, fontSize: 15, lineHeight: 21 },
+  inviteCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+  inviteCopy: {
+    gap: spacing.xs,
+  },
+  inviteTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  inviteHelp: {
+    color: colors.mutedText,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  inviteMessage: {
+    color: colors.danger,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  inviteSuccess: {
+    color: '#16794b',
+    fontWeight: '700',
+  },
   section: { gap: spacing.md },
   sectionHeader: {
     alignItems: 'center',

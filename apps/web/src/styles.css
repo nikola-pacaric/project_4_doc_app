@@ -478,6 +478,304 @@ button:focus-visible {
   flex: 1 1 120px;
 }
 
+.doctor-dashboard-layout {
+  width: min(1120px, 100%);
+  min-height: 100%;
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  margin: 0 auto;
+  padding: 22px;
+}
+
+.doctor-dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.doctor-dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.doctor-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(320px, 1.15fr);
+  gap: 18px;
+}
+
+.doctor-panel {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  border: 1px solid #eadfe2;
+  border-radius: 22px;
+  background: #ffffff;
+  padding: 22px;
+  box-shadow: 0 14px 34px rgba(84, 59, 68, 0.07);
+}
+
+.doctor-panel h2 {
+  margin: 0;
+  color: #34292d;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.doctor-status-pill,
+.doctor-count-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border: 1px solid #f0dfe1;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.doctor-status-pill {
+  border-color: rgba(244, 91, 122, 0.4);
+  background: #fff2f5;
+  color: #d94969;
+}
+
+.doctor-count-pill {
+  background: #fffafb;
+  color: #806c73;
+}
+
+.doctor-profile-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.doctor-profile-list div {
+  display: grid;
+  gap: 4px;
+}
+
+.doctor-profile-list dt {
+  color: #806c73;
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.doctor-profile-list dd {
+  margin: 0;
+  color: #34292d;
+  font-size: 16px;
+  font-weight: 850;
+}
+
+.doctor-invite-panel {
+  background: linear-gradient(135deg, #fff6f8 0%, #ffffff 74%);
+}
+
+.doctor-panel-meta {
+  margin: 4px 0 0;
+  color: #806c73;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.doctor-active-invite {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  border: 1px solid rgba(244, 91, 122, 0.4);
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 16px;
+}
+
+.doctor-active-invite span {
+  color: #d94969;
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.doctor-active-invite strong {
+  color: #34292d;
+  font-size: 28px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.doctor-active-invite small {
+  color: #806c73;
+  font-size: 13px;
+}
+
+.doctor-invite-history {
+  display: grid;
+  gap: 10px;
+}
+
+.doctor-invite-history h3 {
+  margin: 0;
+  color: #34292d;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.doctor-invite-list {
+  display: grid;
+  gap: 10px;
+}
+
+.doctor-invite-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid #f2e5e7;
+  padding-top: 10px;
+}
+
+.doctor-invite-row div {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.doctor-invite-row strong {
+  color: #34292d;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.doctor-invite-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border: 1px solid #f0dfe1;
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: #806c73;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.doctor-invite-status.active {
+  border-color: rgba(244, 91, 122, 0.35);
+  background: #fff2f5;
+  color: #d94969;
+}
+
+.doctor-invite-status.redeemed {
+  border-color: #bde5cc;
+  background: #f5fbf7;
+  color: #247a49;
+}
+
+.doctor-invite-status.revoked,
+.doctor-invite-status.expired {
+  background: #f5f1f2;
+  color: #806c73;
+}
+
+.doctor-patient-list {
+  display: grid;
+  gap: 10px;
+}
+
+.doctor-patient-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #f2e5e7;
+  border-radius: 16px;
+  background: #fffafb;
+  padding: 12px;
+}
+
+.doctor-patient-row div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.doctor-patient-row strong,
+.doctor-patient-row span,
+.doctor-patient-row small {
+  overflow-wrap: anywhere;
+}
+
+.doctor-patient-row strong {
+  color: #34292d;
+  font-size: 15px;
+}
+
+.doctor-patient-row span,
+.doctor-patient-row small {
+  color: #806c73;
+  font-size: 13px;
+}
+
+.doctor-empty-state {
+  display: grid;
+  gap: 6px;
+  border: 1px dashed #eadfe2;
+  border-radius: 16px;
+  background: #fffafb;
+  padding: 16px;
+}
+
+.doctor-empty-state strong {
+  color: #34292d;
+  font-size: 15px;
+}
+
+.doctor-empty-state p {
+  margin: 0;
+  color: #806c73;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .doctor-dashboard-layout {
+    padding: 18px;
+  }
+
+  .doctor-dashboard-header {
+    display: grid;
+  }
+
+  .doctor-dashboard-actions {
+    justify-content: stretch;
+  }
+
+  .doctor-dashboard-actions .secondary-button {
+    flex: 1 1 130px;
+  }
+
+  .doctor-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .doctor-panel {
+    padding: 18px;
+  }
+
+  .doctor-invite-row,
+  .doctor-patient-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .timeline-layout {
   min-height: 100%;
   padding: 20px;
@@ -1541,6 +1839,20 @@ button:focus-visible {
   padding: 22px;
 }
 
+.web-invite-section .web-section-heading p {
+  margin: 5px 0 0;
+  color: #806c73;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.web-invite-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
 .web-section-heading {
   display: flex;
   align-items: center;
@@ -2183,6 +2495,10 @@ button:focus-visible {
   .web-home-section {
     gap: 12px;
     padding: 14px;
+  }
+
+  .web-invite-form {
+    grid-template-columns: 1fr;
   }
 
   .web-action-grid {

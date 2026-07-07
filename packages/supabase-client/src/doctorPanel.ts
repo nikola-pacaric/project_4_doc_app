@@ -68,7 +68,7 @@ export async function listDoctorInviteCodes(
     .returns<DoctorInviteCodeRow[]>();
 
   if (error) throw error;
-  return data.map(toDoctorInviteCode);
+  return (data ?? []).map(toDoctorInviteCode);
 }
 
 export async function createDoctorInviteCode(
@@ -100,6 +100,18 @@ export async function revokeDoctorInviteCode(
   return data === true;
 }
 
+export async function redeemDoctorInviteCode(
+  client: AppSupabaseClient,
+  inviteCode: string,
+): Promise<string> {
+  const { data, error } = await client.rpc('redeem_doctor_invite_code', {
+    invite_code: inviteCode.trim().toUpperCase(),
+  });
+
+  if (error) throw error;
+  return data as string;
+}
+
 export async function listLinkedPatients(
   client: AppSupabaseClient,
 ): Promise<LinkedPatientSummary[]> {
@@ -112,7 +124,7 @@ export async function listLinkedPatients(
     .returns<DoctorPatientAccessRow[]>();
 
   if (accessError) throw accessError;
-  if (!accessRows.length) return [];
+  if (!accessRows?.length) return [];
 
   const patientIds = accessRows.map((row) => row.patient_id);
   const { data: profileRows, error: profileError } = await client
@@ -123,7 +135,7 @@ export async function listLinkedPatients(
 
   if (profileError) throw profileError;
 
-  const profilesById = new Map(profileRows.map((profile) => [profile.id, profile]));
+  const profilesById = new Map((profileRows ?? []).map((profile) => [profile.id, profile]));
   return accessRows.map((access) => ({
     accessId: access.id,
     patientId: access.patient_id,

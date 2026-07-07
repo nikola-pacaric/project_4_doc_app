@@ -34,6 +34,7 @@ import {
   listCompletePatientMealEntryIds,
   listCompletePatientMedicationEntryIds,
   listRecentPatientEntries,
+  redeemDoctorInviteCode,
   updateEntryTimestamp,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
@@ -154,6 +155,9 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
   const [pendingEntries, setPendingEntries] = useState<LocalPendingEntry[]>([]);
   const [foodForm, setFoodForm] = useState<FoodFormRecord | null>(null);
+  const [doctorInviteCode, setDoctorInviteCode] = useState('');
+  const [doctorInviteMessage, setDoctorInviteMessage] = useState<string | null>(null);
+  const [doctorInviteRedeeming, setDoctorInviteRedeeming] = useState(false);
   const syncPendingPromiseRef = useRef<Promise<LocalPendingEntry[]> | null>(null);
   const loadEntriesPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -626,6 +630,23 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
     }
   }
 
+  async function redeemDoctorInvite() {
+    if (!doctorInviteCode.trim() || offlineMode || doctorInviteRedeeming) return;
+
+    setDoctorInviteRedeeming(true);
+    setDoctorInviteMessage(null);
+    try {
+      await redeemDoctorInviteCode(client, doctorInviteCode);
+      setDoctorInviteCode('');
+      setDoctorInviteMessage(t(locale, 'patientInvite.success'));
+      await loadEntries({ showLoading: false });
+    } catch {
+      setDoctorInviteMessage(t(locale, 'patientInvite.error'));
+    } finally {
+      setDoctorInviteRedeeming(false);
+    }
+  }
+
   const submitHelp =
     offlineMode
       ? t(locale, 'offline.actionsDisabled')
@@ -695,10 +716,22 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
       onOpenSymptoms={() => setShowSymptomForm(true)}
       onOpenEntry={openRecentEntry}
       onOpenTimeline={() => setShowTimeline(true)}
+      onRedeemDoctorInvite={redeemDoctorInvite}
       onSubmitDay={submitDay}
       onSignOut={onSignOut}
       offlineMode={offlineMode}
       profile={profile}
+      doctorInviteCode={doctorInviteCode}
+      doctorInviteMessage={
+        offlineMode && doctorInviteCode.trim()
+          ? t(locale, 'patientInvite.offline')
+          : doctorInviteMessage
+      }
+      doctorInviteRedeeming={doctorInviteRedeeming}
+      onDoctorInviteCodeChange={(value) => {
+        setDoctorInviteCode(value.toUpperCase());
+        setDoctorInviteMessage(null);
+      }}
       pendingEntryIds={pendingIds}
       recentEntries={visibleEntries}
       submitBusy={submittingDay}
