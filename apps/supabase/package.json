@@ -6,7 +6,8 @@
     "db:push:dry": "npx --yes supabase db push --linked --dry-run",
     "migration:list": "npx --yes supabase migration list --linked",
     "rls:core": "npx --yes supabase db query --linked --file tests/rls_core_access.sql",
+    "rls:invites": "npx --yes supabase db query --linked --file tests/rls_doctor_invites.sql",
     "rls:photos": "npx --yes supabase db query --linked --file tests/rls_photo_storage.sql",
-    "typecheck": "node -e \"console.log('Supabase checks: npm run migration:list, npm run rls:core, npm run rls:photos')\""
+    "typecheck": "node -e \"console.log('Supabase checks: npm run migration:list, npm run rls:core, npm run rls:invites, npm run rls:photos')\""
   }
 }

@@ -259,6 +259,20 @@ begin
     raise exception 'unlinked doctor should see 0 stool records, saw %', visible_stools;
   end if;
 
+  begin
+    insert into public.patient_entries (id, patient_id, kind, occurred_at, text)
+    values (
+      '10000000-0000-4000-8000-000000000401',
+      '00000000-0000-4000-8000-000000000001',
+      'note',
+      now(),
+      'unlinked doctor attempted create'
+    );
+    raise exception 'unlinked doctor should not create patient entries';
+  exception
+    when insufficient_privilege or check_violation or with_check_option_violation then null;
+  end;
+
   update public.patient_entries
   set text = 'doctor attempted edit before link'
   where id = '10000000-0000-4000-8000-000000000001';
@@ -266,6 +280,13 @@ begin
   get diagnostics changed_rows = row_count;
   if changed_rows <> 0 then
     raise exception 'doctor should not update patient entries';
+  end if;
+
+  delete from public.patient_entries
+  where id = '10000000-0000-4000-8000-000000000001';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then
+    raise exception 'unlinked doctor should not delete patient entries';
   end if;
 
   update public.stool_details set bristol_type = 5
@@ -327,6 +348,20 @@ begin
     raise exception 'linked doctor should see exactly 1 linked stool record, saw %', visible_stools;
   end if;
 
+  begin
+    insert into public.patient_entries (id, patient_id, kind, occurred_at, text)
+    values (
+      '10000000-0000-4000-8000-000000000402',
+      '00000000-0000-4000-8000-000000000001',
+      'note',
+      now(),
+      'linked doctor attempted create'
+    );
+    raise exception 'linked doctor should not create patient entries';
+  exception
+    when insufficient_privilege or check_violation or with_check_option_violation then null;
+  end;
+
   update public.patient_baseline_profiles set occupation = 'doctor attempted edit'
   where patient_id = '00000000-0000-4000-8000-000000000001';
   get diagnostics changed_rows = row_count;
@@ -341,6 +376,13 @@ begin
   get diagnostics changed_rows = row_count;
   if changed_rows <> 0 then
     raise exception 'linked doctor should still not update patient entries';
+  end if;
+
+  delete from public.patient_entries
+  where id = '10000000-0000-4000-8000-000000000001';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then
+    raise exception 'linked doctor should not delete patient entries';
   end if;
 
   update public.daily_form_details set wake_time = '09:00'

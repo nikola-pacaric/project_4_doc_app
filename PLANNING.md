@@ -160,6 +160,7 @@ Photo storage:
 - Done: photos are private compressed JPEG <=1280px wide with thumbnails and no original upload; voice/fallback behavior works.
 
 ### Phase 7 - Doctor Linking And Dashboard
+- Progress checkpoint (user/Codex-verified 2026-07-08): Phase 7 is complete for the shared product slice. The web workflow was user-verified: doctor creates an invite code, patient redeems it, the doctor panel marks the code used, and the linked patient appears with a read-only timeline. Codex verified the live Supabase project has one clean redeemed invite mapped to one active doctor-patient access row with no duplicate codes or duplicate active access pairs. Local `npm test` and `npm run typecheck` passed. Live Supabase `npm run rls:core`, `npm run rls:invites`, and `npm run rls:photos` passed. Android/mobile Phase 7 device visual smoke remains deferred to final mobile validation.
 - Implement doctor dashboard, invite creation, unused invite revoke, patient redemption, active linked patient list, linked patient timeline, and read-only doctor views.
 - Done: one code links one patient, reuse is rejected, revoked/expired codes fail, and unlinked patients stay hidden.
 
