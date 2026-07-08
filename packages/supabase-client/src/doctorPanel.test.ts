@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { AppSupabaseClient } from './index';
 import {
+  createDoctorPatientExportBundle,
+  createDoctorPatientExport,
   createDoctorInviteCode,
   getDoctorLinkedPatientTimeline,
   listDoctorInviteCodes,
@@ -228,5 +230,219 @@ describe('doctor invite panel client helpers', () => {
     await expect(getDoctorLinkedPatientTimeline(client, 'patient-2')).rejects.toThrow(
       'DOCTOR_PATIENT_ACCESS_REQUIRED',
     );
+  });
+
+  it('creates a selected-day patient export through the guarded RPC', async () => {
+    const payload = {
+      schemaVersion: 1,
+      exportRequestId: 'export-1',
+      patientId: 'patient-1',
+      doctorId: 'doctor-1',
+      mode: 'all_data',
+      range: {
+        type: 'selected_day',
+        selectedDate: '2026-07-08',
+        start: '2026-07-08T00:00:00.000Z',
+        end: '2026-07-09T00:00:00.000Z',
+      },
+      generatedAt: '2026-07-08T13:00:00.000Z',
+      metadata: {
+        entryCount: 0,
+        containsImageBinary: false,
+        imageReferenceType: 'none',
+      },
+      baseline: {},
+      entries: [],
+    };
+    const rpc = vi.fn().mockResolvedValue({ data: payload, error: null });
+    const client = { rpc } as unknown as AppSupabaseClient;
+
+    await expect(
+      createDoctorPatientExport(client, {
+        patientId: 'patient-1',
+        mode: 'all_data',
+        range: { type: 'selected_day', date: '2026-07-08' },
+      }),
+    ).resolves.toEqual(payload);
+
+    expect(rpc).toHaveBeenCalledWith('export_patient_data', {
+      target_patient_id: 'patient-1',
+      export_mode: 'all_data',
+      export_range_type: 'selected_day',
+      selected_date: '2026-07-08',
+      selected_month: null,
+    });
+  });
+
+  it('creates a partial-month patient export with image reference mode', async () => {
+    const payload = {
+      schemaVersion: 1,
+      exportRequestId: 'export-2',
+      patientId: 'patient-1',
+      doctorId: 'doctor-1',
+      mode: 'images_only_with_labels',
+      range: {
+        type: 'partial_month',
+        selectedMonth: '2026-07-01',
+        start: '2026-07-01T00:00:00.000Z',
+        end: '2026-07-08T13:00:00.000Z',
+      },
+      generatedAt: '2026-07-08T13:00:00.000Z',
+      metadata: {
+        entryCount: 1,
+        containsImageBinary: false,
+        imageReferenceType: 'storage_path',
+      },
+      baseline: {},
+      entries: [{ entryId: 'entry-1', label: 'Lunch photo' }],
+    };
+    const rpc = vi.fn().mockResolvedValue({ data: payload, error: null });
+    const client = { rpc } as unknown as AppSupabaseClient;
+
+    await expect(
+      createDoctorPatientExport(client, {
+        patientId: 'patient-1',
+        mode: 'images_only_with_labels',
+        range: { type: 'partial_month', month: '2026-07-01' },
+      }),
+    ).resolves.toEqual(payload);
+
+    expect(rpc).toHaveBeenCalledWith('export_patient_data', {
+      target_patient_id: 'patient-1',
+      export_mode: 'images_only_with_labels',
+      export_range_type: 'partial_month',
+      selected_date: null,
+      selected_month: '2026-07-01',
+    });
+  });
+
+  it('rejects unsafe export payloads before returning them to the UI', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        schemaVersion: 1,
+        exportRequestId: 'export-3',
+        patientId: 'patient-1',
+        doctorId: 'doctor-1',
+        mode: 'all_data_with_images',
+        range: {
+          type: 'selected_day',
+          start: '2026-07-08T00:00:00.000Z',
+          end: '2026-07-09T00:00:00.000Z',
+        },
+        generatedAt: '2026-07-08T13:00:00.000Z',
+        metadata: {
+          entryCount: 1,
+          containsImageBinary: false,
+          imageReferenceType: 'storage_path',
+        },
+        baseline: {},
+        entries: [{ photo: 'data:image/jpeg;base64,abc123' }],
+      },
+      error: null,
+    });
+    const client = { rpc } as unknown as AppSupabaseClient;
+
+    await expect(
+      createDoctorPatientExport(client, {
+        patientId: 'patient-1',
+        mode: 'all_data_with_images',
+        range: { type: 'selected_day', date: '2026-07-08' },
+      }),
+    ).rejects.toThrow('EXPORT_PAYLOAD_BASE64_UNSAFE');
+  });
+
+  it('builds a ZIP export bundle with JSON, images, and thumbnails', async () => {
+    const payload = {
+      schemaVersion: 1,
+      exportRequestId: 'export-4',
+      patientId: 'patient-1',
+      doctorId: 'doctor-1',
+      mode: 'all_data_with_images',
+      range: {
+        type: 'selected_day',
+        selectedDate: '2026-07-08',
+        start: '2026-07-08T00:00:00.000Z',
+        end: '2026-07-09T00:00:00.000Z',
+      },
+      generatedAt: '2026-07-08T13:00:00.000Z',
+      metadata: {
+        entryCount: 1,
+        containsImageBinary: false,
+        imageReferenceType: 'storage_path',
+      },
+      baseline: {},
+      entries: [
+        {
+          id: 'entry-1',
+          photos: [
+            {
+              photoPath: 'patients/patient-1/entries/entry-1/photos/photo-1.jpg',
+              thumbnailPath: 'patients/patient-1/entries/entry-1/thumbs/photo-1.jpg',
+            },
+          ],
+        },
+      ],
+    };
+    const rpc = vi.fn().mockResolvedValue({ data: payload, error: null });
+    const download = vi
+      .fn()
+      .mockResolvedValueOnce({ data: new Blob([new Uint8Array([0xff, 0xd8, 0xff])]), error: null })
+      .mockResolvedValueOnce({ data: new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])]), error: null });
+    const storageFrom = vi.fn(() => ({ download }));
+    const client = { rpc, storage: { from: storageFrom } } as unknown as AppSupabaseClient;
+
+    const bundle = await createDoctorPatientExportBundle(client, {
+      patientId: 'patient-1',
+      mode: 'all_data_with_images',
+      range: { type: 'selected_day', date: '2026-07-08' },
+    });
+    const zipText = new TextDecoder().decode(await bundle.zipBlob.arrayBuffer());
+
+    expect(bundle.fileName).toBe('patient-export-patient--2026-07-08-all_data_with_images.zip');
+    expect(bundle.imageFileCount).toBe(2);
+    expect(storageFrom).toHaveBeenCalledWith('patient-entry-photos');
+    expect(download).toHaveBeenCalledWith('patients/patient-1/entries/entry-1/photos/photo-1.jpg');
+    expect(download).toHaveBeenCalledWith('patients/patient-1/entries/entry-1/thumbs/photo-1.jpg');
+    expect(zipText).toContain('export.json');
+    expect(zipText).toContain('images/photo-1.jpg');
+    expect(zipText).toContain('thumbs/photo-1.jpg');
+  });
+
+  it('builds a JSON-only ZIP without downloading images for all_data exports', async () => {
+    const payload = {
+      schemaVersion: 1,
+      exportRequestId: 'export-5',
+      patientId: 'patient-1',
+      doctorId: 'doctor-1',
+      mode: 'all_data',
+      range: {
+        type: 'partial_month',
+        selectedMonth: '2026-07-01',
+        start: '2026-07-01T00:00:00.000Z',
+        end: '2026-07-08T13:00:00.000Z',
+      },
+      generatedAt: '2026-07-08T13:00:00.000Z',
+      metadata: {
+        entryCount: 1,
+        containsImageBinary: false,
+        imageReferenceType: 'none',
+      },
+      baseline: {},
+      entries: [{ id: 'entry-1' }],
+    };
+    const rpc = vi.fn().mockResolvedValue({ data: payload, error: null });
+    const download = vi.fn();
+    const storageFrom = vi.fn(() => ({ download }));
+    const client = { rpc, storage: { from: storageFrom } } as unknown as AppSupabaseClient;
+
+    const bundle = await createDoctorPatientExportBundle(client, {
+      patientId: 'patient-1',
+      mode: 'all_data',
+      range: { type: 'partial_month', month: '2026-07-01' },
+    });
+
+    expect(bundle.fileName).toBe('patient-export-patient--2026-07-all_data.zip');
+    expect(bundle.imageFileCount).toBe(0);
+    expect(download).not.toHaveBeenCalled();
   });
 });

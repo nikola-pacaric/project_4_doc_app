@@ -756,6 +756,61 @@ button:focus-visible {
   cursor: default;
 }
 
+.doctor-export-panel {
+  width: min(920px, 100%);
+  display: grid;
+  gap: 14px;
+  margin: 0 auto 18px;
+  border: 1px solid #eadfe2;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 16px;
+}
+
+.doctor-export-panel h2 {
+  margin: 0;
+  color: #34292d;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.doctor-export-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.doctor-export-grid label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  color: #6f5962;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.doctor-export-grid input,
+.doctor-export-grid select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #eadfe2;
+  border-radius: 10px;
+  background: #fffafb;
+  color: #34292d;
+  padding: 9px 10px;
+}
+
+.doctor-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.doctor-export-actions .notice {
+  margin: 0;
+}
+
 .doctor-empty-state {
   display: grid;
   gap: 6px;
@@ -788,6 +843,10 @@ button:focus-visible {
 
   .doctor-dashboard-actions {
     justify-content: stretch;
+  }
+
+  .doctor-export-grid {
+    grid-template-columns: 1fr;
   }
 
   .doctor-dashboard-actions .secondary-button {

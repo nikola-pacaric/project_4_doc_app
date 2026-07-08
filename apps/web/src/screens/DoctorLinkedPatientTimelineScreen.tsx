@@ -1,6 +1,12 @@
-import { isNoStoolTodayEntry, type EntryKind, type PatientEntry } from '@project4/contracts';
+import {
+  isNoStoolTodayEntry,
+  type EntryKind,
+  type ExportMode,
+  type PatientEntry,
+} from '@project4/contracts';
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
 import {
+  createDoctorPatientExportBundle,
   createEntryPhotoSignedUrl,
   getDoctorLinkedPatientTimeline,
   listEntryPhotos,
@@ -55,6 +61,25 @@ function formatEntryDate(value: string, locale: string): string {
   }).format(new Date(value));
 }
 
+function todayInputValue(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function currentMonthInputValue(): string {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function downloadBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function DoctorLinkedPatientTimelineScreen({
   client,
   initialPatient,
@@ -65,6 +90,15 @@ export function DoctorLinkedPatientTimelineScreen({
   const [entries, setEntries] = useState<PatientEntry[]>([]);
   const [entryPhotos, setEntryPhotos] = useState<Record<string, TimelineEntryPhoto[]>>({});
   const [lightboxPhoto, setLightboxPhoto] = useState<{ url: string; label: string } | null>(null);
+  const [exportMode, setExportMode] = useState<ExportMode>('all_data_with_images');
+  const [exportRangeType, setExportRangeType] = useState<'selected_day' | 'partial_month'>(
+    'selected_day',
+  );
+  const [exportDate, setExportDate] = useState(todayInputValue);
+  const [exportMonth, setExportMonth] = useState(currentMonthInputValue);
+  const [exporting, setExporting] = useState(false);
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,6 +123,31 @@ export function DoctorLinkedPatientTimelineScreen({
   useEffect(() => {
     void loadTimeline();
   }, [loadTimeline]);
+
+  async function handleDownloadExport() {
+    setExporting(true);
+    setExportError(null);
+    setExportStatus(t(locale, 'doctor.exportPreparing'));
+
+    try {
+      const bundle = await createDoctorPatientExportBundle(client, {
+        patientId: patient.patientId,
+        mode: exportMode,
+        range:
+          exportRangeType === 'selected_day'
+            ? { type: 'selected_day', date: exportDate }
+            : { type: 'partial_month', month: `${exportMonth}-01` },
+      });
+
+      downloadBlob(bundle.zipBlob, bundle.fileName);
+      setExportStatus(t(locale, 'doctor.exportReady'));
+    } catch {
+      setExportStatus(null);
+      setExportError(t(locale, 'doctor.exportError'));
+    } finally {
+      setExporting(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -152,6 +211,71 @@ export function DoctorLinkedPatientTimelineScreen({
       </div>
 
       <p className="doctor-readonly-notice">{t(locale, 'doctor.readOnlyNotice')}</p>
+      <section className="doctor-export-panel" aria-labelledby="doctor-export-title">
+        <div>
+          <h2 id="doctor-export-title">{t(locale, 'doctor.exportTitle')}</h2>
+        </div>
+        <div className="doctor-export-grid">
+          <label>
+            <span>{t(locale, 'doctor.exportMode')}</span>
+            <select
+              onChange={(event) => setExportMode(event.target.value as ExportMode)}
+              value={exportMode}
+            >
+              <option value="all_data">{t(locale, 'doctor.exportAllData')}</option>
+              <option value="all_data_with_images">
+                {t(locale, 'doctor.exportAllDataWithImages')}
+              </option>
+              <option value="images_only_with_labels">
+                {t(locale, 'doctor.exportImagesOnly')}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span>{t(locale, 'doctor.exportRange')}</span>
+            <select
+              onChange={(event) =>
+                setExportRangeType(event.target.value as 'selected_day' | 'partial_month')
+              }
+              value={exportRangeType}
+            >
+              <option value="selected_day">{t(locale, 'doctor.exportSelectedDay')}</option>
+              <option value="partial_month">{t(locale, 'doctor.exportPartialMonth')}</option>
+            </select>
+          </label>
+          {exportRangeType === 'selected_day' ? (
+            <label>
+              <span>{t(locale, 'doctor.exportDate')}</span>
+              <input
+                onChange={(event) => setExportDate(event.target.value)}
+                type="date"
+                value={exportDate}
+              />
+            </label>
+          ) : (
+            <label>
+              <span>{t(locale, 'doctor.exportMonth')}</span>
+              <input
+                onChange={(event) => setExportMonth(event.target.value)}
+                type="month"
+                value={exportMonth}
+              />
+            </label>
+          )}
+        </div>
+        <div className="doctor-export-actions">
+          <button
+            className="primary-button"
+            disabled={exporting}
+            onClick={() => void handleDownloadExport()}
+            type="button"
+          >
+            {exporting ? t(locale, 'doctor.exportPreparing') : t(locale, 'doctor.exportDownload')}
+          </button>
+          {exportStatus ? <p className="notice success">{exportStatus}</p> : null}
+          {exportError ? <p className="notice error">{exportError}</p> : null}
+        </div>
+      </section>
       {error ? <p className="notice error">{error}</p> : null}
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading && entries.length === 0 && !error ? (
