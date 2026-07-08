@@ -42,6 +42,8 @@ packages/ui-tokens
 - Web: React + TypeScript + Vite.
 - Mobile: React Native + TypeScript, preferably Expo with prebuild support.
 - Backend: Supabase Auth, Postgres, Storage, RLS, guarded RPC/Edge Functions.
+- Supabase package layout: `apps/supabase` is the package root; the standard Supabase CLI project lives in `apps/supabase/supabase`, with migrations in `apps/supabase/supabase/migrations`, Edge Functions in `apps/supabase/supabase/functions`, and focused SQL/RLS tests in `apps/supabase/tests`.
+- Supabase workflow commands are run from `apps/supabase`: `npm run migration:list`, `npm run db:push:dry`, `npm run rls:core`, and `npm run rls:photos`.
 - Testing: unit/component, integration, RLS/security, web e2e, mobile smoke/e2e.
 
 ## 4. Non-Negotiable Build Rules

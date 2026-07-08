@@ -11,12 +11,21 @@ import {
 } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, RefreshControl, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { colors, sharedStyles } from '../theme';
+import { DoctorLinkedPatientTimelineScreen } from './DoctorLinkedPatientTimelineScreen';
 
 interface DoctorPendingScreenProps {
   client: AppSupabaseClient;
@@ -56,6 +65,7 @@ export function DoctorPendingScreen({ client, onSignOut, profile }: DoctorPendin
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<LinkedPatientSummary | null>(null);
 
   const activeInvite = useMemo(
     () => invites.find((invite) => getInviteStatus(invite) === 'active') ?? null,
@@ -131,6 +141,16 @@ export function DoctorPendingScreen({ client, onSignOut, profile }: DoctorPendin
   const activeInviteHelp = activeInvite
     ? t(locale, 'doctor.activeInviteHelp').replace('{date}', formatShortDate(activeInvite.expiresAt))
     : t(locale, 'doctor.noActiveInvite');
+
+  if (selectedPatient) {
+    return (
+      <DoctorLinkedPatientTimelineScreen
+        client={client}
+        initialPatient={selectedPatient}
+        onBack={() => setSelectedPatient(null)}
+      />
+    );
+  }
 
   return (
     <SafeAreaView style={sharedStyles.formScreen}>
@@ -246,7 +266,12 @@ export function DoctorPendingScreen({ client, onSignOut, profile }: DoctorPendin
               </View>
               {patients.length ? (
                 patients.map((patient) => (
-                  <View key={patient.accessId} style={styles.patientRow}>
+                  <Pressable
+                    accessibilityRole="button"
+                    key={patient.accessId}
+                    onPress={() => setSelectedPatient(patient)}
+                    style={({ pressed }) => [styles.patientRow, pressed && styles.pressedRow]}
+                  >
                     <Text style={styles.rowTitle}>
                       {patient.displayName || t(locale, 'doctor.unnamedPatient')}
                     </Text>
@@ -262,7 +287,8 @@ export function DoctorPendingScreen({ client, onSignOut, profile }: DoctorPendin
                         formatShortDate(patient.linkedAt),
                       )}
                     </Text>
-                  </View>
+                    <Text style={styles.openPatient}>{t(locale, 'doctor.openPatient')}</Text>
+                  </Pressable>
                 ))
               ) : (
                 <View style={styles.emptyState}>
@@ -399,6 +425,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: spacing.md,
+  },
+  pressedRow: {
+    opacity: 0.74,
+  },
+  openPatient: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '800',
   },
   emptyState: {
     gap: spacing.xs,

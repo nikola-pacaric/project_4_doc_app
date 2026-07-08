@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "typecheck": "node -e \"console.log('Supabase SQL checks start in Phase 2')\""
+    "db:push:dry": "npx --yes supabase db push --linked --dry-run",
+    "migration:list": "npx --yes supabase migration list --linked",
+    "rls:core": "npx --yes supabase db query --linked --file tests/rls_core_access.sql",
+    "rls:photos": "npx --yes supabase db query --linked --file tests/rls_photo_storage.sql",
+    "typecheck": "node -e \"console.log('Supabase checks: npm run migration:list, npm run rls:core, npm run rls:photos')\""
   }
 }

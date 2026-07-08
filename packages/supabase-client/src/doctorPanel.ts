@@ -1,6 +1,8 @@
 import type { UserProfile } from '@project4/contracts';
+import type { PatientEntry } from '@project4/contracts';
 
 import type { AppSupabaseClient } from './index';
+import { listRecentPatientEntries } from './patientEntries';
 
 export interface DoctorInviteCode {
   id: string;
@@ -27,6 +29,11 @@ export interface LinkedPatientSummary {
   patientId: string;
   displayName: string | null;
   linkedAt: string;
+}
+
+export interface DoctorLinkedPatientTimeline {
+  patient: LinkedPatientSummary;
+  entries: PatientEntry[];
 }
 
 interface DoctorPatientAccessRow {
@@ -142,4 +149,40 @@ export async function listLinkedPatients(
     displayName: profilesById.get(access.patient_id)?.display_name ?? null,
     linkedAt: access.created_at,
   }));
+}
+
+export async function getDoctorLinkedPatientTimeline(
+  client: AppSupabaseClient,
+  patientId: string,
+  days = 30,
+): Promise<DoctorLinkedPatientTimeline> {
+  const { data: accessRow, error: accessError } = await client
+    .from('doctor_patient_access')
+    .select('id, patient_id, created_at')
+    .eq('patient_id', patientId)
+    .eq('active', true)
+    .is('revoked_at', null)
+    .maybeSingle<DoctorPatientAccessRow>();
+
+  if (accessError) throw accessError;
+  if (!accessRow) throw new Error('DOCTOR_PATIENT_ACCESS_REQUIRED');
+
+  const { data: profileRow, error: profileError } = await client
+    .from('user_profiles')
+    .select('id, role, display_name, consent_accepted_at')
+    .eq('id', patientId)
+    .maybeSingle<UserProfileRow>();
+
+  if (profileError) throw profileError;
+
+  const entries = await listRecentPatientEntries(client, patientId, days);
+  return {
+    patient: {
+      accessId: accessRow.id,
+      patientId: accessRow.patient_id,
+      displayName: profileRow?.display_name ?? null,
+      linkedAt: accessRow.created_at,
+    },
+    entries,
+  };
 }

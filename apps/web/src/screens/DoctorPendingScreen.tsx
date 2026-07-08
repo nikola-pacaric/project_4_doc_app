@@ -12,6 +12,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { DoctorLinkedPatientTimelineScreen } from './DoctorLinkedPatientTimelineScreen';
 
 interface DoctorPendingScreenProps {
   client: AppSupabaseClient;
@@ -50,6 +51,7 @@ export function DoctorPendingScreen({ client, onSignOut, profile }: DoctorPendin
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<LinkedPatientSummary | null>(null);
 
   const activeInvite = useMemo(
     () => invites.find((invite) => getInviteStatus(invite) === 'active') ?? null,
@@ -117,6 +119,16 @@ export function DoctorPendingScreen({ client, onSignOut, profile }: DoctorPendin
   const activeInviteHelp = activeInvite
     ? t(locale, 'doctor.activeInviteHelp').replace('{date}', formatShortDate(activeInvite.expiresAt))
     : t(locale, 'doctor.noActiveInvite');
+
+  if (selectedPatient) {
+    return (
+      <DoctorLinkedPatientTimelineScreen
+        client={client}
+        initialPatient={selectedPatient}
+        onBack={() => setSelectedPatient(null)}
+      />
+    );
+  }
 
   return (
     <main className="doctor-dashboard-layout">
@@ -245,7 +257,12 @@ export function DoctorPendingScreen({ client, onSignOut, profile }: DoctorPendin
           {!loading && !error && patients.length ? (
             <div className="doctor-patient-list">
               {patients.map((patient) => (
-                <div className="doctor-patient-row" key={patient.accessId}>
+                <button
+                  className="doctor-patient-row"
+                  key={patient.accessId}
+                  onClick={() => setSelectedPatient(patient)}
+                  type="button"
+                >
                   <div>
                     <strong>{patient.displayName || t(locale, 'doctor.unnamedPatient')}</strong>
                     <span>
@@ -261,7 +278,8 @@ export function DoctorPendingScreen({ client, onSignOut, profile }: DoctorPendin
                       formatShortDate(patient.linkedAt),
                     )}
                   </small>
-                </div>
+                  <span className="doctor-open-patient">{t(locale, 'doctor.openPatient')}</span>
+                </button>
               ))}
             </div>
           ) : null}
