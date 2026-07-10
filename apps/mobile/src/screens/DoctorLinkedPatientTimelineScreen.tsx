@@ -1,6 +1,12 @@
-import { isNoStoolTodayEntry, type EntryKind, type PatientEntry } from '@project4/contracts';
+import {
+  isNoStoolTodayEntry,
+  type EntryKind,
+  type ExportMode,
+  type PatientEntry,
+} from '@project4/contracts';
 import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
 import {
+  createDoctorPatientExportBundle,
   createEntryPhotoSignedUrl,
   getDoctorLinkedPatientTimeline,
   listEntryPhotos,
@@ -20,10 +26,19 @@ import {
 } from 'react-native';
 
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
+import { DatePickerField } from '../components/DatePickerField';
+import { MonthPickerField } from '../components/MonthPickerField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { SelectField } from '../components/SelectField';
+import { downloadDoctorExportImageBytes, shareDoctorExportBundle } from '../lib/doctorExport';
 import { colors, sharedStyles } from '../theme';
-import { formatEntryDate, formatEntryTime } from '../utils/dateTime';
+import {
+  formatEntryDate,
+  formatEntryTime,
+  toLocalDateInput,
+  toLocalMonthInput,
+} from '../utils/dateTime';
 
 interface DoctorLinkedPatientTimelineScreenProps {
   client: AppSupabaseClient;
@@ -52,6 +67,21 @@ const entryIcons: Record<EntryKind, string> = {
   custom: '📋',
 };
 
+const exportModeOptions: { labelKey: TranslationKey; value: ExportMode }[] = [
+  { labelKey: 'doctor.exportAllData', value: 'all_data' },
+  { labelKey: 'doctor.exportAllDataWithImages', value: 'all_data_with_images' },
+  { labelKey: 'doctor.exportImagesOnly', value: 'images_only_with_labels' },
+];
+
+const exportRangeOptions: {
+  labelKey: TranslationKey;
+  value: 'selected_day' | 'partial_month' | 'all_time';
+}[] = [
+  { labelKey: 'doctor.exportSelectedDay', value: 'selected_day' },
+  { labelKey: 'doctor.exportPartialMonth', value: 'partial_month' },
+  { labelKey: 'doctor.exportAllTime', value: 'all_time' },
+];
+
 function canHaveTimelinePhotos(entry: PatientEntry): boolean {
   return entry.kind === 'meal' || entry.kind === 'fluid' || entry.kind === 'medication';
 }
@@ -70,6 +100,15 @@ export function DoctorLinkedPatientTimelineScreen({
   const [entries, setEntries] = useState<PatientEntry[]>([]);
   const [entryPhotos, setEntryPhotos] = useState<Record<string, TimelineEntryPhoto[]>>({});
   const [selectedPhoto, setSelectedPhoto] = useState<TimelineEntryPhoto | null>(null);
+  const [exportMode, setExportMode] = useState<ExportMode>('all_data_with_images');
+  const [exportRangeType, setExportRangeType] = useState<
+    'selected_day' | 'partial_month' | 'all_time'
+  >('selected_day');
+  const [exportDate, setExportDate] = useState(() => toLocalDateInput(new Date()));
+  const [exportMonth, setExportMonth] = useState(() => toLocalMonthInput(new Date()));
+  const [exporting, setExporting] = useState(false);
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,6 +133,38 @@ export function DoctorLinkedPatientTimelineScreen({
   useEffect(() => {
     void loadTimeline();
   }, [loadTimeline]);
+
+  async function handleExport() {
+    let exportStage: 'preparing' | 'sharing' = 'preparing';
+    setExporting(true);
+    setExportStatus(null);
+    setExportError(null);
+
+    try {
+      const bundle = await createDoctorPatientExportBundle(client, {
+        patientId: patient.patientId,
+        mode: exportMode,
+        imageBytesLoader: (storagePath) => downloadDoctorExportImageBytes(client, storagePath),
+        range:
+          exportRangeType === 'selected_day'
+            ? { type: 'selected_day', date: exportDate }
+            : exportRangeType === 'partial_month'
+              ? { type: 'partial_month', month: `${exportMonth}-01` }
+              : { type: 'all_time' },
+      });
+
+      exportStage = 'sharing';
+      setExportStatus(t(locale, 'doctor.exportOpeningShare'));
+      await shareDoctorExportBundle(bundle);
+      setExportStatus(t(locale, 'doctor.exportShared'));
+    } catch {
+      setExportError(
+        t(locale, exportStage === 'sharing' ? 'doctor.exportShareError' : 'doctor.exportError'),
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -166,6 +237,63 @@ export function DoctorLinkedPatientTimelineScreen({
         </View>
 
         <Text style={styles.readOnly}>{t(locale, 'doctor.readOnlyNotice')}</Text>
+        <View style={styles.exportPanel}>
+          <Text style={styles.exportTitle}>{t(locale, 'doctor.exportTitle')}</Text>
+          <SelectField
+            label={t(locale, 'doctor.exportMode')}
+            onChange={(value) => setExportMode(value as ExportMode)}
+            options={exportModeOptions.map((option) => ({
+              label: t(locale, option.labelKey),
+              value: option.value,
+            }))}
+            placeholder={t(locale, 'doctor.exportMode')}
+            value={exportMode}
+          />
+          <SelectField
+            label={t(locale, 'doctor.exportRange')}
+            onChange={(value) =>
+              setExportRangeType(value as 'selected_day' | 'partial_month' | 'all_time')
+            }
+            options={exportRangeOptions.map((option) => ({
+              label: t(locale, option.labelKey),
+              value: option.value,
+            }))}
+            placeholder={t(locale, 'doctor.exportRange')}
+            value={exportRangeType}
+          />
+          {exportRangeType === 'selected_day' ? (
+            <DatePickerField
+              label={t(locale, 'doctor.exportDate')}
+              maximumDate={new Date()}
+              onChange={setExportDate}
+              value={exportDate}
+            />
+          ) : exportRangeType === 'partial_month' ? (
+            <MonthPickerField
+              label={t(locale, 'doctor.exportMonth')}
+              maximumDate={new Date()}
+              onChange={setExportMonth}
+              value={exportMonth}
+            />
+          ) : (
+            <Text style={styles.exportHelp}>{t(locale, 'doctor.exportAllTimeHelp')}</Text>
+          )}
+          <PrimaryButton
+            busy={exporting}
+            label={t(locale, 'doctor.exportShare')}
+            onPress={() => void handleExport()}
+          />
+          {exportStatus ? (
+            <Text selectable style={sharedStyles.success}>
+              {exportStatus}
+            </Text>
+          ) : null}
+          {exportError ? (
+            <Text selectable style={sharedStyles.error}>
+              {exportError}
+            </Text>
+          ) : null}
+        </View>
         {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
         {loading ? <ActivityIndicator color={colors.accent} size="large" /> : null}
         {!loading && !entries.length && !error ? (
@@ -248,6 +376,16 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     padding: spacing.md,
   },
+  exportPanel: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+  exportTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
+  exportHelp: { color: colors.mutedText, fontSize: 15, lineHeight: 22 },
   empty: { color: colors.mutedText, fontSize: 15, lineHeight: 22 },
   list: { gap: spacing.sm },
   card: {

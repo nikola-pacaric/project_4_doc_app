@@ -2,7 +2,8 @@ export type ExportMode = 'all_data' | 'all_data_with_images' | 'images_only_with
 
 export type ExportRange =
   | { type: 'selected_day'; date: string }
-  | { type: 'partial_month'; month: string };
+  | { type: 'partial_month'; month: string }
+  | { type: 'all_time' };
 
 export interface ExportRequest {
   doctorId: string;
@@ -55,9 +56,7 @@ export interface ExportPayload {
 
 export function isExportMode(value: unknown): value is ExportMode {
   return (
-    value === 'all_data' ||
-    value === 'all_data_with_images' ||
-    value === 'images_only_with_labels'
+    value === 'all_data' || value === 'all_data_with_images' || value === 'images_only_with_labels'
   );
 }
 
@@ -75,7 +74,9 @@ export function validateExportPayload(payload: unknown): ExportPayload {
     !isExportMode(candidate.mode) ||
     !candidate.range ||
     typeof candidate.range !== 'object' ||
-    (candidate.range.type !== 'selected_day' && candidate.range.type !== 'partial_month') ||
+    (candidate.range.type !== 'selected_day' &&
+      candidate.range.type !== 'partial_month' &&
+      candidate.range.type !== 'all_time') ||
     typeof candidate.range.start !== 'string' ||
     typeof candidate.range.end !== 'string' ||
     typeof candidate.generatedAt !== 'string' ||

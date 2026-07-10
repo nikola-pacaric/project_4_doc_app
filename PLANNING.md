@@ -87,7 +87,7 @@ Required guarded functions/RPC:
 Backend behavior:
 - Invite codes are short, single-use, revocable before use, expire after 7 days, and create active access when redeemed.
 - Exports only work for active linked doctors.
-- Export ranges are selected day or selected/current partial month.
+- Export ranges are selected day, selected/current partial month, or all time from the patient's first recorded entry through the current moment.
 - Export modes: all data, all data with images, images only with labels.
 - Export JSON must never embed base64 images.
 
@@ -165,7 +165,7 @@ Photo storage:
 - Done: one code links one patient, reuse is rejected, revoked/expired codes fail, and unlinked patients stay hidden.
 
 ### Phase 8 - Doctor Exports
-- Implement selected-day and selected/current partial-month exports in all three modes with audit/metadata and JSON schema validation.
+- Implement selected-day, selected/current partial-month, and all-time exports in all three modes with audit/metadata and JSON schema validation.
 - Done: linked doctors export allowed data in all modes; unlinked doctors fail; expected pilot exports finish in under 30 seconds; no base64 images.
 
 ### Phase 9 - Settings, Localization, Theme
@@ -193,7 +193,7 @@ Photo storage:
 - Photo uploads are compressed JPEG, max 1280px wide, thumbnailed, private, and not original full-resolution uploads.
 - Voice input works where supported and typing fallback works elsewhere.
 - Doctor invite code links one patient, rejects reuse, and hides unlinked patients.
-- Doctor exports day and current/partial month JSON in all three modes.
+- Doctor exports selected-day, current/partial-month, and all-time JSON in all three modes.
 - No export embeds base64 images.
 - RLS proves patients cannot access other patients and doctors cannot access or edit unauthorized patient data.
 - Serbian/English UI and light/dark theme work in core flows.

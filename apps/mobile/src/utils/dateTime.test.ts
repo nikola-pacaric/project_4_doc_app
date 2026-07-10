@@ -6,6 +6,7 @@ import {
   localDayRange,
   parseLocalDateTime,
   toLocalDateInput,
+  toLocalMonthInput,
   toLocalTimeInput,
 } from './dateTime';
 
@@ -14,6 +15,7 @@ describe('mobile date and time helpers', () => {
     const value = new Date(2026, 5, 18, 9, 7);
 
     expect(toLocalDateInput(value)).toBe('2026-06-18');
+    expect(toLocalMonthInput(value)).toBe('2026-06');
     expect(toLocalTimeInput(value)).toBe('09:07');
   });
 

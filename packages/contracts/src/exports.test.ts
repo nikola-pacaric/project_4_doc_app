@@ -43,6 +43,19 @@ describe('export payload contracts', () => {
     });
   });
 
+  it('accepts all-time exports without selected date fields', () => {
+    expect(
+      validateExportPayload({
+        ...validPayload,
+        range: {
+          type: 'all_time',
+          start: '2026-01-01T00:00:00.000Z',
+          end: '2026-07-10T00:00:00.000Z',
+        },
+      }),
+    ).toMatchObject({ range: { type: 'all_time' } });
+  });
+
   it('rejects embedded base64 image data', () => {
     expect(() =>
       validateExportPayload({

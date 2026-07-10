@@ -144,8 +144,8 @@ do $$
 declare
   selected_day_payload jsonb;
   image_payload jsonb;
+  all_time_payload jsonb;
   request_rows integer;
-  audit_rows integer;
 begin
   selected_day_payload := public.export_patient_data(
     '00000000-0000-4000-8000-000000000081',
@@ -191,28 +191,73 @@ begin
     raise exception 'images-only export must not contain base64 images';
   end if;
 
+  all_time_payload := public.export_patient_data(
+    '00000000-0000-4000-8000-000000000081',
+    'all_data',
+    'all_time',
+    null,
+    null
+  );
+
+  if all_time_payload #>> '{range,type}' <> 'all_time' then
+    raise exception 'all-time export should preserve the range type';
+  end if;
+
+  if all_time_payload #>> '{range,selectedDate}' is not null
+    or all_time_payload #>> '{range,selectedMonth}' is not null then
+    raise exception 'all-time export should not retain a selected date or month';
+  end if;
+
+  if jsonb_array_length(all_time_payload -> 'entries') <> 3 then
+    raise exception 'all-time export should include every patient A entry, got %',
+      jsonb_array_length(all_time_payload -> 'entries');
+  end if;
+
+  if all_time_payload::text like '%data:image/%'
+    or all_time_payload::text like '%;base64,%' then
+    raise exception 'all-time export must not contain base64 images';
+  end if;
+
+  begin
+    perform public.export_patient_data(
+      '00000000-0000-4000-8000-000000000081',
+      'all_data',
+      'all_time',
+      '2026-07-08',
+      null
+    );
+    raise exception 'all-time exports should reject selected dates';
+  exception when invalid_parameter_value then null;
+  end;
+
   select count(*) into request_rows
   from public.export_requests
   where doctor_id = '00000000-0000-4000-8000-000000000083'
     and patient_id = '00000000-0000-4000-8000-000000000081'
     and status = 'completed';
 
-  if request_rows <> 2 then
-    raise exception 'linked doctor should have two completed export request rows, saw %', request_rows;
+  if request_rows <> 3 then
+    raise exception 'linked doctor should have three completed export request rows, saw %', request_rows;
   end if;
 
+end $$;
+
+reset role;
+
+do $$
+declare
+  audit_rows integer;
+begin
   select count(*) into audit_rows
   from public.audit_events
   where actor_id = '00000000-0000-4000-8000-000000000083'
     and patient_id = '00000000-0000-4000-8000-000000000081'
     and event_type = 'patient_export_created';
 
-  if audit_rows <> 2 then
-    raise exception 'linked doctor exports should create two audit rows, saw %', audit_rows;
+  if audit_rows <> 3 then
+    raise exception 'linked doctor exports should create three audit rows, saw %', audit_rows;
   end if;
 end $$;
-
-reset role;
 
 set local role authenticated;
 set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000084';

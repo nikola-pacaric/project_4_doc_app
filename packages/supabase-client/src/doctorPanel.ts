@@ -5,7 +5,7 @@ import { PHOTO_BUCKET } from '@project4/photo';
 
 import type { AppSupabaseClient } from './index';
 import { listRecentPatientEntries } from './patientEntries';
-import { createStoredZip, type ZipFileInput } from './zipBundle';
+import { createStoredZipBytes, type ZipFileInput } from './zipBundle';
 
 export interface DoctorInviteCode {
   id: string;
@@ -43,11 +43,12 @@ export interface CreateDoctorExportInput {
   patientId: string;
   mode: ExportMode;
   range: ExportRange;
+  imageBytesLoader?: (storagePath: string) => Promise<Uint8Array>;
 }
 
 export interface DoctorPatientExportBundle {
   fileName: string;
-  zipBlob: Blob;
+  zipBytes: Uint8Array;
   payload: ExportPayload;
   imageFileCount: number;
 }
@@ -94,9 +95,7 @@ export async function listDoctorInviteCodes(
   return (data ?? []).map(toDoctorInviteCode);
 }
 
-export async function createDoctorInviteCode(
-  client: AppSupabaseClient,
-): Promise<DoctorInviteCode> {
+export async function createDoctorInviteCode(client: AppSupabaseClient): Promise<DoctorInviteCode> {
   const { data, error } = await client
     .rpc('create_doctor_invite_code')
     .single<Pick<DoctorInviteCodeRow, 'id' | 'code' | 'expires_at'>>();
@@ -268,7 +267,9 @@ function exportFileName(input: CreateDoctorExportInput, payload: ExportPayload):
   const rangeLabel =
     input.range.type === 'selected_day'
       ? input.range.date
-      : input.range.month.slice(0, 7);
+      : input.range.type === 'partial_month'
+        ? input.range.month.slice(0, 7)
+        : 'all-time';
   return `patient-export-${payload.patientId.slice(0, 8)}-${rangeLabel}-${input.mode}.zip`;
 }
 
@@ -286,23 +287,26 @@ export async function createDoctorPatientExportBundle(
 
   const imagePaths =
     input.mode === 'all_data' ? [] : Array.from(collectExportImagePaths(payload)).sort();
-  const bucket = client.storage.from(PHOTO_BUCKET);
   const usedZipPaths = new Set<string>();
+  const loadImageBytes =
+    input.imageBytesLoader ??
+    (async (imagePath: string): Promise<Uint8Array> => {
+      const { data, error } = await client.storage.from(PHOTO_BUCKET).download(imagePath);
+      if (error) throw error;
+      if (!data) throw new Error('EXPORT_IMAGE_DOWNLOAD_EMPTY');
+      return blobToBytes(data);
+    });
 
   for (const imagePath of imagePaths) {
-    const { data, error } = await bucket.download(imagePath);
-    if (error) throw error;
-    if (!data) throw new Error('EXPORT_IMAGE_DOWNLOAD_EMPTY');
-
     files.push({
       path: zipPathForStoragePath(imagePath, usedZipPaths),
-      bytes: await blobToBytes(data),
+      bytes: await loadImageBytes(imagePath),
     });
   }
 
   return {
     fileName: exportFileName(input, payload),
-    zipBlob: createStoredZip(files),
+    zipBytes: createStoredZipBytes(files),
     payload,
     imageFileCount: imagePaths.length,
   };

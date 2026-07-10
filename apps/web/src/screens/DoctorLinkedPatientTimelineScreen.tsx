@@ -80,6 +80,14 @@ function downloadBlob(blob: Blob, fileName: string): void {
   URL.revokeObjectURL(url);
 }
 
+function zipBytesToBlob(bytes: Uint8Array): Blob {
+  const buffer = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer;
+  return new Blob([buffer], { type: 'application/zip' });
+}
+
 export function DoctorLinkedPatientTimelineScreen({
   client,
   initialPatient,
@@ -91,9 +99,9 @@ export function DoctorLinkedPatientTimelineScreen({
   const [entryPhotos, setEntryPhotos] = useState<Record<string, TimelineEntryPhoto[]>>({});
   const [lightboxPhoto, setLightboxPhoto] = useState<{ url: string; label: string } | null>(null);
   const [exportMode, setExportMode] = useState<ExportMode>('all_data_with_images');
-  const [exportRangeType, setExportRangeType] = useState<'selected_day' | 'partial_month'>(
-    'selected_day',
-  );
+  const [exportRangeType, setExportRangeType] = useState<
+    'selected_day' | 'partial_month' | 'all_time'
+  >('selected_day');
   const [exportDate, setExportDate] = useState(todayInputValue);
   const [exportMonth, setExportMonth] = useState(currentMonthInputValue);
   const [exporting, setExporting] = useState(false);
@@ -136,10 +144,12 @@ export function DoctorLinkedPatientTimelineScreen({
         range:
           exportRangeType === 'selected_day'
             ? { type: 'selected_day', date: exportDate }
-            : { type: 'partial_month', month: `${exportMonth}-01` },
+            : exportRangeType === 'partial_month'
+              ? { type: 'partial_month', month: `${exportMonth}-01` }
+              : { type: 'all_time' },
       });
 
-      downloadBlob(bundle.zipBlob, bundle.fileName);
+      downloadBlob(zipBytesToBlob(bundle.zipBytes), bundle.fileName);
       setExportStatus(t(locale, 'doctor.exportReady'));
     } catch {
       setExportStatus(null);
@@ -235,12 +245,15 @@ export function DoctorLinkedPatientTimelineScreen({
             <span>{t(locale, 'doctor.exportRange')}</span>
             <select
               onChange={(event) =>
-                setExportRangeType(event.target.value as 'selected_day' | 'partial_month')
+                setExportRangeType(
+                  event.target.value as 'selected_day' | 'partial_month' | 'all_time',
+                )
               }
               value={exportRangeType}
             >
               <option value="selected_day">{t(locale, 'doctor.exportSelectedDay')}</option>
               <option value="partial_month">{t(locale, 'doctor.exportPartialMonth')}</option>
+              <option value="all_time">{t(locale, 'doctor.exportAllTime')}</option>
             </select>
           </label>
           {exportRangeType === 'selected_day' ? (
@@ -252,7 +265,7 @@ export function DoctorLinkedPatientTimelineScreen({
                 value={exportDate}
               />
             </label>
-          ) : (
+          ) : exportRangeType === 'partial_month' ? (
             <label>
               <span>{t(locale, 'doctor.exportMonth')}</span>
               <input
@@ -261,6 +274,8 @@ export function DoctorLinkedPatientTimelineScreen({
                 value={exportMonth}
               />
             </label>
+          ) : (
+            <p className="doctor-export-help">{t(locale, 'doctor.exportAllTimeHelp')}</p>
           )}
         </div>
         <div className="doctor-export-actions">

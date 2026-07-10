@@ -8,6 +8,10 @@ export function toLocalDateInput(value: Date): string {
   return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
 }
 
+export function toLocalMonthInput(value: Date): string {
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}`;
+}
+
 export function toLocalTimeInput(value: Date): string {
   return `${pad(value.getHours())}:${pad(value.getMinutes())}`;
 }

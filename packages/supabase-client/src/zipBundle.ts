@@ -67,7 +67,7 @@ function concat(parts: Uint8Array[]): Uint8Array {
   return output;
 }
 
-export function createStoredZip(files: ZipFileInput[]): Blob {
+export function createStoredZipBytes(files: ZipFileInput[]): Uint8Array {
   const localParts: Uint8Array[] = [];
   const centralParts: Uint8Array[] = [];
   let localOffset = 0;
@@ -129,11 +129,14 @@ export function createStoredZip(files: ZipFileInput[]): Blob {
   writeUint32(endRecord, 16, localOffset);
   writeUint16(endRecord, 20, 0);
 
-  const zipBytes = concat([...localParts, centralDirectory, endRecord]);
+  return concat([...localParts, centralDirectory, endRecord]);
+}
+
+export function createStoredZip(files: ZipFileInput[]): Blob {
+  const zipBytes = createStoredZipBytes(files);
   const zipBuffer = zipBytes.buffer.slice(
     zipBytes.byteOffset,
     zipBytes.byteOffset + zipBytes.byteLength,
   ) as ArrayBuffer;
-
   return new Blob([zipBuffer], { type: 'application/zip' });
 }

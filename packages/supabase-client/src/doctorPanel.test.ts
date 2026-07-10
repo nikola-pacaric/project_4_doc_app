@@ -316,6 +316,47 @@ describe('doctor invite panel client helpers', () => {
     });
   });
 
+  it('creates an all-time patient export without a selected date or month', async () => {
+    const payload = {
+      schemaVersion: 1,
+      exportRequestId: 'export-all-time',
+      patientId: 'patient-1',
+      doctorId: 'doctor-1',
+      mode: 'all_data',
+      range: {
+        type: 'all_time',
+        start: '2026-01-01T00:00:00.000Z',
+        end: '2026-07-10T12:00:00.000Z',
+      },
+      generatedAt: '2026-07-10T12:00:00.000Z',
+      metadata: {
+        entryCount: 3,
+        containsImageBinary: false,
+        imageReferenceType: 'none',
+      },
+      baseline: {},
+      entries: [],
+    };
+    const rpc = vi.fn().mockResolvedValue({ data: payload, error: null });
+    const client = { rpc } as unknown as AppSupabaseClient;
+
+    await expect(
+      createDoctorPatientExport(client, {
+        patientId: 'patient-1',
+        mode: 'all_data',
+        range: { type: 'all_time' },
+      }),
+    ).resolves.toEqual(payload);
+
+    expect(rpc).toHaveBeenCalledWith('export_patient_data', {
+      target_patient_id: 'patient-1',
+      export_mode: 'all_data',
+      export_range_type: 'all_time',
+      selected_date: null,
+      selected_month: null,
+    });
+  });
+
   it('rejects unsafe export payloads before returning them to the UI', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {
@@ -387,7 +428,10 @@ describe('doctor invite panel client helpers', () => {
     const download = vi
       .fn()
       .mockResolvedValueOnce({ data: new Blob([new Uint8Array([0xff, 0xd8, 0xff])]), error: null })
-      .mockResolvedValueOnce({ data: new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])]), error: null });
+      .mockResolvedValueOnce({
+        data: new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])]),
+        error: null,
+      });
     const storageFrom = vi.fn(() => ({ download }));
     const client = { rpc, storage: { from: storageFrom } } as unknown as AppSupabaseClient;
 
@@ -396,7 +440,7 @@ describe('doctor invite panel client helpers', () => {
       mode: 'all_data_with_images',
       range: { type: 'selected_day', date: '2026-07-08' },
     });
-    const zipText = new TextDecoder().decode(await bundle.zipBlob.arrayBuffer());
+    const zipText = new TextDecoder().decode(bundle.zipBytes);
 
     expect(bundle.fileName).toBe('patient-export-patient--2026-07-08-all_data_with_images.zip');
     expect(bundle.imageFileCount).toBe(2);
@@ -442,6 +486,92 @@ describe('doctor invite panel client helpers', () => {
     });
 
     expect(bundle.fileName).toBe('patient-export-patient--2026-07-all_data.zip');
+    expect(bundle.imageFileCount).toBe(0);
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it('uses a supplied native image loader instead of the storage Blob download path', async () => {
+    const payload = {
+      schemaVersion: 1,
+      exportRequestId: 'export-7',
+      patientId: 'patient-1',
+      doctorId: 'doctor-1',
+      mode: 'images_only_with_labels',
+      range: {
+        type: 'selected_day',
+        selectedDate: '2026-07-08',
+        start: '2026-07-08T00:00:00.000Z',
+        end: '2026-07-09T00:00:00.000Z',
+      },
+      generatedAt: '2026-07-08T13:00:00.000Z',
+      metadata: {
+        entryCount: 1,
+        containsImageBinary: false,
+        imageReferenceType: 'storage_path',
+      },
+      baseline: {},
+      entries: [
+        {
+          id: 'entry-1',
+          photos: [
+            {
+              photoPath: 'patients/patient-1/entries/entry-1/photos/photo-1.jpg',
+              thumbnailPath: 'patients/patient-1/entries/entry-1/thumbs/photo-1.jpg',
+            },
+          ],
+        },
+      ],
+    };
+    const rpc = vi.fn().mockResolvedValue({ data: payload, error: null });
+    const storageFrom = vi.fn();
+    const imageBytesLoader = vi.fn().mockResolvedValue(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]));
+    const client = { rpc, storage: { from: storageFrom } } as unknown as AppSupabaseClient;
+
+    const bundle = await createDoctorPatientExportBundle(client, {
+      patientId: 'patient-1',
+      mode: 'images_only_with_labels',
+      range: { type: 'selected_day', date: '2026-07-08' },
+      imageBytesLoader,
+    });
+
+    expect(imageBytesLoader).toHaveBeenCalledTimes(2);
+    expect(storageFrom).not.toHaveBeenCalled();
+    expect(bundle.imageFileCount).toBe(2);
+  });
+
+  it('uses an all-time label in the exported ZIP filename', async () => {
+    const payload = {
+      schemaVersion: 1,
+      exportRequestId: 'export-6',
+      patientId: 'patient-1',
+      doctorId: 'doctor-1',
+      mode: 'all_data',
+      range: {
+        type: 'all_time',
+        start: '2026-01-01T00:00:00.000Z',
+        end: '2026-07-10T12:00:00.000Z',
+      },
+      generatedAt: '2026-07-10T12:00:00.000Z',
+      metadata: {
+        entryCount: 0,
+        containsImageBinary: false,
+        imageReferenceType: 'none',
+      },
+      baseline: {},
+      entries: [],
+    };
+    const rpc = vi.fn().mockResolvedValue({ data: payload, error: null });
+    const download = vi.fn();
+    const storageFrom = vi.fn(() => ({ download }));
+    const client = { rpc, storage: { from: storageFrom } } as unknown as AppSupabaseClient;
+
+    const bundle = await createDoctorPatientExportBundle(client, {
+      patientId: 'patient-1',
+      mode: 'all_data',
+      range: { type: 'all_time' },
+    });
+
+    expect(bundle.fileName).toBe('patient-export-patient--all-time-all_data.zip');
     expect(bundle.imageFileCount).toBe(0);
     expect(download).not.toHaveBeenCalled();
   });
