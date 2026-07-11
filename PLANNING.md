@@ -174,7 +174,13 @@ Photo storage:
 - Done: core patient/doctor flows work in Serbian/English and light/dark, with no hardcoded core UI strings.
 
 ### Phase 10 - Final Validation
-- Run automated tests, web e2e, Android APK smoke, Huawei smoke when available, storage/photo checks, consent/privacy/non-diagnosis review, and storage warning review.
+- [x] Re-run final automated checks: typecheck, tests, web build, and relevant Supabase migration, RLS, export, and photo checks.
+- [ ] Run web end-to-end smoke flows: patient timeline/forms/offline note sync, doctor linking/timeline, exports, and settings.
+- [ ] Build a fresh Android APK and smoke-test the same key flows, including voice-button and dark-mode placeholder checks.
+- [ ] Smoke-test on a Huawei device if one is available; record any device-specific limitation if not.
+- [ ] Verify photo behavior and storage warnings: compression, thumbnails, private access, and no base64 images in exports.
+- [ ] Complete a final consent, privacy, non-diagnosis wording, and service-role-secret review.
+- [ ] Record results in `PLANNING.md`, including what passed, what the user verified, and any unavailable validation.
 - Done: all V1 acceptance criteria pass.
 
 ## 10. Minimum Test Plan
