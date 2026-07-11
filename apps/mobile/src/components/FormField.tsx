@@ -1,6 +1,6 @@
 import { getActiveLocale, getActiveVoiceLanguage, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
 import { colors, sharedStyles, createThemedStyles } from '../theme';
@@ -19,11 +19,17 @@ interface FormFieldProps extends TextInputProps {
 export function FormField({ enableVoice = false, label, ...props }: FormFieldProps) {
   const locale = getActiveLocale();
   const keyboardAwareInput = useKeyboardAwareInput();
+  const inputRef = useRef<TextInput>(null);
+  const valueRef = useRef(props.value ?? '');
+  const onChangeTextRef = useRef(props.onChangeText);
   const [, setSupported] = useState<boolean | null>(null);
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const canUseVoice =
     enableVoice && props.editable !== false && typeof props.onChangeText === 'function';
+
+  valueRef.current = props.value ?? '';
+  onChangeTextRef.current = props.onChangeText;
 
   useEffect(() => {
     if (!canUseVoice) return;
@@ -45,6 +51,7 @@ export function FormField({ enableVoice = false, label, ...props }: FormFieldPro
   async function startListening() {
     if (!canUseVoice || listening) return;
 
+    inputRef.current?.focus();
     setListening(true);
     setMessage(t(locale, 'voice.listening'));
 
@@ -53,7 +60,7 @@ export function FormField({ enableVoice = false, label, ...props }: FormFieldPro
         getActiveVoiceLanguage(),
         t(locale, 'voice.prompt'),
       );
-      props.onChangeText?.(appendVoiceTranscript(props.value ?? '', transcript));
+      onChangeTextRef.current?.(appendVoiceTranscript(valueRef.current, transcript));
       setMessage(t(locale, 'voice.added'));
     } catch (error) {
       const code = typeof error === 'object' && error && 'code' in error ? error.code : undefined;
@@ -81,7 +88,7 @@ export function FormField({ enableVoice = false, label, ...props }: FormFieldPro
             keyboardAwareInput?.onInputContentChange();
             props.onContentSizeChange?.(event);
           }}
-          placeholderTextColor="#a28d94"
+          placeholderTextColor={colors.mutedText}
           spellCheck={false}
           style={[
             sharedStyles.input,
@@ -92,6 +99,7 @@ export function FormField({ enableVoice = false, label, ...props }: FormFieldPro
             props.style,
           ]}
           {...props}
+          ref={inputRef}
         />
         {showVoiceButton ? (
           <Pressable

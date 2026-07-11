@@ -38,7 +38,7 @@ export function PasswordField({
           onFocus={(event) => {
             keyboardAwareInput?.onInputFocus(event.nativeEvent.target);
           }}
-          placeholderTextColor="#a28d94"
+          placeholderTextColor={colors.mutedText}
           secureTextEntry={hidden}
           spellCheck={false}
           style={[sharedStyles.input, styles.input]}
