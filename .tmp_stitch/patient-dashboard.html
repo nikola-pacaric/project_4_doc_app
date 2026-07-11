@@ -1,0 +1,290 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>VitalTrack - Dashboard</title>
+<!-- Fonts & Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#fcdae1",
+                        "on-primary-fixed-variant": "#861c3c",
+                        "on-tertiary-fixed": "#31111d",
+                        "secondary-fixed": "#fcdae1",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-tint": "#a63553",
+                        "background": "#fdf8fd",
+                        "on-surface-variant": "#564145",
+                        "surface-dim": "#ddd9de",
+                        "on-primary-container": "#6b022a",
+                        "primary-container": "#f4718f",
+                        "tertiary-container": "#c08e9d",
+                        "on-surface": "#1c1b1f",
+                        "on-background": "#1c1b1f",
+                        "surface-container-low": "#f7f2f8",
+                        "on-secondary-fixed": "#29161b",
+                        "surface-container-highest": "#e5e1e7",
+                        "on-secondary-container": "#775e64",
+                        "tertiary-fixed-dim": "#eeb8c8",
+                        "outline-variant": "#dcbfc3",
+                        "primary": "#a63553",
+                        "inverse-primary": "#ffb2bf",
+                        "surface-container": "#f1ecf2",
+                        "surface-variant": "#e5e1e7",
+                        "primary-fixed": "#ffd9de",
+                        "tertiary-fixed": "#ffd9e3",
+                        "on-tertiary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "inverse-surface": "#313034",
+                        "error-container": "#ffdad6",
+                        "on-primary": "#ffffff",
+                        "surface-container-high": "#ebe7ec",
+                        "on-error-container": "#93000a",
+                        "secondary-fixed-dim": "#dfbec5",
+                        "primary-fixed-dim": "#ffb2bf",
+                        "error": "#ba1a1a",
+                        "outline": "#897174",
+                        "on-tertiary-container": "#4d2835",
+                        "surface-bright": "#fdf8fd",
+                        "on-primary-fixed": "#3f0015",
+                        "on-secondary-fixed-variant": "#584146",
+                        "secondary": "#71585e",
+                        "inverse-on-surface": "#f4eff5",
+                        "on-secondary": "#ffffff",
+                        "tertiary": "#7d5260",
+                        "surface": "#fdf8fd",
+                        "on-tertiary-fixed-variant": "#633b48"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-lg": "32px",
+                        "unit": "8px",
+                        "stack-md": "16px",
+                        "stack-sm": "8px",
+                        "gutter": "16px",
+                        "margin-mobile": "20px",
+                        "margin-desktop": "40px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "label-md": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Plus Jakarta Sans"],
+                        "title-md": ["Hanken Grotesk"],
+                        "label-sm-caps": ["Hanken Grotesk"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "body-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["28px", {"lineHeight": "36px", "fontWeight": "700"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.1px", "fontWeight": "500"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "label-sm-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "700"}],
+                        "display-lg": ["40px", {"lineHeight": "48px", "letterSpacing": "-1px", "fontWeight": "800"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #fdf8fd;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .puffy-card {
+            box-shadow: 0 10px 30px -5px rgba(166, 53, 83, 0.08);
+        }
+        .active-press:active {
+            transform: scale(0.98);
+            transition: transform 0.1s ease;
+        }
+        .progress-circle-bg {
+            stroke: #f1ecf2;
+        }
+        .progress-circle-fill {
+            stroke: #a63553;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s ease-in-out;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-lg text-on-background selection:bg-primary-container">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-50 bg-background/80 backdrop-blur-md flex justify-between items-center px-margin-mobile py-stack-md">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-secondary-container overflow-hidden border-2 border-primary/10">
+<img class="w-full h-full object-cover" data-alt="A close-up professional portrait of a smiling woman with a warm, empathetic expression, set against a softly blurred wellness clinic interior. The lighting is natural and airy, mirroring the bright pink and soft white tones of the UI. She wears professional yet approachable attire, suggesting a health advisor persona." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXUj0qvKpcvBCWa7v2C_0EExQtK5bWEo37Zce_J_1-ZyGPIxiOlQh2fCXn_qCrE0Sl7f3pMr113ljs2x99aVwaNnGxiPuBOyiwaImye6xDaYE-4IEnepBJa9SmqqK_f-mSxmSPXk22kmjZ_DSP_e5ZVYtB2MMAhmAE3kDfceq5qRofBKl-AxXPIfy-20DQRBLs-80TVskaoPm8kjGqvwySrSVzjW-G4D_7-PnIV5-_hcK80Ry4f-MYgw">
+</div>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary">VitalTrack</h1>
+</div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-primary active:scale-95 transition-transform hover:bg-primary/5">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</header>
+<main class="px-margin-mobile pb-32">
+<!-- Welcome Section -->
+<section class="mt-stack-md mb-stack-lg">
+<p class="font-label-md text-on-surface-variant">Saturday, July 4</p>
+<h2 class="font-headline-lg text-on-surface mt-1">Good morning, Nikola</h2>
+<div class="mt-4 p-4 bg-error-container/30 rounded-xl flex items-center gap-3 border border-error/10">
+<span class="material-symbols-outlined text-error text-[20px]">cloud_off</span>
+<p class="text-label-md text-on-error-container leading-tight">
+                    Showing saved recent entries. New notes will sync when the connection returns.
+                </p>
+</div>
+</section>
+<!-- Daily Progress Bubble -->
+<section class="mb-stack-lg">
+<div class="puffy-card bg-surface-container-lowest rounded-[32px] p-6 flex items-center gap-6">
+<div class="relative w-24 h-24">
+<svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+<circle class="progress-circle-bg" cx="50" cy="50" fill="transparent" r="42" stroke-width="10"></circle>
+<circle class="progress-circle-fill" cx="50" cy="50" fill="transparent" r="42" stroke-dasharray="263.89" stroke-dashoffset="197.92" stroke-width="10" style="stroke-dasharray: 263.894, 263.894; stroke-dashoffset: 197.92;"></circle> <!-- 25% complete for visual interest -->
+</svg>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="font-headline-lg text-primary">25%</span>
+</div>
+</div>
+<div>
+<h3 class="font-title-md text-on-surface">Daily progress</h3>
+<p class="font-label-md text-on-surface-variant">1 of 4 items logged today</p>
+</div>
+</div>
+</section>
+<!-- Quick Actions Grid -->
+<section class="mb-stack-lg">
+<h3 class="font-label-sm-caps text-on-surface-variant uppercase tracking-widest mb-4">Quick Actions</h3>
+<div class="grid grid-cols-4 gap-2"><!-- Action Tile: Daily --><button class="active-press flex flex-col items-center justify-center bg-surface-container-lowest rounded-2xl border-2 border-transparent hover:border-primary/20 puffy-card px-1 py-3"><div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center mb-2"><span class="material-symbols-outlined text-orange-500 text-[20px]" style="font-variation-settings: 'FILL' 1;">light_mode</span></div><span class="font-semibold text-on-surface w-full text-center text-[10px]">Daily</span><span class="text-[8px] text-on-surface-variant uppercase font-bold mt-0.5">Required</span></button><!-- Action Tile: Food --><button class="active-press flex flex-col items-center justify-center bg-surface-container-lowest rounded-2xl border-2 border-transparent hover:border-primary/20 puffy-card px-1 py-3"><div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mb-2"><span class="material-symbols-outlined text-blue-500 text-[20px]">restaurant</span></div><span class="font-semibold text-on-surface w-full text-center text-[10px]">Food</span><span class="text-[8px] text-on-surface-variant uppercase font-bold mt-0.5">Optional</span></button><!-- Action Tile: Symptoms --><button class="active-press flex flex-col items-center justify-center bg-surface-container-lowest rounded-2xl border-2 border-transparent hover:border-primary/20 puffy-card px-1 py-3"><div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mb-2"><span class="material-symbols-outlined text-red-500 text-[20px]">medical_services</span></div><span class="text-[10px] font-semibold text-on-surface w-full text-center leading-none" data-stitch-orig-opacity="0">Symptoms</span><span class="text-[8px] text-on-surface-variant uppercase font-bold mt-0.5">Optional</span></button><!-- Action Tile: Stool --><button class="active-press flex flex-col items-center justify-center bg-surface-container-lowest rounded-2xl border-2 border-transparent hover:border-primary/20 puffy-card px-1 py-3"><div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center mb-2"><span class="material-symbols-outlined text-orange-500 text-[20px]">reorder</span></div><span class="font-semibold text-on-surface w-full text-center text-[10px]">Stool</span><span class="text-[8px] text-on-surface-variant uppercase font-bold mt-0.5">Optional</span></button><!-- Action Tile: Medication --><button class="active-press flex flex-col items-center justify-center bg-surface-container-lowest rounded-2xl border-2 border-primary/30 puffy-card bg-primary-container/5 px-1 py-3"><div class="w-10 h-10 rounded-full bg-primary-container/20 flex items-center justify-center mb-2"><span class="material-symbols-outlined text-primary text-[20px]" style="font-variation-settings: 'FILL' 1;">pill</span></div><span class="text-[10px] font-semibold text-on-surface w-full text-center leading-none" data-stitch-orig-opacity="0">Medication</span><span class="text-[8px] text-primary uppercase font-bold mt-0.5">Pending</span></button><!-- Action Tile: Exercise --><button class="active-press flex flex-col items-center justify-center bg-surface-container-lowest rounded-2xl border-2 border-transparent hover:border-primary/20 puffy-card px-1 py-3"><div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mb-2"><span class="material-symbols-outlined text-green-500 text-[20px]">directions_run</span></div><span class="font-semibold text-on-surface w-full text-center text-[10px]">Exercise</span><span class="text-[8px] text-on-surface-variant uppercase font-bold mt-0.5">Optional</span></button><!-- Action Tile: Period --><button class="active-press flex flex-col items-center justify-center bg-surface-container-lowest rounded-2xl border-2 border-transparent hover:border-primary/20 puffy-card px-1 py-3"><div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mb-2"><span class="material-symbols-outlined text-red-500 text-[20px]" style="font-variation-settings: 'FILL' 1;">water_drop</span></div><span class="font-semibold text-on-surface w-full text-center text-[10px]">Period</span><span class="text-[8px] text-on-surface-variant uppercase font-bold mt-0.5">Optional</span></button><!-- Action Tile: Notes --><button class="active-press flex flex-col items-center justify-center bg-surface-container-lowest rounded-2xl border-2 border-transparent hover:border-primary/20 puffy-card px-1 py-3"><div class="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center mb-2"><span class="material-symbols-outlined text-yellow-600 text-[20px]">edit_note</span></div><span class="font-semibold text-on-surface w-full text-center text-[10px]">Notes</span><span class="text-[8px] text-green-600 uppercase font-bold mt-0.5">COMPLETED</span></button></div>
+</section>
+<!-- Recent Entries -->
+<section class="mb-stack-lg">
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-label-sm-caps text-on-surface-variant uppercase tracking-widest">Recent Entries</h3>
+<button class="text-primary font-label-md hover:underline">View all</button>
+</div>
+<div class="space-y-3">
+<!-- Entry 1 -->
+<div class="p-4 bg-surface-container-lowest rounded-2xl flex items-center gap-4 puffy-card border border-primary/5">
+<div class="w-10 h-10 rounded-xl bg-primary-container/20 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary">edit_note</span>
+</div>
+<div class="flex-grow">
+<h4 class="font-label-md text-on-surface font-semibold truncate">Offline mobile note...</h4>
+<p class="text-xs text-on-surface-variant">4:11 PM</p>
+</div>
+<div class="shrink-0 text-right">
+<span class="text-[10px] font-bold text-on-secondary-container bg-secondary-container px-2 py-1 rounded-full uppercase tracking-tight">Pending Sync</span>
+</div>
+</div>
+<!-- Entry 2 -->
+<div class="p-4 bg-surface-container-lowest rounded-2xl flex items-center gap-4 border border-transparent">
+<div class="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">check_circle</span>
+</div>
+<div class="flex-grow">
+<h4 class="font-label-md text-on-surface font-semibold truncate">Breakfast Logged</h4>
+<p class="text-xs text-on-surface-variant">9:30 AM</p>
+</div>
+<div class="shrink-0 text-right">
+<span class="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full uppercase tracking-tight">Completed</span>
+</div>
+</div>
+<!-- Entry 3 -->
+<div class="p-4 bg-surface-container-lowest rounded-2xl flex items-center gap-4 border border-transparent">
+<div class="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">edit_note</span>
+</div>
+<div class="flex-grow">
+<h4 class="font-label-md text-on-surface font-semibold truncate">Morning meditation session</h4>
+<p class="text-xs text-on-surface-variant">8:15 AM</p>
+</div>
+<div class="shrink-0 text-right">
+<span class="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full uppercase tracking-tight">Completed</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Submit Day CTA -->
+<section class="mt-8 mb-12">
+<button class="w-full h-[60px] rounded-full bg-primary text-white font-headline-lg flex items-center justify-center shadow-lg active:scale-[0.97] transition-all">
+                Submit day
+            </button>
+<p class="mt-4 text-center text-xs text-on-surface-variant px-8 italic">
+                Missing: Did menstruation occur today? Describe your day.
+            </p>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 rounded-t-[28px] bg-surface-container/80 backdrop-blur-2xl shadow-[0_-4px_20px_rgba(166,53,83,0.08)]">
+<div class="flex justify-around items-center px-4 pb-8 pt-4">
+<!-- Active Tab: Today -->
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-6 py-2 transition-all scale-98 active:scale-95 shadow-sm" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">today</span>
+<span class="font-label-md text-[11px] font-bold">Today</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-container px-4 py-2 hover:bg-secondary-container/50 transition-all scale-98 active:scale-95" href="#">
+<span class="material-symbols-outlined mb-1">history_edu</span>
+<span class="font-label-md text-[11px] font-bold">Timeline</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-container px-4 py-2 hover:bg-secondary-container/50 transition-all scale-98 active:scale-95" href="#">
+<span class="material-symbols-outlined mb-1">person</span>
+<span class="font-label-md text-[11px] font-bold">Profile</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-secondary-container px-4 py-2 hover:bg-secondary-container/50 transition-all scale-98 active:scale-95" href="#">
+<span class="material-symbols-outlined mb-1">settings</span>
+<span class="font-label-md text-[11px] font-bold">Settings</span>
+</a>
+</div>
+</nav>
+<script>
+        // Simple micro-interaction for the progress circle
+        window.addEventListener('DOMContentLoaded', () => {
+            const circle = document.querySelector('.progress-circle-fill');
+            const radius = circle.r.baseVal.value;
+            const circumference = radius * 2 * Math.PI;
+            
+            // Set 25% progress
+            const offset = circumference - (0.25 * circumference);
+            circle.style.strokeDasharray = `${circumference} ${circumference}`;
+            circle.style.strokeDashoffset = offset;
+        });
+
+        // Pull to refresh effect (visual only)
+        let startY;
+        document.addEventListener('touchstart', e => {
+            startY = e.touches[0].pageY;
+        });
+        document.addEventListener('touchmove', e => {
+            const moveY = e.touches[0].pageY;
+            if (window.scrollY === 0 && moveY > startY) {
+                // Subtle visual feedback could go here
+            }
+        });
+    </script>
+
+
+
+
+
+
+</body></html>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Doctor Login - VitalTrack</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#313034",
+                        "secondary": "#71585e",
+                        "secondary-fixed-dim": "#dfbec5",
+                        "primary-container": "#f4718f",
+                        "primary-fixed": "#ffd9de",
+                        "secondary-fixed": "#fcdae1",
+                        "outline": "#897174",
+                        "tertiary-container": "#c08e9d",
+                        "surface": "#fdf8fd",
+                        "background": "#fdf8fd",
+                        "tertiary-fixed-dim": "#eeb8c8",
+                        "surface-container": "#f1ecf2",
+                        "tertiary": "#7d5260",
+                        "inverse-on-surface": "#f4eff5",
+                        "surface-container-low": "#f7f2f8",
+                        "secondary-container": "#fcdae1",
+                        "outline-variant": "#dcbfc3",
+                        "on-primary-fixed-variant": "#861c3c",
+                        "on-surface": "#1c1b1f",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#633b48",
+                        "surface-tint": "#a63553",
+                        "on-primary-container": "#6b022a",
+                        "primary": "#a63553",
+                        "on-tertiary": "#ffffff",
+                        "surface-dim": "#ddd9de",
+                        "on-secondary-container": "#775e64",
+                        "surface-bright": "#fdf8fd",
+                        "on-surface-variant": "#564145",
+                        "primary-fixed-dim": "#ffb2bf",
+                        "on-tertiary-fixed": "#31111d",
+                        "inverse-primary": "#ffb2bf",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#584146",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-container": "#4d2835",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed": "#ffd9e3",
+                        "on-secondary": "#ffffff",
+                        "on-background": "#1c1b1f",
+                        "surface-container-highest": "#e5e1e7",
+                        "on-error": "#ffffff",
+                        "error": "#ba1a1a",
+                        "on-secondary-fixed": "#29161b",
+                        "on-primary-fixed": "#3f0015",
+                        "surface-variant": "#e5e1e7",
+                        "surface-container-high": "#ebe7ec"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "stack-md": "16px",
+                        "stack-lg": "32px",
+                        "stack-sm": "8px",
+                        "unit": "8px",
+                        "margin-desktop": "40px",
+                        "margin-mobile": "20px"
+                    },
+                    "fontFamily": {
+                        "label-sm-caps": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Plus Jakarta Sans"],
+                        "label-md": ["Hanken Grotesk"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "title-md": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-lg": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "label-sm-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.1px", "fontWeight": "500" }],
+                        "display-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "-1px", "fontWeight": "800" }],
+                        "title-md": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg": ["28px", { "lineHeight": "36px", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { -webkit-tap-highlight-color: transparent; }
+        .soft-shadow { box-shadow: 0 10px 20px -5px rgba(244, 113, 143, 0.12); }
+        .glass-blur { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface min-h-screen flex flex-col font-sans antialiased overflow-x-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar equivalent / Brand Row -->
+<header class="w-full flex justify-between items-center py-6 px-margin-mobile">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-primary-container/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">medical_services</span>
+</div>
+<span class="font-headline-lg-mobile text-headline-lg-mobile font-extrabold tracking-tight text-on-surface">VitalTrack</span>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 px-margin-mobile flex flex-col pt-stack-sm pb-stack-lg max-w-md mx-auto w-full">
+<!-- Headers -->
+<div class="mb-stack-lg">
+<h1 class="font-display-lg text-display-lg text-on-surface mb-unit">Doctor sign in</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Enter your provisioned research credentials</p>
+</div>
+<!-- Role Segmented Control -->
+<div class="mb-stack-lg">
+<p class="font-label-md text-label-md text-on-surface-variant mb-3">I am a...</p>
+<div class="bg-surface-container-low p-1 rounded-full flex w-full relative">
+<!-- Patient Tab (Unselected) -->
+<button class="flex-1 py-3 rounded-full flex items-center justify-center gap-2 text-on-surface-variant transition-colors duration-200" type="button">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">volunteer_activism</span>
+<span class="font-title-md text-title-md">Patient</span>
+</button>
+<!-- Doctor Tab (Selected) -->
+<button aria-selected="true" class="flex-1 py-3 rounded-full flex items-center justify-center gap-2 bg-surface text-primary soft-shadow transition-colors duration-200" type="button">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">stethoscope</span>
+<span class="font-title-md text-title-md font-bold">Doctor</span>
+</button>
+</div>
+</div>
+<!-- Form Fields -->
+<form class="flex flex-col gap-stack-md flex-1" onsubmit="event.preventDefault();">
+<!-- Email Field -->
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline">mail</span>
+</div>
+<input class="w-full pl-12 pr-4 py-4 bg-surface-container-low border-b-2 border-transparent focus:border-primary rounded-lg font-body-lg text-body-lg text-on-surface placeholder:text-outline transition-all focus:ring-0 focus:bg-surface-container" id="email" placeholder="name@example.com" required="" type="email"/>
+</div>
+<!-- Password Field -->
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline">lock</span>
+</div>
+<input class="w-full pl-12 pr-12 py-4 bg-surface-container-low border-b-2 border-transparent focus:border-primary rounded-lg font-body-lg text-body-lg text-on-surface placeholder:text-outline transition-all focus:ring-0 focus:bg-surface-container" id="password" placeholder="Password" required="" type="password"/>
+<button class="absolute inset-y-0 right-0 pr-4 flex items-center text-outline hover:text-on-surface-variant focus:outline-none" onclick="togglePassword()" type="button">
+<span class="material-symbols-outlined" id="eyeIcon">visibility</span>
+</button>
+</div>
+<!-- Forgot Password Link -->
+<div class="flex justify-end mt-unit">
+<a class="font-label-md text-label-md text-primary hover:text-on-primary-container transition-colors" href="#">Forgot password?</a>
+</div>
+<div class="flex-1"></div> <!-- Spacer to push button down if needed -->
+<!-- Actions -->
+<div class="mt-stack-lg flex flex-col gap-4">
+<button class="w-full bg-primary text-on-primary py-4 rounded-full font-title-md text-title-md font-bold hover:bg-on-primary-container active:scale-95 transition-all duration-200 soft-shadow flex items-center justify-center" type="submit">
+                    Log in
+                </button>
+<p class="text-center font-label-md text-label-md text-on-surface-variant">
+                    Doctor accounts are provisioned by the research team.
+                </p>
+</div>
+</form>
+</main>
+<!-- Footer -->
+<footer class="w-full py-stack-md px-margin-mobile flex justify-between items-center bg-transparent mt-auto">
+<span class="font-label-sm-caps text-label-sm-caps text-outline-variant tracking-widest uppercase">
+            Private Research Companion
+        </span>
+<div class="flex gap-2 text-outline-variant font-label-sm-caps text-label-sm-caps">
+<button class="text-on-surface-variant hover:text-primary transition-colors">EN</button>
+<span>|</span>
+<button class="hover:text-primary transition-colors">SR</button>
+</div>
+</footer>
+<script>
+        function togglePassword() {
+            const pwdInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eyeIcon');
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                eyeIcon.textContent = 'visibility_off';
+            } else {
+                pwdInput.type = 'password';
+                eyeIcon.textContent = 'visibility';
+            }
+        }
+    </script>
+</body></html>

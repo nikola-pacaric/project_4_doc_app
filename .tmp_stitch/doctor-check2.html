@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>VitalTrack - Doctor Sign In</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#a63553",
+                        "primary-container": "#f4718f",
+                        "on-primary": "#ffffff",
+                        "on-primary-container": "#6b022a",
+                        "background": "#fdf8fd",
+                        "surface": "#fdf8fd",
+                        "surface-container-low": "#f7f2f8",
+                        "surface-container": "#f1ecf2",
+                        "surface-variant": "#e5e1e7",
+                        "on-surface": "#1c1b1f",
+                        "on-surface-variant": "#564145",
+                        "outline": "#897174",
+                        "outline-variant": "#dcbfc3",
+                        "secondary-container": "#fcdae1",
+                        "on-secondary-container": "#775e64",
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-lg": "32px",
+                        "stack-md": "16px",
+                        "stack-sm": "8px",
+                        "unit": "8px",
+                        "margin-desktop": "40px",
+                        "margin-mobile": "24px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Hanken Grotesk"],
+                        "label-sm-caps": ["Hanken Grotesk"],
+                        "title-md": ["Hanken Grotesk"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "label-md": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-sm-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "700" }],
+                        "title-md": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "display-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "-1px", "fontWeight": "800" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.1px", "fontWeight": "500" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #fdf8fd;
+            -webkit-tap-highlight-color: transparent;
+            min-height: 100dvh;
+        }
+        
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+
+        .shadow-ambient {
+            box-shadow: 0 8px 24px -4px rgba(166, 53, 83, 0.08), 0 4px 12px -6px rgba(166, 53, 83, 0.04);
+        }
+
+        .transition-spring {
+            transition-property: transform, box-shadow, background-color, border-color, color;
+            transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition-duration: 400ms;
+        }
+        
+        .btn-press:active {
+            transform: scale(0.98);
+        }
+
+        ::-webkit-scrollbar {
+            display: none;
+        }
+
+        .segmented-control {
+            background-color: #f1ecf2;
+            padding: 4px;
+            border-radius: 9999px;
+            display: flex;
+            position: relative;
+        }
+        
+        .segmented-control .option {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: 9999px;
+            z-index: 1;
+            text-align: center;
+            font-weight: 600;
+            cursor: pointer;
+            transition: color 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .segmented-control .active-pill {
+            position: absolute;
+            top: 4px;
+            bottom: 4px;
+            background: white;
+            border-radius: 9999px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .role-pill { width: calc(50% - 4px); }
+    </style>
+</head>
+<body class="text-on-background flex flex-col font-body-lg overflow-x-hidden md:justify-center md:items-center">
+<!-- Auth Container -->
+<main class="w-full max-w-[480px] bg-surface min-h-screen md:min-h-0 md:rounded-2xl md:shadow-ambient md:my-8 relative overflow-hidden flex flex-col">
+<!-- Header / Brand Row -->
+<header class="w-full px-margin-mobile py-6 flex items-center gap-2">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container shadow-sm">
+<span class="material-symbols-outlined fill text-[24px]" data-icon="monitor_heart">monitor_heart</span>
+</div>
+<h1 class="font-display-lg text-primary tracking-tight text-[24px]">VitalTrack</h1>
+</header>
+<!-- Main Content -->
+<div class="px-margin-mobile flex-grow flex flex-col">
+<!-- Welcome Section -->
+<div class="mb-stack-lg">
+<h2 class="font-headline-lg-mobile text-on-surface mb-2">Doctor sign in</h2>
+<p class="font-body-lg text-on-surface-variant">Enter your provisioned research credentials</p>
+</div>
+<!-- Role Chooser -->
+<div class="mb-stack-lg">
+<label class="font-label-md text-on-surface-variant mb-2 block ml-1">I am a...</label>
+<div class="segmented-control relative" id="roleSwitcher">
+<div class="active-pill role-pill translate-x-[calc(100%+4px)]" id="rolePill"></div>
+<div class="option text-on-surface-variant" data-role="patient" onclick="window.location.reload()">
+<span class="material-symbols-outlined text-[20px]">favorite</span>
+<span>Patient</span>
+</div>
+<div class="option text-primary" data-role="doctor">
+<span class="material-symbols-outlined text-[20px]">stethoscope</span>
+<span>Doctor</span>
+</div>
+</div>
+</div>
+<!-- Form Content -->
+<div class="flex-grow">
+<form class="flex flex-col gap-4" id="authForm" onsubmit="event.preventDefault();">
+<!-- Email -->
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-on-surface-variant ml-1">Email address</label>
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">mail</span>
+<input class="w-full bg-surface-container-low border-none rounded-xl pl-12 pr-4 py-4 font-body-lg text-on-surface placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20 transition-all" placeholder="name@example.com" required="" type="email"/>
+</div>
+</div>
+<!-- Password -->
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-on-surface-variant ml-1">Password</label>
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">lock</span>
+<input class="w-full bg-surface-container-low border-none rounded-xl pl-12 pr-12 py-4 font-body-lg text-on-surface placeholder:text-outline-variant focus:ring-2 focus:ring-primary/20 transition-all" id="passwordInput" placeholder="••••••••" required="" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors p-1" onclick="togglePassword()" type="button">
+<span class="material-symbols-outlined text-[22px]" id="passwordIcon">visibility</span>
+</button>
+</div>
+</div>
+<!-- Forgot Password Link -->
+<div class="flex justify-end">
+<a class="font-label-md text-primary hover:text-on-primary-container transition-colors" href="#">Forgot password?</a>
+</div>
+<!-- Primary CTA -->
+<div class="mt-stack-md flex flex-col gap-4 mb-8">
+<button class="w-full bg-primary text-on-primary font-title-md py-4 rounded-full shadow-md hover:opacity-95 btn-press transition-spring flex items-center justify-center gap-2" id="submitBtn" type="submit">
+                            Sign in
+                        </button>
+<p class="text-center font-label-md text-on-surface-variant opacity-80">
+                            Doctor accounts are provisioned by the research team.
+                        </p>
+</div>
+</form>
+</div>
+</div>
+<!-- Footer -->
+<footer class="w-full p-6 mt-auto flex flex-col items-center gap-4">
+<div class="flex items-center gap-1.5 text-on-surface-variant/60">
+<span class="material-symbols-outlined text-[16px]">info</span>
+<span class="font-label-sm-caps uppercase tracking-widest text-[11px]">Private Research Companion</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="font-label-md text-primary font-bold border-b-2 border-primary pb-0.5">EN</button>
+<div class="w-px h-4 bg-outline-variant/50"></div>
+<button class="font-label-md text-on-surface-variant hover:text-primary transition-colors pb-0.5">SR</button>
+</div>
+</footer>
+</main>
+<script>
+        function togglePassword() {
+            const input = document.getElementById('passwordInput');
+            const icon = document.getElementById('passwordIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.textContent = 'visibility_off';
+            } else {
+                input.type = 'password';
+                icon.textContent = 'visibility';
+            }
+        }
+    </script>
+</body></html>
