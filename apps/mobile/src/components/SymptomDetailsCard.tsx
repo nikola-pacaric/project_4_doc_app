@@ -5,7 +5,7 @@ import type {
   SymptomDraft,
   SymptomIntensity,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -14,7 +14,7 @@ import { FormField } from './FormField';
 import { OptionButtons } from './OptionButtons';
 import { SelectField } from './SelectField';
 import { TimePickerField } from './TimePickerField';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { toLocalDateInput } from '../utils/dateTime';
 
 interface SymptomDetailsCardProps {
@@ -34,7 +34,7 @@ function timePart(value: string | undefined): string {
 }
 
 export function SymptomDetailsCard({ draft, invalid, onChange }: SymptomDetailsCardProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
 
   function update(field: keyof SymptomDraft, value: string | boolean | SymptomIntensity) {
     onChange({ ...draft, [field]: value });
@@ -200,7 +200,7 @@ export function SymptomDetailsCard({ draft, invalid, onChange }: SymptomDetailsC
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   card: {
     gap: spacing.md,
     borderWidth: 1,
@@ -247,4 +247,4 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     paddingTop: spacing.md,
   },
-});
+}));

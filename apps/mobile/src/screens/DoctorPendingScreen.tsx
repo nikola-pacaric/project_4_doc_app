@@ -1,5 +1,5 @@
 import type { UserProfile } from '@project4/contracts';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import {
   createDoctorInviteCode,
   listDoctorInviteCodes,
@@ -24,11 +24,12 @@ import {
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { DoctorLinkedPatientTimelineScreen } from './DoctorLinkedPatientTimelineScreen';
 
 interface DoctorPendingScreenProps {
   client: AppSupabaseClient;
+  onOpenSettings: () => void;
   onSignOut: () => Promise<void>;
   profile: UserProfile;
 }
@@ -55,8 +56,13 @@ function maskPatientId(patientId: string): string {
   return patientId.slice(0, 8).toUpperCase();
 }
 
-export function DoctorPendingScreen({ client, onSignOut, profile }: DoctorPendingScreenProps) {
-  const locale = DEFAULT_LOCALE;
+export function DoctorPendingScreen({
+  client,
+  onOpenSettings,
+  onSignOut,
+  profile,
+}: DoctorPendingScreenProps) {
+  const locale = getActiveLocale();
   const [invites, setInvites] = useState<DoctorInviteCode[]>([]);
   const [patients, setPatients] = useState<LinkedPatientSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -309,6 +315,11 @@ export function DoctorPendingScreen({ client, onSignOut, profile }: DoctorPendin
           variant="secondary"
         />
         <PrimaryButton
+          label={t(locale, 'settings.title')}
+          onPress={onOpenSettings}
+          variant="secondary"
+        />
+        <PrimaryButton
           label={t(locale, 'auth.signOut')}
           onPress={() => void onSignOut()}
           variant="secondary"
@@ -318,7 +329,7 @@ export function DoctorPendingScreen({ client, onSignOut, profile }: DoctorPendin
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   loadingPanel: {
     alignItems: 'center',
     gap: spacing.sm,
@@ -440,4 +451,4 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     paddingTop: spacing.md,
   },
-});
+}));

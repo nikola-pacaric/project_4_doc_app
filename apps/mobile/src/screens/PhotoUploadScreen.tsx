@@ -1,6 +1,6 @@
 import { PHOTO_JPEG_QUALITY, PHOTO_MAX_WIDTH_PX, PHOTO_MIME_TYPE } from '@project4/photo';
 import { type UserProfile } from '@project4/contracts';
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import { uploadPreparedEntryPhoto, type AppSupabaseClient } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
 import { manipulateAsync, SaveFormat, type ImageResult } from 'expo-image-manipulator';
@@ -11,7 +11,7 @@ import { ActivityIndicator, Image, SafeAreaView, StyleSheet, Text, View } from '
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 
 export interface PhotoUploadScreenProps {
   client: AppSupabaseClient;
@@ -96,7 +96,7 @@ export function PhotoUploadScreen({
   onPhotoPrepared,
   profile,
 }: PhotoUploadScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [preparedPhoto, setPreparedPhoto] = useState<PreparedPhoto | null>(null);
   const [preparing, setPreparing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -312,7 +312,7 @@ export function PhotoUploadScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   entrySummary: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -346,4 +346,4 @@ const styles = StyleSheet.create({
   },
   emptyText: { color: colors.mutedText, fontSize: 15, lineHeight: 22, textAlign: 'center' },
   actions: { gap: spacing.sm },
-});
+}));

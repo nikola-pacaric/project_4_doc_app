@@ -15,7 +15,7 @@ import {
   type DailyFormDraft,
   type FoodHydrationDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
   isPendingEntryId,
   mergePendingTextEntries,
@@ -65,6 +65,7 @@ import { SymptomFormScreen } from './SymptomFormScreen';
 interface TimelineScreenProps {
   client: AppSupabaseClient;
   profile: UserProfile;
+  onOpenSettings: () => void;
   onSignOut: () => Promise<void>;
 }
 
@@ -189,8 +190,8 @@ const entryIcons: Record<EntryKind, string> = {
   custom: '📋',
 };
 
-export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenProps) {
-  const locale = DEFAULT_LOCALE;
+export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: TimelineScreenProps) {
+  const locale = getActiveLocale();
   const [entries, setEntries] = useState<PatientEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -951,6 +952,9 @@ export function TimelineScreen({ client, profile, onSignOut }: TimelineScreenPro
             type="button"
           >
             {t(locale, 'baseline.open')}
+          </button>
+          <button className="secondary-button" onClick={onOpenSettings} type="button">
+            {t(locale, 'settings.title')}
           </button>
           <button className="secondary-button" onClick={() => void onSignOut()} type="button">
             {t(locale, 'auth.signOut')}

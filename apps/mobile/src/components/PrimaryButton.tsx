@@ -1,7 +1,7 @@
 import { spacing, typography } from '@project4/ui-tokens';
 import { ActivityIndicator, Keyboard, Pressable, StyleSheet, Text, type PressableProps } from 'react-native';
 
-import { colors } from '../theme';
+import { colors, createThemedStyles } from '../theme';
 
 interface PrimaryButtonProps extends Omit<PressableProps, 'children'> {
   label: string;
@@ -53,7 +53,7 @@ export function PrimaryButton({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   button: {
     minHeight: typography.controlMinHeight,
     borderRadius: 6,
@@ -92,4 +92,4 @@ const styles = StyleSheet.create({
   secondaryLabel: {
     color: colors.accent,
   },
-});
+}));

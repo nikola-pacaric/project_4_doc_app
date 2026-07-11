@@ -5,7 +5,7 @@ import {
   parseRecentMajorWeightChange,
   type BaselineProfileDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
   getPatientBaseline,
   savePatientBaseline,
@@ -19,7 +19,7 @@ import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 
 interface BaselineScreenProps {
   client: AppSupabaseClient;
@@ -109,7 +109,7 @@ function savedYesNoFromText(
 }
 
 export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [current, setCurrent] = useState<PatientBaselineProfile | null>(null);
   const [draft, setDraft] = useState<BaselineProfileDraft>({ ...baselineProfileDefaults });
   const [loading, setLoading] = useState(true);
@@ -513,7 +513,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   form: { gap: spacing.lg },
   field: { gap: spacing.xs },
   optionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 18,
-    backgroundColor: '#fff7f8',
+    backgroundColor: colors.background,
     gap: spacing.md,
     padding: spacing.md,
   },
@@ -564,4 +564,4 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   action: { flex: 1 },
-});
+}));

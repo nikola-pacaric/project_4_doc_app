@@ -1,5 +1,5 @@
 import type { UserProfile } from '@project4/contracts';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import {
   createDoctorInviteCode,
   listDoctorInviteCodes,
@@ -16,6 +16,7 @@ import { DoctorLinkedPatientTimelineScreen } from './DoctorLinkedPatientTimeline
 
 interface DoctorPendingScreenProps {
   client: AppSupabaseClient;
+  onOpenSettings: () => void;
   onSignOut: () => Promise<void>;
   profile: UserProfile;
 }
@@ -42,8 +43,13 @@ function getInviteStatus(invite: DoctorInviteCode): InviteStatus {
   return 'active';
 }
 
-export function DoctorPendingScreen({ client, onSignOut, profile }: DoctorPendingScreenProps) {
-  const locale = DEFAULT_LOCALE;
+export function DoctorPendingScreen({
+  client,
+  onOpenSettings,
+  onSignOut,
+  profile,
+}: DoctorPendingScreenProps) {
+  const locale = getActiveLocale();
   const [invites, setInvites] = useState<DoctorInviteCode[]>([]);
   const [patients, setPatients] = useState<LinkedPatientSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,6 +152,9 @@ export function DoctorPendingScreen({ client, onSignOut, profile }: DoctorPendin
             type="button"
           >
             {t(locale, 'timeline.refresh')}
+          </button>
+          <button className="secondary-button" onClick={onOpenSettings} type="button">
+            {t(locale, 'settings.title')}
           </button>
           <button className="secondary-button" onClick={() => void onSignOut()} type="button">
             {t(locale, 'auth.signOut')}

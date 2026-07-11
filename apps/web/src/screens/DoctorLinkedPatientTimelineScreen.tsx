@@ -4,7 +4,7 @@ import {
   type ExportMode,
   type PatientEntry,
 } from '@project4/contracts';
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
   createDoctorPatientExportBundle,
   createEntryPhotoSignedUrl,
@@ -93,7 +93,7 @@ export function DoctorLinkedPatientTimelineScreen({
   initialPatient,
   onBack,
 }: DoctorLinkedPatientTimelineScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [patient, setPatient] = useState(initialPatient);
   const [entries, setEntries] = useState<PatientEntry[]>([]);
   const [entryPhotos, setEntryPhotos] = useState<Record<string, TimelineEntryPhoto[]>>({});

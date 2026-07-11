@@ -1,5 +1,5 @@
 import type { UserRole } from '@project4/contracts';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import { signInForRole, signUpPatient, type AppSupabaseClient } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
@@ -10,7 +10,7 @@ import { FormField } from '../components/FormField';
 import { PasswordField } from '../components/PasswordField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 
 type AuthMode = 'patient-signup' | 'patient-login' | 'doctor-login';
 
@@ -23,7 +23,7 @@ function expectedRole(mode: AuthMode): UserRole {
 }
 
 export function AuthScreen({ client }: AuthScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [mode, setMode] = useState<AuthMode>('patient-login');
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -166,7 +166,7 @@ export function AuthScreen({ client }: AuthScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   selectedTab: {
     borderColor: colors.accent,
-    backgroundColor: '#fff0f3',
+    backgroundColor: colors.background,
   },
   tabLabel: {
     color: colors.mutedText,
@@ -203,4 +203,4 @@ const styles = StyleSheet.create({
   form: {
     gap: spacing.md,
   },
-});
+}));

@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 
 import { SymptomFormScreen } from '../screens/SymptomFormScreen';
-import { colors } from '../theme';
+import { colors, createThemedStyles } from '../theme';
 
 export function SymptomPreview() {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const { height, width } = useWindowDimensions();
   const [saved, setSaved] = useState(false);
   const deviceWidth = Math.min(412, width - 32);
@@ -36,7 +36,7 @@ export function SymptomPreview() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   stage: {
     flex: 1,
     alignItems: 'center',
@@ -100,4 +100,4 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: colors.text,
   },
-});
+}));

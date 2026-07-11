@@ -1,5 +1,5 @@
 import { isOtherFluidDraftStarted, type OtherFluidDraft } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import { PhotoUploader } from './PhotoUploader';
 import { VoiceTextField } from './VoiceTextField';
 import type { WebPreparedPhoto } from '../utils/photoHelper';
@@ -17,7 +17,7 @@ interface OtherFluidFieldsProps {
 }
 
 export function OtherFluidFields({ createFluid, fluids, onChange }: OtherFluidFieldsProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
 
   function updateFluid(index: number, update: Partial<ClientOtherFluidDraft>) {
     onChange(

@@ -2,7 +2,7 @@ import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 
 interface SelectOption {
   label: string;
@@ -64,7 +64,7 @@ export function SelectField({ label, onChange, options, placeholder, value }: Se
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   field: { gap: spacing.xs },
   control: {
     minHeight: 52,
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   menuOption: { paddingHorizontal: spacing.md, paddingVertical: spacing.md },
-  menuOptionSelected: { backgroundColor: '#fff0f3' },
+  menuOptionSelected: { backgroundColor: colors.background },
   menuOptionText: { color: colors.text, fontSize: 16 },
   menuOptionTextSelected: { color: colors.accent, fontWeight: '800' },
-});
+}));

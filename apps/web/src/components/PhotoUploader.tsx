@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import { useRef, useState } from 'react';
 import { prepareWebPhoto, type WebPreparedPhoto } from '../utils/photoHelper';
 
@@ -13,7 +13,7 @@ export function PhotoUploader({
   localPhoto,
   onPhotoSelected,
 }: PhotoUploaderProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const libraryInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);

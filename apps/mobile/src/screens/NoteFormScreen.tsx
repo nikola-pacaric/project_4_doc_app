@@ -1,5 +1,5 @@
 import { noteDraftDefaults, validateNote, type NoteDraft } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
 import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
@@ -10,7 +10,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { TimePickerField } from '../components/TimePickerField';
 import { VoiceTextField } from '../components/VoiceTextField';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
 interface NoteFormScreenProps {
@@ -36,7 +36,7 @@ export function NoteFormScreen({
   onBack,
   onSave,
 }: NoteFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [draft, setDraft] = useState<NoteDraft>(() => initialDraft ?? createInitialDraft());
   const [showErrors, setShowErrors] = useState(false);
 
@@ -121,7 +121,7 @@ export function NoteFormScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   actions: {
     borderTopColor: colors.border,
     borderTopWidth: 1,
@@ -131,4 +131,4 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   action: { flex: 1 },
-});
+}));

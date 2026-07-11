@@ -1,6 +1,6 @@
 import type { BristolStoolType, StoolUrgencyLevel } from '@project4/contracts';
 import { stoolDraftDefaults, validateStool, type StoolDraft } from '@project4/forms';
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
@@ -9,7 +9,7 @@ import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 
 interface StoolFormScreenProps {
   busy?: boolean;
@@ -45,7 +45,7 @@ export function StoolFormScreen({
   onSave,
   onSaveNoStool,
 }: StoolFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [draft, setDraft] = useState<StoolDraft>(initialDraft);
   const [showErrors, setShowErrors] = useState(false);
 
@@ -205,7 +205,7 @@ export function StoolFormScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   section: { gap: spacing.sm },
   noStoolCard: {
     backgroundColor: colors.surface,
@@ -290,4 +290,4 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   action: { flex: 1 },
-});
+}));

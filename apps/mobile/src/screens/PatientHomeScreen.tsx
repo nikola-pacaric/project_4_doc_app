@@ -14,7 +14,7 @@ import {
   type DailyFormField,
   type FoodHydrationDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import {
   isPendingEntryId,
   mergePendingTextEntries,
@@ -65,6 +65,7 @@ import { PatientTimelineScreen } from './PatientTimelineScreen';
 interface PatientHomeScreenProps {
   client: AppSupabaseClient;
   profile: UserProfile;
+  onOpenSettings: () => void;
   onSignOut: () => Promise<void>;
 }
 
@@ -116,8 +117,13 @@ function recentLocalDays(count = 8): string[] {
   return days;
 }
 
-export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScreenProps) {
-  const locale = DEFAULT_LOCALE;
+export function PatientHomeScreen({
+  client,
+  profile,
+  onOpenSettings,
+  onSignOut,
+}: PatientHomeScreenProps) {
+  const locale = getActiveLocale();
   const [entries, setEntries] = useState<PatientEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -717,6 +723,7 @@ export function PatientHomeScreen({ client, profile, onSignOut }: PatientHomeScr
       onOpenEntry={openRecentEntry}
       onOpenTimeline={() => setShowTimeline(true)}
       onRedeemDoctorInvite={redeemDoctorInvite}
+      onOpenSettings={onOpenSettings}
       onSubmitDay={submitDay}
       onSignOut={onSignOut}
       offlineMode={offlineMode}

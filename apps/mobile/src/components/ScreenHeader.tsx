@@ -1,7 +1,7 @@
 import { spacing } from '@project4/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../theme';
+import { colors, createThemedStyles } from '../theme';
 
 interface ScreenHeaderProps {
   eyebrow: string;
@@ -19,7 +19,7 @@ export function ScreenHeader({ eyebrow, title, subtitle }: ScreenHeaderProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   header: {
     gap: spacing.sm,
   },
@@ -38,4 +38,4 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 26,
   },
-});
+}));

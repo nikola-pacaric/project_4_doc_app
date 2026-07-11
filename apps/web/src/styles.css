@@ -1,4 +1,18 @@
 :root {
+  --app-text: #34292d;
+  --app-canvas: #e7e2e5;
+  --app-background: #fff7f5;
+  --app-surface: #ffffff;
+  --app-surface-alt: #f7f5f6;
+  --app-muted: #8a767d;
+  --app-border: #f0dfe1;
+  --app-accent: #f45b7a;
+  --app-accent-strong: #d94969;
+  --app-accent-soft: #fff0f3;
+  --app-danger: #c83f52;
+  --app-on-accent: #ffffff;
+  --app-warning: #a15c00;
+  --app-warning-soft: #fff4e5;
   font-family:
     Inter,
     ui-sans-serif,
@@ -7,8 +21,8 @@
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  color: #34292d;
-  background: #e7e2e5;
+  color: var(--app-text);
+  background: var(--app-canvas);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -27,7 +41,7 @@ body,
 
 body {
   min-height: 100vh;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.74), transparent 42%), #e7e2e5;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.74), transparent 42%), var(--app-canvas);
 }
 
 button,
@@ -57,13 +71,13 @@ textarea {
   border: 0;
   border-radius: 14px;
   background: transparent;
-  color: #8a767d;
+  color: var(--app-muted);
   opacity: 0.5;
   padding: 10px;
 }
 
 .password-toggle:hover {
-  color: #e84f70;
+  color: var(--app-accent);
   opacity: 0.85;
 }
 
@@ -140,7 +154,7 @@ button {
   height: 100%;
   overflow: hidden;
   border-radius: 38px;
-  background: #fff7f5;
+  background: var(--app-background);
 }
 
 .android-status-bar {
@@ -152,7 +166,7 @@ button {
   grid-template-columns: 1fr 1fr 1fr;
   align-items: center;
   padding: 0 18px;
-  color: #34292d;
+  color: var(--app-text);
   font-size: 11px;
   font-weight: 750;
   pointer-events: none;
@@ -260,7 +274,7 @@ button {
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
-  background: #fff7f5;
+  background: var(--app-background);
 }
 
 .device-app-viewport::-webkit-scrollbar {
@@ -274,7 +288,7 @@ button {
   height: 24px;
   display: grid;
   place-items: center;
-  background: #fff7f5;
+  background: var(--app-background);
   pointer-events: none;
 }
 
@@ -296,7 +310,7 @@ button {
 .status-screen {
   align-content: center;
   gap: 14px;
-  color: #8a767d;
+  color: var(--app-muted);
   font-size: 16px;
   text-align: center;
 }
@@ -319,7 +333,7 @@ button {
 }
 
 .screen-header h1 {
-  color: #34292d;
+  color: var(--app-text);
   font-size: 30px;
   font-weight: 850;
   line-height: 1.12;
@@ -327,7 +341,7 @@ button {
 }
 
 .eyebrow {
-  color: #ed5b79;
+  color: var(--app-accent);
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
@@ -335,7 +349,7 @@ button {
 
 .summary,
 .consent-copy {
-  color: #8a767d;
+  color: var(--app-muted);
   font-size: 15px;
   line-height: 1.5;
 }
@@ -345,9 +359,9 @@ button {
   grid-template-columns: repeat(3, 1fr);
   gap: 5px;
   padding: 4px;
-  border: 1px solid #f0dfe1;
+  border: 1px solid var(--app-border);
   border-radius: 17px;
-  background: #f8e9ec;
+  background: var(--app-surface-alt);
 }
 
 .segmented-control button {
@@ -356,7 +370,7 @@ button {
   border: 0;
   border-radius: 13px;
   background: transparent;
-  color: #927d84;
+  color: var(--app-muted);
   padding: 7px 5px;
   font-size: 12px;
   font-weight: 750;
@@ -364,8 +378,8 @@ button {
 }
 
 .segmented-control button.selected {
-  background: #ffffff;
-  color: #e84f70;
+  background: var(--app-surface);
+  color: var(--app-accent);
   box-shadow:
     0 1px 2px rgba(74, 49, 58, 0.08),
     0 6px 16px rgba(116, 69, 84, 0.08);
@@ -380,7 +394,7 @@ button {
 label {
   display: grid;
   gap: 7px;
-  color: #49383e;
+  color: var(--app-text);
   font-size: 14px;
   font-weight: 750;
 }
@@ -389,10 +403,10 @@ input,
 textarea {
   width: 100%;
   min-height: 48px;
-  border: 1px solid #f3e5e7;
+  border: 1px solid var(--app-border);
   border-radius: 16px;
-  background: #ffffff;
-  color: #34292d;
+  background: var(--app-surface);
+  color: var(--app-text);
   padding: 11px 13px;
   font-size: 16px;
   box-shadow:
@@ -409,9 +423,9 @@ input:focus,
 select:focus,
 textarea:focus,
 button:focus-visible {
-  outline: 3px solid rgba(244, 91, 122, 0.2);
+  outline: 3px solid color-mix(in srgb, var(--app-accent) 20%, transparent);
   outline-offset: 2px;
-  border-color: #f45b7a;
+  border-color: var(--app-accent);
 }
 
 .primary-button,
@@ -423,18 +437,18 @@ button:focus-visible {
 }
 
 .primary-button {
-  border: 1px solid #f45b7a;
-  background: linear-gradient(100deg, #ff5e65 0%, #f65f9c 55%, #f7a0aa 100%);
-  color: #ffffff;
+  border: 1px solid var(--app-accent);
+  background: var(--app-accent);
+  color: var(--app-on-accent);
   box-shadow:
-    0 7px 18px rgba(239, 79, 112, 0.24),
-    0 2px 5px rgba(239, 79, 112, 0.12);
+    0 7px 18px rgba(0, 0, 0, 0.16),
+    0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .secondary-button {
-  border: 1px solid #f0dfe1;
-  background: #ffffff;
-  color: #59434a;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-muted);
 }
 
 .primary-button:disabled,
@@ -450,11 +464,11 @@ button:focus-visible {
 }
 
 .notice.error {
-  color: #b42318;
+  color: var(--app-danger);
 }
 
 .notice.success {
-  color: #d94969;
+  color: var(--app-accent-strong);
 }
 
 .checkbox-row {
@@ -465,7 +479,7 @@ button:focus-visible {
 .checkbox-row input {
   width: 24px;
   min-height: 24px;
-  accent-color: #f45b7a;
+  accent-color: var(--app-accent);
 }
 
 .button-row {
@@ -512,16 +526,16 @@ button:focus-visible {
   display: grid;
   align-content: start;
   gap: 16px;
-  border: 1px solid #eadfe2;
+  border: 1px solid var(--app-border);
   border-radius: 22px;
-  background: #ffffff;
+  background: var(--app-surface);
   padding: 22px;
   box-shadow: 0 14px 34px rgba(84, 59, 68, 0.07);
 }
 
 .doctor-panel h2 {
   margin: 0;
-  color: #34292d;
+  color: var(--app-text);
   font-size: 20px;
   font-weight: 900;
   letter-spacing: 0;
@@ -532,7 +546,7 @@ button:focus-visible {
   display: inline-flex;
   align-items: center;
   min-height: 30px;
-  border: 1px solid #f0dfe1;
+  border: 1px solid var(--app-border);
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 12px;
@@ -540,14 +554,14 @@ button:focus-visible {
 }
 
 .doctor-status-pill {
-  border-color: rgba(244, 91, 122, 0.4);
-  background: #fff2f5;
-  color: #d94969;
+  border-color: color-mix(in srgb, var(--app-accent) 40%, transparent);
+  background: var(--app-accent-soft);
+  color: var(--app-accent-strong);
 }
 
 .doctor-count-pill {
-  background: #fffafb;
-  color: #806c73;
+  background: var(--app-surface);
+  color: var(--app-muted);
 }
 
 .doctor-profile-list {
@@ -562,7 +576,7 @@ button:focus-visible {
 }
 
 .doctor-profile-list dt {
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 12px;
   font-weight: 850;
   text-transform: uppercase;
@@ -570,18 +584,18 @@ button:focus-visible {
 
 .doctor-profile-list dd {
   margin: 0;
-  color: #34292d;
+  color: var(--app-text);
   font-size: 16px;
   font-weight: 850;
 }
 
 .doctor-invite-panel {
-  background: linear-gradient(135deg, #fff6f8 0%, #ffffff 74%);
+  background: linear-gradient(135deg, var(--app-accent-soft) 0%, var(--app-surface) 74%);
 }
 
 .doctor-panel-meta {
   margin: 4px 0 0;
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 14px;
   line-height: 1.45;
 }
@@ -590,28 +604,28 @@ button:focus-visible {
   display: grid;
   justify-items: center;
   gap: 6px;
-  border: 1px solid rgba(244, 91, 122, 0.4);
+  border: 1px solid color-mix(in srgb, var(--app-accent) 40%, transparent);
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--app-surface);
   padding: 16px;
 }
 
 .doctor-active-invite span {
-  color: #d94969;
+  color: var(--app-accent-strong);
   font-size: 12px;
   font-weight: 850;
   text-transform: uppercase;
 }
 
 .doctor-active-invite strong {
-  color: #34292d;
+  color: var(--app-text);
   font-size: 28px;
   font-weight: 950;
   letter-spacing: 0;
 }
 
 .doctor-active-invite small {
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 13px;
 }
 
@@ -622,7 +636,7 @@ button:focus-visible {
 
 .doctor-invite-history h3 {
   margin: 0;
-  color: #34292d;
+  color: var(--app-text);
   font-size: 16px;
   font-weight: 900;
 }
@@ -637,7 +651,7 @@ button:focus-visible {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  border-top: 1px solid #f2e5e7;
+  border-top: 1px solid var(--app-border);
   padding-top: 10px;
 }
 
@@ -650,7 +664,7 @@ button:focus-visible {
 }
 
 .doctor-invite-row strong {
-  color: #34292d;
+  color: var(--app-text);
   font-size: 15px;
   overflow-wrap: anywhere;
 }
@@ -659,30 +673,30 @@ button:focus-visible {
   display: inline-flex;
   align-items: center;
   min-height: 26px;
-  border: 1px solid #f0dfe1;
+  border: 1px solid var(--app-border);
   border-radius: 999px;
   padding: 3px 8px;
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 12px;
   font-weight: 850;
 }
 
 .doctor-invite-status.active {
-  border-color: rgba(244, 91, 122, 0.35);
-  background: #fff2f5;
-  color: #d94969;
+  border-color: color-mix(in srgb, var(--app-accent) 35%, transparent);
+  background: var(--app-accent-soft);
+  color: var(--app-accent-strong);
 }
 
 .doctor-invite-status.redeemed {
-  border-color: #bde5cc;
-  background: #f5fbf7;
-  color: #247a49;
+  border-color: var(--app-border);
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
 }
 
 .doctor-invite-status.revoked,
 .doctor-invite-status.expired {
-  background: #f5f1f2;
-  color: #806c73;
+  background: var(--app-surface-alt);
+  color: var(--app-muted);
 }
 
 .doctor-patient-list {
@@ -695,9 +709,9 @@ button:focus-visible {
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 14px;
-  border: 1px solid #f2e5e7;
+  border: 1px solid var(--app-border);
   border-radius: 16px;
-  background: #fffafb;
+  background: var(--app-surface);
   color: inherit;
   cursor: pointer;
   font: inherit;
@@ -707,7 +721,7 @@ button:focus-visible {
 }
 
 .doctor-patient-row:hover {
-  border-color: #d86f8b;
+  border-color: var(--app-accent);
   box-shadow: 0 8px 20px rgba(64, 38, 47, 0.08);
 }
 
@@ -724,27 +738,27 @@ button:focus-visible {
 }
 
 .doctor-patient-row strong {
-  color: #34292d;
+  color: var(--app-text);
   font-size: 15px;
 }
 
 .doctor-patient-row span,
 .doctor-patient-row small {
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 13px;
 }
 
 .doctor-open-patient {
-  color: #a33e62 !important;
+  color: var(--app-accent-strong) !important;
   font-weight: 800;
   white-space: nowrap;
 }
 
 .doctor-readonly-notice {
-  border: 1px solid #eadfe2;
+  border: 1px solid var(--app-border);
   border-radius: 10px;
-  background: #fffafb;
-  color: #6f5962;
+  background: var(--app-surface);
+  color: var(--app-muted);
   font-size: 14px;
   font-weight: 700;
   line-height: 1.45;
@@ -761,15 +775,15 @@ button:focus-visible {
   display: grid;
   gap: 14px;
   margin: 0 auto 18px;
-  border: 1px solid #eadfe2;
+  border: 1px solid var(--app-border);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--app-surface);
   padding: 16px;
 }
 
 .doctor-export-panel h2 {
   margin: 0;
-  color: #34292d;
+  color: var(--app-text);
   font-size: 18px;
   line-height: 1.25;
 }
@@ -784,7 +798,7 @@ button:focus-visible {
   min-width: 0;
   display: grid;
   gap: 6px;
-  color: #6f5962;
+  color: var(--app-muted);
   font-size: 13px;
   font-weight: 800;
 }
@@ -793,10 +807,10 @@ button:focus-visible {
 .doctor-export-grid select {
   width: 100%;
   min-height: 44px;
-  border: 1px solid #eadfe2;
+  border: 1px solid var(--app-border);
   border-radius: 10px;
-  background: #fffafb;
-  color: #34292d;
+  background: var(--app-surface);
+  color: var(--app-text);
   padding: 9px 10px;
 }
 
@@ -813,7 +827,7 @@ button:focus-visible {
 
 .doctor-export-help {
   align-self: end;
-  color: #6f5962;
+  color: var(--app-muted);
   font-size: 14px;
   line-height: 1.4;
   margin: 0;
@@ -822,20 +836,20 @@ button:focus-visible {
 .doctor-empty-state {
   display: grid;
   gap: 6px;
-  border: 1px dashed #eadfe2;
+  border: 1px dashed var(--app-border);
   border-radius: 16px;
-  background: #fffafb;
+  background: var(--app-surface);
   padding: 16px;
 }
 
 .doctor-empty-state strong {
-  color: #34292d;
+  color: var(--app-text);
   font-size: 15px;
 }
 
 .doctor-empty-state p {
   margin: 0;
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 14px;
   line-height: 1.45;
 }
@@ -890,7 +904,7 @@ button:focus-visible {
   display: grid;
   gap: 16px;
   padding-bottom: 18px;
-  border-bottom: 1px solid #f0dfe1;
+  border-bottom: 1px solid var(--app-border);
 }
 
 .entry-workspace {
@@ -910,9 +924,9 @@ button:focus-visible {
 }
 
 .entry-card {
-  border: 1px solid #f1e2e4;
+  border: 1px solid var(--app-border);
   border-radius: 18px;
-  background: #ffffff;
+  background: var(--app-surface);
   padding: 14px;
   box-shadow: 0 8px 22px rgba(110, 69, 83, 0.065);
 }
@@ -926,7 +940,7 @@ button:focus-visible {
 .entry-kind-label {
   display: inline-block;
   margin-top: 8px;
-  color: #7d6970;
+  color: var(--app-muted);
   font-size: 12px;
   font-weight: 800;
 }
@@ -944,7 +958,7 @@ button:focus-visible {
 }
 
 .entry-card time {
-  color: #e84f70;
+  color: var(--app-accent);
   font-size: 13px;
   font-weight: 800;
 }
@@ -958,21 +972,21 @@ button:focus-visible {
   min-height: 32px;
   border: 0;
   background: transparent;
-  color: #e84f70;
+  color: var(--app-accent);
   padding: 0;
   font-size: 13px;
   font-weight: 750;
 }
 
 .text-actions button:last-child {
-  color: #b42318;
+  color: var(--app-danger);
 }
 
 .timestamp-editor {
   flex-wrap: wrap;
   margin-top: 14px;
   padding-top: 14px;
-  border-top: 1px solid #f1e2e4;
+  border-top: 1px solid var(--app-border);
 }
 
 .timestamp-editor input {
@@ -982,7 +996,7 @@ button:focus-visible {
 .empty-state {
   margin: 0;
   padding: 28px 14px;
-  color: #8a767d;
+  color: var(--app-muted);
   text-align: center;
 }
 
@@ -999,7 +1013,7 @@ button:focus-visible {
 
 .baseline-toolbar {
   padding-bottom: 18px;
-  border-bottom: 1px solid #f0dfe1;
+  border-bottom: 1px solid var(--app-border);
 }
 
 .baseline-toolbar .summary {
@@ -1014,7 +1028,7 @@ button:focus-visible {
 .baseline-form label {
   display: grid;
   gap: 7px;
-  color: #4e3b42;
+  color: var(--app-text);
   font-size: 14px;
   font-weight: 750;
 }
@@ -1026,7 +1040,7 @@ button:focus-visible {
 }
 
 .choice-label {
-  color: #4e3b42;
+  color: var(--app-text);
   font-size: 14px;
   font-weight: 750;
 }
@@ -1043,17 +1057,17 @@ button:focus-visible {
 
 .choice-row button {
   min-height: 48px;
-  border: 1px solid #eadadd;
+  border: 1px solid var(--app-border);
   border-radius: 12px;
-  background: #ffffff;
-  color: #59434a;
+  background: var(--app-surface);
+  color: var(--app-muted);
   font-weight: 800;
 }
 
 .choice-row button.selected {
-  border-color: #f45b7a;
-  background: #fff0f3;
-  color: #e84f70;
+  border-color: var(--app-accent);
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
 }
 
 .choice-row button:disabled {
@@ -1063,9 +1077,9 @@ button:focus-visible {
 
 .conditional-field-bubble {
   overflow: hidden;
-  border: 1px solid #f0dfe1;
+  border: 1px solid var(--app-border);
   border-radius: 18px;
-  background: #fff7f8;
+  background: var(--app-accent-soft);
   padding: 14px;
   transform-origin: top center;
   animation: conditional-bubble-open 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -1079,7 +1093,7 @@ button:focus-visible {
 .repeatable-item {
   display: grid;
   gap: 10px;
-  border-bottom: 1px solid #f0dfe1;
+  border-bottom: 1px solid var(--app-border);
   padding-bottom: 14px;
 }
 
@@ -1089,10 +1103,10 @@ button:focus-visible {
 
 .add-inline-button {
   min-height: 48px;
-  border: 1px dashed #f45b7a;
+  border: 1px dashed var(--app-accent);
   border-radius: 12px;
-  background: #ffffff;
-  color: #e84f70;
+  background: var(--app-surface);
+  color: var(--app-accent);
   padding: 10px 12px;
   font-weight: 850;
 }
@@ -1102,7 +1116,7 @@ button:focus-visible {
   min-height: 36px;
   border: 0;
   background: transparent;
-  color: #b42318;
+  color: var(--app-danger);
   padding: 2px 0;
   font-size: 14px;
   font-weight: 800;
@@ -1133,10 +1147,10 @@ button:focus-visible {
 .baseline-form textarea {
   width: 100%;
   min-height: 48px;
-  border: 1px solid #eadadd;
+  border: 1px solid var(--app-border);
   border-radius: 12px;
-  background: #ffffff;
-  color: #34292d;
+  background: var(--app-surface);
+  color: var(--app-text);
   padding: 10px 12px;
 }
 
@@ -1156,10 +1170,10 @@ button:focus-visible {
 
 .exercise-requirement {
   margin: 0;
-  border: 1px solid #e7bd76;
+  border: 1px solid var(--app-warning);
   border-radius: 12px;
-  background: #fff4e5;
-  color: #4e3b42;
+  background: var(--app-warning-soft);
+  color: var(--app-text);
   padding: 12px 14px;
   font-size: 14px;
 }
@@ -1171,19 +1185,19 @@ button:focus-visible {
 }
 
 .exercise-action small {
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 10px;
   font-weight: 850;
   text-transform: uppercase;
 }
 
 .exercise-action.required {
-  border-color: #d97706;
-  background: #fff4e5;
+  border-color: var(--app-warning);
+  background: var(--app-warning-soft);
 }
 
 .exercise-action.required small {
-  color: #b45309;
+  color: var(--app-warning);
 }
 
 .daily-form .choice-field:not(.full-width) {
@@ -1193,28 +1207,28 @@ button:focus-visible {
 .daily-status {
   display: grid;
   gap: 3px;
-  border: 1px solid #f0dfe1;
+  border: 1px solid var(--app-border);
   border-radius: 16px;
   padding: 13px 14px;
   font-size: 14px;
 }
 
 .daily-status strong {
-  color: #34292d;
+  color: var(--app-text);
 }
 
 .daily-status span {
-  color: #806c73;
+  color: var(--app-muted);
   line-height: 1.4;
 }
 
 .daily-status.draft {
-  background: #fff9ef;
+  background: var(--app-warning-soft);
 }
 
 .daily-status.complete {
-  border-color: #cde7d6;
-  background: #f1fbf5;
+  border-color: var(--app-border);
+  background: var(--app-accent-soft);
 }
 
 .daily-status.centered {
@@ -1242,7 +1256,7 @@ button:focus-visible {
 
 .conditional-question {
   gap: 10px;
-  border-top: 1px solid #f2e5e7;
+  border-top: 1px solid var(--app-border);
   padding-top: 16px;
 }
 
@@ -1252,7 +1266,7 @@ button:focus-visible {
 
 .conditional-question.disabled legend,
 .conditional-question.disabled p {
-  color: #806c73;
+  color: var(--app-muted);
 }
 
 .conditional-question .conditional-field-bubble {
@@ -1261,14 +1275,14 @@ button:focus-visible {
 
 .scale-field-card {
   gap: 10px;
-  border: 1px solid #f0dfe1;
+  border: 1px solid var(--app-border);
   border-radius: 18px;
-  background: #fffafb;
+  background: var(--app-surface);
   padding: 16px;
 }
 
 .scale-field-card .choice-label {
-  color: #34292d;
+  color: var(--app-text);
   font-size: 16px;
   font-weight: 850;
 }
@@ -1293,7 +1307,7 @@ button:focus-visible {
 }
 
 .daily-form .form-actions {
-  border-top: 1px solid #f0dfe1;
+  border-top: 1px solid var(--app-border);
   padding-top: 16px;
 }
 
@@ -1305,14 +1319,14 @@ button:focus-visible {
 .fluid-section legend,
 .hydration-section legend {
   padding: 0 6px;
-  color: #34292d;
+  color: var(--app-text);
   font-size: 15px;
   font-weight: 850;
 }
 
 .field-help {
   margin: 0 0 14px;
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 14px;
   line-height: 1.45;
 }
@@ -1333,14 +1347,14 @@ button:focus-visible {
 .meal-type-selector legend {
   margin-bottom: 7px;
   padding: 0;
-  color: #4b3a41;
+  color: var(--app-text);
   font-size: 14px;
   font-weight: 850;
 }
 
 .meal-type-selector p {
   margin: 0;
-  color: #8a767d;
+  color: var(--app-muted);
   font-size: 13px;
   font-weight: 700;
 }
@@ -1354,10 +1368,10 @@ button:focus-visible {
 .meal-type-grid button {
   min-width: 0;
   min-height: 52px;
-  border: 1px solid #eadadd;
+  border: 1px solid var(--app-border);
   border-radius: 14px;
-  background: #ffffff;
-  color: #59434a;
+  background: var(--app-surface);
+  color: var(--app-muted);
   padding: 8px 10px;
   font-size: 14px;
   font-weight: 850;
@@ -1372,16 +1386,16 @@ button:focus-visible {
 }
 
 .meal-type-grid button:hover {
-  border-color: #f9a9ba;
-  box-shadow: 0 8px 18px rgba(232, 79, 112, 0.1);
+  border-color: var(--app-accent);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--app-accent) 10%, transparent);
   transform: translateY(-1px);
 }
 
 .meal-type-grid button.selected {
-  border-color: #f45b7a;
-  background: #f45b7a;
-  color: #ffffff;
-  box-shadow: 0 10px 24px rgba(244, 91, 122, 0.22);
+  border-color: var(--app-accent);
+  background: var(--app-accent);
+  color: var(--app-surface);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--app-accent) 22%, transparent);
 }
 
 .meal-card > label,
@@ -1409,13 +1423,13 @@ button:focus-visible {
   min-height: 40px;
   border: 0;
   background: transparent;
-  color: #e84f70;
+  color: var(--app-accent);
   padding: 4px 0;
   font-weight: 800;
 }
 
 .text-button.danger {
-  color: #b42318;
+  color: var(--app-danger);
 }
 
 .food-form {
@@ -1450,13 +1464,13 @@ button:focus-visible {
 }
 
 .symptom-section-heading strong {
-  color: #34292d;
+  color: var(--app-text);
   font-size: 18px;
 }
 
 .symptom-section-heading p {
   margin: 0;
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 14px;
   line-height: 1.45;
 }
@@ -1466,22 +1480,22 @@ button:focus-visible {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr);
   align-items: center;
-  border: 1px solid #eadadd;
+  border: 1px solid var(--app-border);
   border-radius: 14px;
-  background: #ffffff;
+  background: var(--app-surface);
   padding: 4px 8px;
 }
 
 .symptom-option.selected {
-  border-color: #f45b7a;
-  background: #fff0f3;
+  border-color: var(--app-accent);
+  background: var(--app-accent-soft);
 }
 
 .symptom-option input[type='checkbox'] {
   width: 24px;
   height: 24px;
   justify-self: center;
-  accent-color: #f45b7a;
+  accent-color: var(--app-accent);
   cursor: pointer;
 }
 
@@ -1493,7 +1507,7 @@ button:focus-visible {
   gap: 10px;
   border: 0;
   background: transparent;
-  color: #34292d;
+  color: var(--app-text);
   padding: 0 8px;
   font-weight: 800;
   text-align: left;
@@ -1505,19 +1519,19 @@ button:focus-visible {
 }
 
 .symptom-option.selected button {
-  color: #e84f70;
+  color: var(--app-accent);
 }
 
 .symptom-detail-card {
-  border: 1px solid #f0dfe1;
+  border: 1px solid var(--app-border);
   border-radius: 18px;
-  background: #fffafb;
+  background: var(--app-surface);
   padding: 16px;
   animation: conditional-bubble-open 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .symptom-detail-card.invalid {
-  border-color: #c83f52;
+  border-color: var(--app-danger);
 }
 
 .symptom-detail-heading {
@@ -1527,12 +1541,12 @@ button:focus-visible {
 
 .symptom-detail-heading strong,
 .pain-detail-section > strong {
-  color: #34292d;
+  color: var(--app-text);
   font-size: 17px;
 }
 
 .symptom-detail-heading span {
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 13px;
 }
 
@@ -1540,7 +1554,7 @@ button:focus-visible {
 .pain-detail-section label {
   display: grid;
   gap: 7px;
-  color: #4e3b42;
+  color: var(--app-text);
   font-size: 14px;
   font-weight: 750;
 }
@@ -1550,10 +1564,10 @@ button:focus-visible {
 .symptom-detail-card textarea {
   width: 100%;
   min-height: 48px;
-  border: 1px solid #eadadd;
+  border: 1px solid var(--app-border);
   border-radius: 12px;
-  background: #ffffff;
-  color: #34292d;
+  background: var(--app-surface);
+  color: var(--app-text);
   padding: 10px 12px;
 }
 
@@ -1568,18 +1582,18 @@ button:focus-visible {
   grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
-  border: 1px solid #eadadd;
+  border: 1px solid var(--app-border);
   border-radius: 12px;
-  background: #ffffff;
-  color: #59434a;
+  background: var(--app-surface);
+  color: var(--app-muted);
   padding: 8px 12px;
   text-align: left;
 }
 
 .symptom-intensity-grid button.selected {
-  border-color: #f45b7a;
-  background: #fff0f3;
-  color: #e84f70;
+  border-color: var(--app-accent);
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
 }
 
 .symptom-intensity-grid button strong {
@@ -1593,7 +1607,7 @@ button:focus-visible {
 }
 
 .pain-detail-section {
-  border-top: 1px solid #f0dfe1;
+  border-top: 1px solid var(--app-border);
   padding-top: 14px;
 }
 
@@ -1641,15 +1655,15 @@ button:focus-visible {
   display: grid;
   gap: 12px;
   margin: 0;
-  border: 1px solid #f0dfe1;
+  border: 1px solid var(--app-border);
   border-radius: 18px;
-  background: #fffafb;
+  background: var(--app-surface);
   padding: 16px;
 }
 
 .structured-fieldset legend {
   padding: 0 6px;
-  color: #34292d;
+  color: var(--app-text);
   font-size: 15px;
   font-weight: 850;
 }
@@ -1660,9 +1674,9 @@ button:focus-visible {
   justify-self: center;
   gap: 14px;
   margin: auto 0;
-  border: 1px solid #f0dfe1;
+  border: 1px solid var(--app-border);
   border-radius: 18px;
-  background: #fffafb;
+  background: var(--app-surface);
   padding: 24px;
   text-align: center;
 }
@@ -1674,26 +1688,26 @@ button:focus-visible {
   place-items: center;
   justify-self: center;
   border-radius: 999px;
-  background: #f45b7a;
-  color: #ffffff;
+  background: var(--app-accent);
+  color: var(--app-surface);
   font-size: 38px;
   font-weight: 900;
 }
 
 .save-confirmation-card h1 {
   margin: 0;
-  color: #34292d;
+  color: var(--app-text);
   font-size: 28px;
 }
 
 .save-confirmation-card strong {
-  color: #e84f70;
+  color: var(--app-accent);
   font-size: 20px;
 }
 
 .save-confirmation-card p {
   margin: 0;
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 16px;
   line-height: 1.5;
 }
@@ -1707,37 +1721,37 @@ button:focus-visible {
 .bristol-grid button {
   min-width: 0;
   min-height: 44px;
-  border: 1px solid #eadadd;
+  border: 1px solid var(--app-border);
   border-radius: 10px;
-  background: #ffffff;
-  color: #59434a;
+  background: var(--app-surface);
+  color: var(--app-muted);
   padding: 4px;
   font-weight: 850;
 }
 
 .bristol-grid button.selected,
 .choice-row.four-options button.selected {
-  border-color: #f45b7a;
-  background: #f45b7a;
-  color: #ffffff;
+  border-color: var(--app-accent);
+  background: var(--app-accent);
+  color: var(--app-surface);
 }
 
 .bristol-summary {
   display: grid;
   gap: 5px;
-  border: 1px solid #f0dfe1;
+  border: 1px solid var(--app-border);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--app-surface);
   padding: 12px;
 }
 
 .bristol-summary strong {
-  color: #e84f70;
+  color: var(--app-accent);
   font-size: 14px;
 }
 
 .bristol-summary span {
-  color: #a85b25;
+  color: var(--app-warning);
   font-size: 13px;
   font-weight: 700;
   line-height: 1.4;
@@ -1764,9 +1778,9 @@ button:focus-visible {
   min-height: 46px;
   grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
-  border: 1px solid #eadadd;
+  border: 1px solid var(--app-border);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--app-surface);
   padding: 8px 10px;
   cursor: pointer;
 }
@@ -1774,15 +1788,15 @@ button:focus-visible {
 .check-card input {
   width: 20px;
   min-height: 20px;
-  accent-color: #f45b7a;
+  accent-color: var(--app-accent);
 }
 
 .switch-field {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  border: 1px solid #f0dfe1;
+  border: 1px solid var(--app-border);
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--app-surface);
   padding: 14px;
   cursor: pointer;
 }
@@ -1793,11 +1807,11 @@ button:focus-visible {
 }
 
 .switch-copy strong {
-  color: #34292d;
+  color: var(--app-text);
 }
 
 .switch-copy small {
-  color: #806c73;
+  color: var(--app-muted);
   font-weight: 600;
   line-height: 1.4;
 }
@@ -1805,11 +1819,11 @@ button:focus-visible {
 .switch-field input {
   width: 44px;
   min-height: 24px;
-  accent-color: #f45b7a;
+  accent-color: var(--app-accent);
 }
 
 .form-actions-row {
-  border-top: 1px solid #f0dfe1;
+  border-top: 1px solid var(--app-border);
   padding-top: 16px;
 }
 
@@ -1834,7 +1848,7 @@ button:focus-visible {
 
 .web-home-date {
   margin: 0;
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 14px;
   font-weight: 800;
   text-transform: capitalize;
@@ -1843,7 +1857,7 @@ button:focus-visible {
 .web-home-greeting h1 {
   max-width: 720px;
   margin: 0;
-  color: #34292d;
+  color: var(--app-text);
   font-size: 42px;
   font-weight: 900;
   line-height: 1.05;
@@ -1866,15 +1880,15 @@ button:focus-visible {
 .web-progress-panel,
 .web-submit-panel,
 .web-home-section {
-  border: 1px solid #eadfe2;
+  border: 1px solid var(--app-border);
   border-radius: 22px;
-  background: #ffffff;
+  background: var(--app-surface);
   box-shadow: 0 14px 34px rgba(84, 59, 68, 0.07);
 }
 
 .web-progress-panel {
   justify-content: center;
-  background: linear-gradient(135deg, #fff6f8 0%, #ffffff 72%);
+  background: linear-gradient(135deg, var(--app-accent-soft) 0%, var(--app-surface) 72%);
 }
 
 .web-progress-panel,
@@ -1890,7 +1904,7 @@ button:focus-visible {
 .web-submit-panel h2,
 .web-home-section h2 {
   margin: 0;
-  color: #34292d;
+  color: var(--app-text);
   font-size: 20px;
   font-weight: 900;
   letter-spacing: 0;
@@ -1899,7 +1913,7 @@ button:focus-visible {
 .web-progress-panel p,
 .web-submit-panel p {
   margin: 6px 0 0;
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 15px;
   line-height: 1.45;
   text-align: center;
@@ -1913,15 +1927,15 @@ button:focus-visible {
   place-items: center;
   border-radius: 50%;
   background:
-    radial-gradient(circle at center, #ffffff 58%, transparent 59%),
-    conic-gradient(#f45b7a var(--progress), #f4e7ea 0);
+    radial-gradient(circle at center, var(--app-surface) 58%, transparent 59%),
+    conic-gradient(var(--app-accent) var(--progress), var(--app-border) 0);
   box-shadow:
-    0 10px 24px rgba(244, 91, 122, 0.1),
-    inset 0 0 0 1px rgba(244, 91, 122, 0.08);
+    0 10px 24px color-mix(in srgb, var(--app-accent) 10%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 8%, transparent);
 }
 
 .web-progress-ring span {
-  color: #34292d;
+  color: var(--app-text);
   font-size: 20px;
   font-weight: 900;
 }
@@ -1940,7 +1954,7 @@ button:focus-visible {
 
 .web-invite-section .web-section-heading p {
   margin: 5px 0 0;
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 14px;
   line-height: 1.45;
 }
@@ -1973,10 +1987,10 @@ button:focus-visible {
   align-content: center;
   justify-items: center;
   gap: 5px;
-  border: 1px solid #f0dfe1;
+  border: 1px solid var(--app-border);
   border-radius: 14px;
-  background: #fffafb;
-  color: #34292d;
+  background: var(--app-surface);
+  color: var(--app-text);
   padding: 8px 6px;
   text-align: center;
   transition:
@@ -1986,41 +2000,41 @@ button:focus-visible {
 }
 
 .web-action-card:hover {
-  border-color: #f45b7a;
-  box-shadow: 0 12px 24px rgba(244, 91, 122, 0.13);
+  border-color: var(--app-accent);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--app-accent) 13%, transparent);
   transform: translateY(-2px);
 }
 
 .web-action-card:disabled,
 .web-action-card.offline-disabled {
   cursor: not-allowed;
-  border-color: #eadfe2;
-  background: #f1ecee;
-  color: #806c73;
+  border-color: var(--app-border);
+  background: var(--app-surface-alt);
+  color: var(--app-muted);
   opacity: 0.52;
   box-shadow: none;
 }
 
 .web-action-card:disabled:hover,
 .web-action-card.offline-disabled:hover {
-  border-color: #eadfe2;
+  border-color: var(--app-border);
   box-shadow: none;
   transform: none;
 }
 
 .web-action-card.required {
-  border-color: #d97706;
-  background: #fff7ea;
+  border-color: var(--app-warning);
+  background: var(--app-warning-soft);
 }
 
 .web-action-card.completed {
-  border-color: #bde5cc;
-  background: #f5fbf7;
+  border-color: var(--app-border);
+  background: var(--app-accent-soft);
 }
 
 .web-action-card.draft {
-  border-color: #e7bd76;
-  background: #fff9ef;
+  border-color: var(--app-warning);
+  background: var(--app-warning-soft);
 }
 
 .web-action-icon {
@@ -2029,8 +2043,8 @@ button:focus-visible {
   display: grid;
   place-items: center;
   border-radius: 13px;
-  background: #fff0f3;
-  color: #e84f70;
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
   font-size: 18px;
   font-weight: 900;
 }
@@ -2043,7 +2057,7 @@ button:focus-visible {
 }
 
 .web-action-card small {
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 9px;
   line-height: 1.2;
   font-weight: 900;
@@ -2058,24 +2072,24 @@ button:focus-visible {
 .web-recent-entry {
   display: grid;
   gap: 10px;
-  border: 1px solid #f2e5e7;
+  border: 1px solid var(--app-border);
   border-radius: 16px;
-  background: #fffafb;
+  background: var(--app-surface);
   padding: 10px;
 }
 
 .web-recent-entry.pending {
-  border-color: #d97706;
-  background: #fff8ed;
+  border-color: var(--app-warning);
+  background: var(--app-warning-soft);
 }
 
 .web-recent-entry.draft {
-  border-color: #e7bd76;
-  background: #fff9ef;
+  border-color: var(--app-warning);
+  background: var(--app-warning-soft);
 }
 
 .web-recent-entry.offline-disabled {
-  background: #f2ecee;
+  background: var(--app-surface-alt);
   opacity: 0.58;
 }
 
@@ -2088,7 +2102,7 @@ button:focus-visible {
   gap: 12px;
   border: 0;
   background: transparent;
-  color: #34292d;
+  color: var(--app-text);
   padding: 0;
   text-align: left;
 }
@@ -2103,8 +2117,8 @@ button:focus-visible {
   display: grid;
   place-items: center;
   border-radius: 14px;
-  background: #ffffff;
-  color: #e84f70;
+  background: var(--app-surface);
+  color: var(--app-accent);
   font-size: 19px;
   font-weight: 900;
 }
@@ -2116,19 +2130,19 @@ button:focus-visible {
 }
 
 .web-recent-entry strong {
-  color: #34292d;
+  color: var(--app-text);
   font-size: 15px;
 }
 
 .web-recent-entry small {
   margin-top: 3px;
-  color: #806c73;
+  color: var(--app-muted);
   font-size: 13px;
   font-weight: 750;
 }
 
 .web-recent-entry .web-entry-pending {
-  color: #a15c00;
+  color: var(--app-warning);
   font-size: 12px;
   font-weight: 850;
   text-transform: uppercase;
@@ -2152,15 +2166,15 @@ button:focus-visible {
 }
 
 .web-recent-entry .web-entry-status.complete {
-  color: #16794b;
+  color: var(--app-accent);
 }
 
 .web-recent-entry .web-entry-status.draft {
-  color: #a15c00;
+  color: var(--app-warning);
 }
 
 .web-recent-entry .web-entry-status.offline {
-  color: #806c73;
+  color: var(--app-muted);
 }
 
 .web-entry-actions {
@@ -2174,14 +2188,14 @@ button:focus-visible {
   min-height: 32px;
   border: 0;
   background: transparent;
-  color: #e84f70;
+  color: var(--app-accent);
   padding: 0;
   font-size: 13px;
   font-weight: 850;
 }
 
 .web-entry-actions button:last-child {
-  color: #b42318;
+  color: var(--app-danger);
 }
 
 @media (max-width: 390px) {
@@ -2202,7 +2216,7 @@ button:focus-visible {
 
 @media (max-width: 540px) {
   body {
-    background: #fff7f5;
+    background: var(--app-background);
   }
 
   .device-stage {
@@ -2241,15 +2255,92 @@ button:focus-visible {
 .web-app-shell {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 85% 10%, rgba(244, 91, 122, 0.08), transparent 28%), #f7f5f6;
+    radial-gradient(circle at 85% 10%, color-mix(in srgb, var(--app-accent) 12%, transparent), transparent 28%),
+    var(--app-surface-alt);
+}
+
+.web-app-shell[data-theme='dark'] {
+  --app-text: #eef5fb;
+  --app-canvas: #101820;
+  --app-background: #101820;
+  --app-surface: #172431;
+  --app-surface-alt: #101820;
+  --app-muted: #b7c6d6;
+  --app-border: #31465a;
+  --app-accent: #5eead4;
+  --app-accent-strong: #5eead4;
+  --app-accent-soft: #173a43;
+  --app-danger: #f97066;
+  --app-on-accent: #101820;
+  --app-warning: #fbbf24;
+  --app-warning-soft: #3a2a12;
+  color: var(--app-text);
+}
+
+.settings-layout {
+  display: grid;
+  gap: 20px;
+  margin: 0 auto;
+  max-width: 720px;
+  padding: 28px 20px 48px;
+}
+
+.settings-group {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  margin: 0;
+  padding: 16px;
+}
+
+.settings-group legend {
+  color: var(--app-text);
+  font-size: 1rem;
+  font-weight: 800;
+  padding: 0 6px;
+}
+
+.settings-options {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-option {
+  align-items: center;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font-weight: 600;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+}
+
+.settings-option:has(input:checked) {
+  background: var(--app-accent-soft);
+  border-color: var(--app-accent);
+  color: var(--app-accent-strong);
+}
+
+.settings-option input {
+  accent-color: var(--app-accent);
+  box-shadow: none;
+  flex: 0 0 20px;
+  height: 20px;
+  margin: 0;
+  min-height: 20px;
+  padding: 0;
+  width: 20px;
 }
 
 .web-topbar {
   position: sticky;
   top: 0;
   z-index: 10;
-  border-bottom: 1px solid #eadfe2;
-  background: rgba(255, 255, 255, 0.94);
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-surface);
   backdrop-filter: blur(18px);
 }
 
@@ -2277,11 +2368,11 @@ button:focus-visible {
   flex: 0 0 auto;
   place-items: center;
   border-radius: 13px;
-  background: linear-gradient(135deg, #ff5e65, #f65f9c);
-  color: #ffffff;
+  background: var(--app-accent);
+  color: var(--app-on-accent);
   font-size: 18px;
   font-weight: 900;
-  box-shadow: 0 8px 20px rgba(239, 79, 112, 0.22);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
 }
 
 .web-brand > div {
@@ -2290,20 +2381,20 @@ button:focus-visible {
 }
 
 .web-brand strong {
-  color: #34292d;
+  color: var(--app-text);
   font-size: 17px;
 }
 
 .web-brand div span {
-  color: #8a767d;
+  color: var(--app-muted);
   font-size: 12px;
 }
 
 .web-security-chip {
-  border: 1px solid #bde5cc;
+  border: 1px solid var(--app-border);
   border-radius: 999px;
-  background: #effaf3;
-  color: #237a49;
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
   padding: 8px 12px;
   font-size: 12px;
   font-weight: 800;
@@ -2327,9 +2418,9 @@ button:focus-visible {
 .web-app-content > .timeline-layout,
 .web-app-content > .baseline-layout {
   min-height: calc(100vh - 154px);
-  border: 1px solid #eadfe2;
+  border: 1px solid var(--app-border);
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.88);
+  background: var(--app-surface);
   box-shadow: 0 20px 55px rgba(84, 59, 68, 0.08);
   padding: 28px;
 }
@@ -2341,9 +2432,9 @@ button:focus-visible {
   max-width: 560px;
   min-height: auto;
   margin: 8vh auto 0;
-  border: 1px solid #eadfe2;
+  border: 1px solid var(--app-border);
   border-radius: 24px;
-  background: #ffffff;
+  background: var(--app-surface);
   padding: 30px;
   box-shadow: 0 20px 55px rgba(84, 59, 68, 0.08);
 }
@@ -2371,9 +2462,9 @@ button:focus-visible {
 .web-app-content .entry-composer {
   position: sticky;
   top: 106px;
-  border: 1px solid #f0e3e6;
+  border: 1px solid var(--app-border);
   border-radius: 20px;
-  background: #fffafb;
+  background: var(--app-surface);
   padding: 20px;
 }
 
@@ -2583,7 +2674,7 @@ button:focus-visible {
     border-radius: 13px;
     padding: 7px 10px;
     font-size: 13px;
-    box-shadow: 0 5px 14px rgba(239, 79, 112, 0.18);
+    box-shadow: 0 5px 14px color-mix(in srgb, var(--app-accent) 18%, transparent);
   }
 
   .web-submit-panel p {
@@ -2706,14 +2797,14 @@ button:focus-visible {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  color: #f45b7a;
+  color: var(--app-accent);
   transition:
     background-color 0.2s,
     transform 0.1s;
 }
 
 .voice-mic-button:hover {
-  background-color: rgba(244, 91, 122, 0.1);
+  background-color: color-mix(in srgb, var(--app-accent) 10%, transparent);
 }
 
 .voice-mic-button:active {
@@ -2721,8 +2812,8 @@ button:focus-visible {
 }
 
 .voice-mic-button.listening {
-  background-color: #edf8f2;
-  color: #2e7d32;
+  background-color: var(--app-accent-soft);
+  color: var(--app-accent);
   animation: pulse 1.5s infinite ease-in-out;
 }
 
@@ -2741,7 +2832,7 @@ button:focus-visible {
 .voice-message {
   margin: 0;
   font-size: 13px;
-  color: #8a767d;
+  color: var(--app-muted);
 }
 
 /* Photo Upload Styles */
@@ -2776,7 +2867,7 @@ button:focus-visible {
 .photo-size-summary {
   margin: 0;
   font-size: 12px;
-  color: #8a767d;
+  color: var(--app-muted);
 }
 
 .photo-existing-list {
@@ -2790,9 +2881,9 @@ button:focus-visible {
   width: 90px;
   height: 90px;
   border-radius: 12px;
-  border: 1px solid #f0dfe1;
+  border: 1px solid var(--app-border);
   overflow: hidden;
-  background-color: #ffffff;
+  background-color: var(--app-surface);
 }
 
 .photo-thumbnail-img {
@@ -2822,7 +2913,7 @@ button:focus-visible {
 }
 
 .photo-remove-btn:hover {
-  background: rgba(217, 73, 105, 0.9);
+  background: color-mix(in srgb, var(--app-accent-strong) 90%, transparent);
 }
 
 /* Timeline entry photos */
@@ -2850,7 +2941,7 @@ button:focus-visible {
   height: 72px;
   border-radius: 8px;
   object-fit: cover;
-  border: 1px solid #f0dfe1;
+  border: 1px solid var(--app-border);
   transition: transform 0.2s;
 }
 

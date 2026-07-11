@@ -1,7 +1,8 @@
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { LayoutAnimation, StyleSheet, View } from 'react-native';
 
+import { colors, createThemedStyles } from '../theme';
 import { FormField } from './FormField';
 import { OptionButtons } from './OptionButtons';
 
@@ -22,7 +23,7 @@ export function ConditionalTextField({
   questionKey,
   text,
 }: ConditionalTextFieldProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
 
   return (
     <View style={styles.field}>
@@ -53,13 +54,13 @@ export function ConditionalTextField({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   field: { gap: spacing.sm },
   bubble: {
     borderWidth: 1,
-    borderColor: '#f0dfe1',
+    borderColor: colors.border,
     borderRadius: 18,
-    backgroundColor: '#fff7f8',
+    backgroundColor: colors.background,
     padding: spacing.md,
   },
-});
+}));

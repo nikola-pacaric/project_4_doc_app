@@ -1,12 +1,12 @@
 import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { isNoStoolTodayEntry, type PatientEntry } from '@project4/contracts';
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { formatEntryDate, formatEntryTime } from '../utils/dateTime';
 
 interface PatientTimelineScreenProps {
@@ -40,7 +40,7 @@ export function PatientTimelineScreen({
   onRefresh,
   pendingEntryIds = [],
 }: PatientTimelineScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const pendingIds = new Set(pendingEntryIds);
 
   return (
@@ -109,7 +109,7 @@ export function PatientTimelineScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -142,5 +142,5 @@ const styles = StyleSheet.create({
   meta: { color: colors.mutedText, fontSize: 13, fontWeight: '600' },
   kind: { color: colors.accent, fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
   pending: { color: '#a15c00', fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
-  pendingCard: { borderColor: '#d97706' },
-});
+  pendingCard: { borderColor: colors.accent },
+}));

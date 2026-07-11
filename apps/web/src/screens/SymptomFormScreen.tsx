@@ -5,7 +5,7 @@ import {
   validateSymptoms,
   type SymptomDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import {
   listPatientSymptoms,
   savePatientSymptoms,
@@ -62,7 +62,7 @@ function toDraft(record: SymptomRecord): SymptomDraft {
 }
 
 export function SymptomFormScreen({ client, onBack, onSaved, profile }: SymptomFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [drafts, setDrafts] = useState<SymptomDraft[]>([]);
   const [expanded, setExpanded] = useState<SymptomType[]>([]);
   const [invalid, setInvalid] = useState<SymptomType[]>([]);

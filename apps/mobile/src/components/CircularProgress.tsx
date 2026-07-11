@@ -1,16 +1,14 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { colors, createThemedStyles } from '../theme';
+
 interface CircularProgressProps {
   size: number;
   strokeWidth: number;
   progress: number;
   children?: ReactNode;
 }
-
-const WEB_RING_ACCENT = '#f45b7a';
-const WEB_RING_TRACK = '#f4e7ea';
-const WEB_RING_INSET = 'rgba(244, 91, 122, 0.08)';
 
 export function CircularProgress({ size, strokeWidth, progress, children }: CircularProgressProps) {
   const clampedProgress = Math.min(Math.max(progress, 0), 100);
@@ -39,7 +37,7 @@ export function CircularProgress({ size, strokeWidth, progress, children }: Circ
             style={[
               styles.segment,
               {
-                backgroundColor: index < activeSegments ? WEB_RING_ACCENT : WEB_RING_TRACK,
+                backgroundColor: index < activeSegments ? colors.accent : colors.border,
                 borderRadius: segmentWidth / 2,
                 height: strokeWidth,
                 left: radius - segmentWidth / 2,
@@ -55,23 +53,23 @@ export function CircularProgress({ size, strokeWidth, progress, children }: Circ
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   container: {
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
   },
   glow: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     elevation: 3,
     position: 'absolute',
-    shadowColor: WEB_RING_ACCENT,
+    shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
   },
   face: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     position: 'absolute',
   },
   segmentLayer: {
@@ -82,7 +80,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   inset: {
-    borderColor: WEB_RING_INSET,
+    borderColor: colors.border,
     borderWidth: 1,
     position: 'absolute',
   },
@@ -91,4 +89,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-});
+}));

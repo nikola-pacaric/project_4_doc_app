@@ -169,6 +169,7 @@ Photo storage:
 - Done: linked doctors export allowed data in all modes; unlinked doctors fail; expected pilot exports finish in under 30 seconds; no base64 images.
 
 ### Phase 9 - Settings, Localization, Theme
+- Progress checkpoint (Codex-verified 2026-07-11): Android-first Settings UI and matching web behavior now persist app language, voice-input language, and theme preference locally on each device. Language changes apply across the current shared dictionary calls immediately, and voice recognition uses the selected voice language independently of display language. Dark mode now flows through the Android shared tokens/static stylesheets and the companion web app's semantic CSS palette. Android and responsive web visual review in both themes remains pending.
 - Add app language, voice language, and theme settings; apply dictionaries and tokens across web and Android.
 - Done: core patient/doctor flows work in Serbian/English and light/dark, with no hardcoded core UI strings.
 

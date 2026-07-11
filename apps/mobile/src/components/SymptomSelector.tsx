@@ -1,10 +1,10 @@
 import { symptomTypes, type SymptomType } from '@project4/contracts';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { Fragment, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../theme';
+import { colors, createThemedStyles } from '../theme';
 
 interface SymptomSelectorProps {
   expanded: SymptomType[];
@@ -21,7 +21,7 @@ export function SymptomSelector({
   renderDetails,
   selected,
 }: SymptomSelectorProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
 
   return (
     <View style={styles.list}>
@@ -74,7 +74,7 @@ export function SymptomSelector({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   list: {
     gap: spacing.sm,
   },
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   },
   optionSelected: {
     borderColor: colors.accent,
-    backgroundColor: '#fff0f3',
+    backgroundColor: colors.background,
   },
   checkbox: {
     width: 26,
@@ -140,4 +140,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
   },
-});
+}));

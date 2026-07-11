@@ -1,7 +1,7 @@
 import { spacing } from '@project4/ui-tokens';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 
 interface Option {
   label: string;
@@ -58,7 +58,7 @@ export function OptionButtons({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   field: { gap: spacing.xs },
   options: { flexDirection: 'row', gap: spacing.sm },
   vertical: { flexDirection: 'column' },
@@ -75,9 +75,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
-  selected: { borderColor: colors.accent, backgroundColor: '#fff0f3' },
+  selected: { borderColor: colors.accent, backgroundColor: colors.background },
   disabled: { opacity: 0.55 },
   optionLabel: { color: colors.text, fontSize: 16, fontWeight: '800', textAlign: 'center' },
   optionDetail: { color: colors.mutedText, fontSize: 11, fontWeight: '700' },
   selectedText: { color: colors.accent },
-});
+}));

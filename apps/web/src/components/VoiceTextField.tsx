@@ -1,5 +1,5 @@
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
-import { useEffect, useState, useRef } from 'react';
+import { getActiveLocale, getActiveVoiceLanguage, t } from '@project4/i18n';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 
 interface VoiceTextFieldProps {
   label: string;
@@ -11,6 +11,44 @@ interface VoiceTextFieldProps {
   type?: 'text' | 'textarea';
 }
 
+interface SpeechRecognitionResultLike {
+  isFinal: boolean;
+  0?: { transcript?: string };
+}
+
+interface SpeechRecognitionEventLike {
+  resultIndex: number;
+  results: ArrayLike<SpeechRecognitionResultLike>;
+}
+
+interface SpeechRecognitionErrorEventLike {
+  error: string;
+}
+
+interface BrowserSpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onend: (() => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onstart: (() => void) | null;
+  abort: () => void;
+  start: () => void;
+  stop: () => void;
+}
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+function getSpeechRecognitionConstructor(): BrowserSpeechRecognitionConstructor | null {
+  const browserWindow = window as Window & {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  };
+
+  return browserWindow.SpeechRecognition ?? browserWindow.webkitSpeechRecognition ?? null;
+}
+
 export function VoiceTextField({
   label,
   value,
@@ -20,75 +58,101 @@ export function VoiceTextField({
   rows = 4,
   type = 'textarea',
 }: VoiceTextFieldProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState<boolean | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const recognitionRef = useRef<any>(null);
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const receivedTranscriptRef = useRef(false);
+  const valueRef = useRef(value);
+  const onChangeRef = useRef(onChange);
+
+  valueRef.current = value;
+  onChangeRef.current = onChange;
 
   useEffect(() => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      setSupported(true);
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = locale === 'sr' ? 'sr-RS' : 'en-US';
-
-      recognition.onstart = () => {
-        setListening(true);
-        setMessage(t(locale, 'voice.listening'));
-      };
-
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0]?.[0]?.transcript;
-        if (transcript) {
-          const cleanTranscript = transcript.trim();
-          if (cleanTranscript) {
-            const cleanValue = value.trimEnd();
-            const newValue = cleanValue ? `${cleanValue} ${cleanTranscript}` : cleanTranscript;
-            onChange(newValue);
-            setMessage(t(locale, 'voice.added'));
-          }
-        }
-      };
-
-      recognition.onerror = (event: any) => {
-        if (event.error !== 'aborted') {
-          setMessage(t(locale, 'voice.unavailable'));
-        }
-        setListening(false);
-      };
-
-      recognitionRef.current = recognition;
-    } else {
+    const SpeechRecognition = getSpeechRecognitionConstructor();
+    if (!SpeechRecognition) {
       setSupported(false);
+      return;
     }
 
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {}
-      }
+    setSupported(true);
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = getActiveVoiceLanguage();
+
+    recognition.onstart = () => {
+      setListening(true);
+      setMessage(t(locale, 'voice.listening'));
     };
-  }, [locale, value, onChange]);
 
-  function toggleListening() {
-    if (!supported || !recognitionRef.current) return;
+    recognition.onresult = (event) => {
+      const transcripts: string[] = [];
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        if (result?.isFinal) {
+          const transcript = result[0]?.transcript?.trim();
+          if (transcript) transcripts.push(transcript);
+        }
+      }
 
-    if (listening) {
-      recognitionRef.current.stop();
-    } else {
-      setMessage(null);
-      try {
-        recognitionRef.current.start();
-      } catch {
+      if (!transcripts.length) return;
+
+      receivedTranscriptRef.current = true;
+      const currentValue = valueRef.current.trimEnd();
+      const transcript = transcripts.join(' ');
+      onChangeRef.current(currentValue ? `${currentValue} ${transcript}` : transcript);
+      setMessage(t(locale, 'voice.added'));
+    };
+
+    recognition.onerror = (event) => {
+      if (event.error !== 'aborted') {
         setMessage(t(locale, 'voice.unavailable'));
       }
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+      if (!receivedTranscriptRef.current) {
+        setMessage(t(locale, 'voice.noSpeech'));
+      }
+    };
+
+    recognitionRef.current = recognition;
+
+    return () => {
+      recognition.abort();
+      if (recognitionRef.current === recognition) {
+        recognitionRef.current = null;
+      }
+    };
+  }, [locale]);
+
+  function toggleListening() {
+    const recognition = recognitionRef.current;
+    if (!supported || !recognition) return;
+
+    if (listening) {
+      recognition.stop();
+      return;
+    }
+
+    inputRef.current?.focus();
+    receivedTranscriptRef.current = false;
+    setMessage(null);
+    try {
+      recognition.lang = getActiveVoiceLanguage();
+      recognition.start();
+    } catch {
+      setListening(false);
+      setMessage(t(locale, 'voice.unavailable'));
     }
   }
+
+  const voiceLabel = listening ? t(locale, 'voice.stop') : t(locale, 'voice.start');
 
   return (
     <div className="voice-text-field">
@@ -96,36 +160,47 @@ export function VoiceTextField({
         <span className="choice-label">{label}</span>
         {supported ? (
           <button
-            type="button"
+            aria-label={voiceLabel}
             className={`voice-mic-button ${listening ? 'listening' : ''}`}
             onClick={toggleListening}
-            aria-label={t(locale, 'voice.start')}
-            title={t(locale, 'voice.start')}
+            title={voiceLabel}
+            type="button"
           >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-              <line x1="12" y1="19" x2="12" y2="23"/>
-              <line x1="8" y1="23" x2="16" y2="23"/>
+            <svg
+              fill="none"
+              height="18"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2.5"
+              viewBox="0 0 24 24"
+              width="18"
+            >
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" x2="12" y1="19" y2="23" />
+              <line x1="8" x2="16" y1="23" y2="23" />
             </svg>
           </button>
         ) : null}
       </div>
       {type === 'textarea' ? (
         <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
+          ref={inputRef as RefObject<HTMLTextAreaElement>}
           required={required}
           rows={rows}
+          value={value}
         />
       ) : (
         <input
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          ref={inputRef as RefObject<HTMLInputElement>}
+          required={required}
           type="text"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          required={required}
         />
       )}
       {message ? <p className="voice-message">{message}</p> : null}

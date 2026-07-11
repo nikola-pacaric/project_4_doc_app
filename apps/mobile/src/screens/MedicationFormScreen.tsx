@@ -3,7 +3,7 @@ import {
   normalizeMedicationDateTime,
   type MedicationDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
 import { Image, SafeAreaView, StyleSheet, Text, View } from 'react-native';
@@ -14,7 +14,7 @@ import { OptionButtons } from '../components/OptionButtons';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { TimePickerField } from '../components/TimePickerField';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 import { type PreparedPhoto } from './PhotoUploadScreen';
 
@@ -49,7 +49,7 @@ export function MedicationFormScreen({
   onBack,
   onSave,
 }: MedicationFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [draft, setDraft] = useState<ClientMedicationDraft>(() => initialDraft ?? createInitialDraft());
   const [showErrors, setShowErrors] = useState(false);
 
@@ -192,7 +192,7 @@ export function MedicationFormScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   actions: {
     borderTopColor: colors.border,
     borderTopWidth: 1,
@@ -235,4 +235,4 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-});
+}));

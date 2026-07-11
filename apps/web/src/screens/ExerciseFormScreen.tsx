@@ -1,6 +1,6 @@
 import { exerciseIntensities, type ExerciseRecord, type UserProfile } from '@project4/contracts';
 import { exerciseDraftDefaults, validateExercise, type ExerciseDraft } from '@project4/forms';
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
   createPatientExercise,
   getPatientExercise,
@@ -50,7 +50,7 @@ export function ExerciseFormScreen({
   onSaved,
   profile,
 }: ExerciseFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [draft, setDraft] = useState<ExerciseDraft>(createInitialDraft);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);

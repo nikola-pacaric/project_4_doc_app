@@ -1,7 +1,7 @@
 import { spacing } from '@project4/ui-tokens';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { useKeyboardAwareInput } from './KeyboardAwareScrollView';
 
 interface PasswordFieldProps {
@@ -63,7 +63,7 @@ export function PasswordField({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   field: {
     gap: spacing.xs,
   },
@@ -109,4 +109,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.mutedText,
     transform: [{ rotate: '42deg' }],
   },
-});
+}));

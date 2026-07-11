@@ -1,15 +1,14 @@
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, getActiveVoiceLanguage, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { useKeyboardAwareInput } from './KeyboardAwareScrollView';
 import {
   appendVoiceTranscript,
   isVoiceInputSupported,
   startVoiceInput,
-  voiceLanguageFromLocale,
 } from '../lib/voiceInput';
 
 interface FormFieldProps extends TextInputProps {
@@ -18,9 +17,9 @@ interface FormFieldProps extends TextInputProps {
 }
 
 export function FormField({ enableVoice = false, label, ...props }: FormFieldProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const keyboardAwareInput = useKeyboardAwareInput();
-  const [supported, setSupported] = useState<boolean | null>(null);
+  const [, setSupported] = useState<boolean | null>(null);
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const canUseVoice =
@@ -51,7 +50,7 @@ export function FormField({ enableVoice = false, label, ...props }: FormFieldPro
 
     try {
       const transcript = await startVoiceInput(
-        voiceLanguageFromLocale(locale),
+        getActiveVoiceLanguage(),
         t(locale, 'voice.prompt'),
       );
       props.onChangeText?.(appendVoiceTranscript(props.value ?? '', transcript));
@@ -130,7 +129,7 @@ function MicIcon({ active }: { active: boolean }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   field: {
     gap: spacing.xs,
   },
@@ -166,7 +165,7 @@ const styles = StyleSheet.create({
     bottom: 4,
   },
   voiceButtonActive: {
-    backgroundColor: '#edf8f2',
+    backgroundColor: colors.surface,
   },
   micIcon: {
     alignItems: 'center',
@@ -222,4 +221,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-});
+}));

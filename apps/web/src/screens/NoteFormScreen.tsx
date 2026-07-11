@@ -5,7 +5,7 @@ import {
   validateNote,
   type NoteDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import {
   createPendingNoteUpdate,
   createPendingTextEntry,
@@ -54,7 +54,7 @@ export function NoteFormScreen({
   onSaved,
   profile,
 }: NoteFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [draft, setDraft] = useState<NoteDraft>(() => createInitialDraft(entryToEdit));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -1,6 +1,6 @@
 import type { MenstruationRecord, UserProfile } from '@project4/contracts';
 import type { MenstruationDraft } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import {
   createPatientMenstruation,
   getPatientMenstruation,
@@ -39,7 +39,7 @@ export function PatientMenstruationScreen({
   onSaved,
   profile,
 }: PatientMenstruationScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [initialDraft, setInitialDraft] = useState<MenstruationDraft | null>(null);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);

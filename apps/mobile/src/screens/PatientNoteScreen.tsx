@@ -1,6 +1,6 @@
 import type { PatientEntry, UserProfile } from '@project4/contracts';
 import { normalizeNoteDateTime, type NoteDraft } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import {
   createPendingNoteUpdate,
   createPendingTextEntry,
@@ -42,7 +42,7 @@ export function PatientNoteScreen({
   onSaved,
   profile,
 }: PatientNoteScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

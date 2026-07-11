@@ -7,7 +7,7 @@ import {
   toDailyFormDraft,
   type DailyFormDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
   getPatientBaseline,
   getPatientDailyForm,
@@ -57,7 +57,7 @@ export function DailyFormScreen({
   onBack,
   onSaved,
 }: DailyFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const day = localDateValue(new Date());
   const [draft, setDraft] = useState<DailyFormDraft>({ ...dailyFormDefaults });
   const [existingEntryId, setExistingEntryId] = useState<string>();

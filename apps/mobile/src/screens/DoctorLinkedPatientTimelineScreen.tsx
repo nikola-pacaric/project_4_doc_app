@@ -4,7 +4,7 @@ import {
   type ExportMode,
   type PatientEntry,
 } from '@project4/contracts';
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
   createDoctorPatientExportBundle,
   createEntryPhotoSignedUrl,
@@ -32,7 +32,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SelectField } from '../components/SelectField';
 import { downloadDoctorExportImageBytes, shareDoctorExportBundle } from '../lib/doctorExport';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import {
   formatEntryDate,
   formatEntryTime,
@@ -95,7 +95,7 @@ export function DoctorLinkedPatientTimelineScreen({
   initialPatient,
   onBack,
 }: DoctorLinkedPatientTimelineScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [patient, setPatient] = useState(initialPatient);
   const [entries, setEntries] = useState<PatientEntry[]>([]);
   const [entryPhotos, setEntryPhotos] = useState<Record<string, TimelineEntryPhoto[]>>({});
@@ -360,7 +360,7 @@ export function DoctorLinkedPatientTimelineScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -450,4 +450,4 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
   },
-});
+}));

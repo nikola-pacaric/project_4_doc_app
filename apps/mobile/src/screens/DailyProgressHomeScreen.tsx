@@ -1,13 +1,13 @@
 import { ActivityIndicator, Platform, Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { EntryKind, PatientEntry, UserProfile } from '@project4/contracts';
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { CircularProgress } from '../components/CircularProgress';
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { formatEntryTime, toLocalDateInput } from '../utils/dateTime';
 
 interface DailyProgressHomeScreenProps {
@@ -23,6 +23,7 @@ interface DailyProgressHomeScreenProps {
   onOpenEntry: (entry: PatientEntry) => void;
   onOpenTimeline: () => void;
   onRedeemDoctorInvite: () => void | Promise<void>;
+  onOpenSettings: () => void;
   onSubmitDay: () => void | Promise<void>;
   onSignOut: () => void | Promise<void>;
   canTrackMenstruation: boolean;
@@ -131,6 +132,7 @@ export function DailyProgressHomeScreen({
   onOpenEntry,
   onOpenTimeline,
   onRedeemDoctorInvite,
+  onOpenSettings,
   onSubmitDay,
   onSignOut,
   canTrackMenstruation,
@@ -162,7 +164,7 @@ export function DailyProgressHomeScreen({
   submitBusy,
   submitHelp,
 }: DailyProgressHomeScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const { width } = useWindowDimensions();
   const now = new Date();
   const visibleQuickActions = canTrackMenstruation
@@ -260,6 +262,14 @@ export function DailyProgressHomeScreen({
                 style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}
               >
                 <Text style={styles.signOutLabel}>{t(locale, 'auth.signOut')}</Text>
+              </Pressable>
+              <Pressable
+                accessibilityLabel={t(locale, 'settings.title')}
+                accessibilityRole="button"
+                onPress={onOpenSettings}
+                style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.signOutLabel}>{t(locale, 'settings.title')}</Text>
               </Pressable>
               <Pressable
                 accessibilityLabel={t(locale, 'baseline.open')}
@@ -632,7 +642,7 @@ export function DailyProgressHomeScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   safeArea: {
     flex: 1,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
@@ -789,9 +799,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   actionCardEnabled: { borderColor: colors.accent },
-  actionCardRequired: { backgroundColor: '#fff4e5', borderColor: '#d97706' },
+  actionCardRequired: { backgroundColor: colors.surface, borderColor: colors.accent },
   actionCardDisabled: {
-    backgroundColor: '#f2ecee',
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     opacity: 0.48,
   },
@@ -865,4 +875,4 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   submitHelpCompleted: { color: '#16794b', fontWeight: '700' },
-});
+}));

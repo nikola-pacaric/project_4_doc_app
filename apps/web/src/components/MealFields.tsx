@@ -1,5 +1,5 @@
 import { isMealDraftStarted, type MealDraft, type MealType } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import { PhotoUploader } from './PhotoUploader';
 import { VoiceTextField } from './VoiceTextField';
 import type { WebPreparedPhoto } from '../utils/photoHelper';
@@ -19,7 +19,7 @@ interface MealFieldsProps {
 const mealTypes: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack', 'other'];
 
 export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
 
   function updateMeal(index: number, update: Partial<ClientMealDraft>) {
     onChange(meals.map((meal, mealIndex) => (mealIndex === index ? { ...meal, ...update } : meal)));

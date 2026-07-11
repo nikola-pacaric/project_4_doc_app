@@ -7,7 +7,7 @@ import {
   toDailyFormDraft,
   type DailyFormDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
   getPatientBaseline,
   getPatientDailyForm,
@@ -25,7 +25,7 @@ import { OptionButtons } from '../components/OptionButtons';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { TimePickerField } from '../components/TimePickerField';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { localDayRange, toLocalDateInput } from '../utils/dateTime';
 
 interface DailyFormScreenProps {
@@ -47,7 +47,7 @@ export function DailyFormScreen({
   onBack,
   onSaved,
 }: DailyFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const today = toLocalDateInput(new Date());
   const day = today;
   const [draft, setDraft] = useState<DailyFormDraft>({ ...dailyFormDefaults });
@@ -390,7 +390,7 @@ export function DailyFormScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   form: { gap: spacing.lg },
   status: { borderRadius: 16, borderWidth: 1, gap: spacing.xs, padding: spacing.md },
   draftStatusCentered: {
@@ -399,13 +399,13 @@ const styles = StyleSheet.create({
     minHeight: 54,
   },
   draftStatus: { backgroundColor: '#fff8e8', borderColor: '#ead8a8' },
-  completeStatus: { backgroundColor: '#edf8f2', borderColor: '#b9dfc9' },
+  completeStatus: { backgroundColor: colors.surface, borderColor: '#b9dfc9' },
   statusTitle: { color: colors.text, fontSize: 17, fontWeight: '800' },
   statusTitleCentered: { textAlign: 'center' },
   statusHelp: { color: colors.mutedText, fontSize: 14, lineHeight: 21 },
   exerciseRequirement: {
-    backgroundColor: '#fff4e5',
-    borderColor: '#e7bd76',
+    backgroundColor: colors.surface,
+    borderColor: colors.accent,
     borderRadius: 12,
     borderWidth: 1,
     color: colors.text,
@@ -414,8 +414,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   medicationRequirement: {
-    backgroundColor: '#fff4e5',
-    borderColor: '#e7bd76',
+    backgroundColor: colors.surface,
+    borderColor: colors.accent,
     borderRadius: 12,
     borderWidth: 1,
     color: colors.text,
@@ -438,4 +438,4 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   action: { flex: 1 },
-});
+}));

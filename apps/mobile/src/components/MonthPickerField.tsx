@@ -5,7 +5,7 @@ import {
 import { spacing } from '@project4/ui-tokens';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { toLocalMonthInput } from '../utils/dateTime';
 
 interface MonthPickerFieldProps {
@@ -59,7 +59,7 @@ export function MonthPickerField({ label, maximumDate, onChange, value }: MonthP
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   field: { gap: spacing.xs },
   control: {
     alignItems: 'center',
@@ -75,4 +75,4 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.72 },
   value: { color: colors.text, fontSize: 16, fontWeight: '700' },
   icon: { fontSize: 20 },
-});
+}));

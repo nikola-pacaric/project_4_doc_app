@@ -1,21 +1,34 @@
 import type { UserProfile } from '@project4/contracts';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import {
+  setActiveLocale,
+  setActiveVoiceLanguage,
+  t,
+  type AppPreferences,
+} from '@project4/i18n';
 import { acceptCurrentConsent, getCurrentProfile, type Session } from '@project4/supabase-client';
 import { useEffect, useState } from 'react';
 
 import { isSupabaseConfigured, supabase } from './lib/supabase';
+import { loadWebPreferences, saveWebPreferences } from './lib/preferences';
 import { AuthScreen } from './screens/AuthScreen';
 import { ConsentScreen } from './screens/ConsentScreen';
 import { DoctorPendingScreen } from './screens/DoctorPendingScreen';
 import { TimelineScreen } from './screens/TimelineScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
 
 export function App() {
-  const locale = DEFAULT_LOCALE;
+  const [preferences, setPreferences] = useState<AppPreferences>(() => {
+    const loadedPreferences = loadWebPreferences();
+    setActiveLocale(loadedPreferences.locale);
+    setActiveVoiceLanguage(loadedPreferences.voiceLanguage);
+    return loadedPreferences;
+  });
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured);
   const [profileError, setProfileError] = useState(false);
   const [profileReloadToken, setProfileReloadToken] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -66,6 +79,16 @@ export function App() {
     }
   }
 
+  function updatePreferences(changes: Partial<AppPreferences>) {
+    const nextPreferences = { ...preferences, ...changes };
+    setActiveLocale(nextPreferences.locale);
+    setActiveVoiceLanguage(nextPreferences.voiceLanguage);
+    setPreferences(nextPreferences);
+    saveWebPreferences(nextPreferences);
+  }
+
+  const locale = preferences.locale;
+
   let content;
 
   if (!isSupabaseConfigured || !supabase) {
@@ -93,8 +116,23 @@ export function App() {
         </button>
       </main>
     );
+  } else if (settingsOpen) {
+    content = (
+      <SettingsScreen
+        onBack={() => setSettingsOpen(false)}
+        onChange={updatePreferences}
+        preferences={preferences}
+      />
+    );
   } else if (profile.role === 'doctor') {
-    content = <DoctorPendingScreen client={supabase} onSignOut={signOut} profile={profile} />;
+    content = (
+      <DoctorPendingScreen
+        client={supabase}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onSignOut={signOut}
+        profile={profile}
+      />
+    );
   } else if (!profile.consentAcceptedAt) {
     content = (
       <ConsentScreen
@@ -104,11 +142,18 @@ export function App() {
       />
     );
   } else {
-    content = <TimelineScreen client={supabase} onSignOut={signOut} profile={profile} />;
+    content = (
+      <TimelineScreen
+        client={supabase}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onSignOut={signOut}
+        profile={profile}
+      />
+    );
   }
 
   return (
-    <div className="web-app-shell">
+    <div className="web-app-shell" data-theme={preferences.theme}>
       <header className="web-topbar">
         <div className="web-topbar-inner">
           <div className="web-brand">

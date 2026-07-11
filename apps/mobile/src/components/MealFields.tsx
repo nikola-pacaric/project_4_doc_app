@@ -1,9 +1,9 @@
 import { isMealDraftStarted, type MealDraft, type MealType } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../theme';
+import { colors, createThemedStyles } from '../theme';
 import { toLocalDateInput } from '../utils/dateTime';
 import { FormField } from './FormField';
 import { PrimaryButton } from './PrimaryButton';
@@ -26,7 +26,7 @@ interface MealFieldsProps {
 const mealTypes: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack', 'other'];
 
 export function MealFields({ createMeal, meals, onAddPhoto, onChange }: MealFieldsProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
 
   function updateMeal(index: number, update: Partial<ClientMealDraft>) {
     onChange(meals.map((meal, mealIndex) => (mealIndex === index ? { ...meal, ...update } : meal)));
@@ -125,13 +125,13 @@ export function MealFields({ createMeal, meals, onAddPhoto, onChange }: MealFiel
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   section: {
     gap: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 18,
-    backgroundColor: '#fffafb',
+    backgroundColor: colors.surface,
     padding: spacing.md,
   },
   title: { color: colors.text, fontSize: 19, fontWeight: '800' },
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 18,
-    backgroundColor: '#fff7f8',
+    backgroundColor: colors.background,
     padding: spacing.md,
   },
   photoPreviewContainer: {
@@ -164,4 +164,4 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.xs,
   },
-});
+}));

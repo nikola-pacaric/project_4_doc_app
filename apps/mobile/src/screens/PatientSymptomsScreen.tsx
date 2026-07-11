@@ -1,6 +1,6 @@
 import type { SymptomRecord, UserProfile } from '@project4/contracts';
 import type { SymptomDraft } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import {
   listPatientSymptoms,
   savePatientSymptoms,
@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '../components/PrimaryButton';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 import { SymptomFormScreen } from './SymptomFormScreen';
 
@@ -60,7 +60,7 @@ export function PatientSymptomsScreen({
   onSaved,
   profile,
 }: PatientSymptomsScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [drafts, setDrafts] = useState<SymptomDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -145,7 +145,7 @@ export function PatientSymptomsScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   centered: {
     flex: 1,
     alignItems: 'center',
@@ -153,4 +153,4 @@ const styles = StyleSheet.create({
     gap: 16,
     padding: 24,
   },
-});
+}));

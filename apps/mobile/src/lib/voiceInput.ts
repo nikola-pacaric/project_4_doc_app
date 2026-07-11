@@ -1,7 +1,5 @@
 import { NativeModules, PermissionsAndroid, Platform } from 'react-native';
 
-import type { Locale } from '@project4/i18n';
-
 type VoiceInputNativeModule = {
   isAvailable: () => Promise<boolean>;
   start: (localeTag: string, prompt: string) => Promise<string>;
@@ -10,10 +8,6 @@ type VoiceInputNativeModule = {
 const nativeVoiceInput = NativeModules.VoiceInput as VoiceInputNativeModule | undefined;
 
 export type VoiceLanguageTag = 'en-US' | 'sr-RS';
-
-export function voiceLanguageFromLocale(locale: Locale): VoiceLanguageTag {
-  return locale === 'sr' ? 'sr-RS' : 'en-US';
-}
 
 export function appendVoiceTranscript(currentValue: string, transcript: string): string {
   const cleanTranscript = transcript.trim();

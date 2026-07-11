@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
 import { SafeAreaView, StyleSheet, Switch, Text, View } from 'react-native';
@@ -6,7 +6,7 @@ import { SafeAreaView, StyleSheet, Switch, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 
 interface ConsentScreenProps {
   displayName: string | null;
@@ -15,7 +15,7 @@ interface ConsentScreenProps {
 }
 
 export function ConsentScreen({ displayName, onAccept, onSignOut }: ConsentScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +76,7 @@ export function ConsentScreen({ displayName, onAccept, onSignOut }: ConsentScree
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   consentPanel: {
     gap: spacing.lg,
     borderTopWidth: 1,
@@ -95,4 +95,4 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
   },
-});
+}));

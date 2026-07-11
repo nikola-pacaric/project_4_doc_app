@@ -5,7 +5,7 @@ import {
   validateSymptoms,
   type SymptomDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
 import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
@@ -15,7 +15,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SymptomDetailsCard } from '../components/SymptomDetailsCard';
 import { SymptomSelector } from '../components/SymptomSelector';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
 interface SymptomFormScreenProps {
@@ -40,7 +40,7 @@ export function SymptomFormScreen({
   onBack,
   onSave,
 }: SymptomFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [drafts, setDrafts] = useState<SymptomDraft[]>(initialDrafts);
   const [expandedTypes, setExpandedTypes] = useState<SymptomType[]>(
     initialDrafts.flatMap((draft) => (draft.type ? [draft.type] : [])),
@@ -152,7 +152,7 @@ export function SymptomFormScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   selectorSection: {
     gap: spacing.md,
   },
@@ -175,4 +175,4 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   action: { flex: 1 },
-});
+}));

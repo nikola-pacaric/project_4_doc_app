@@ -1,9 +1,9 @@
 import { isOtherFluidDraftStarted, type OtherFluidDraft } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../theme';
+import { colors, createThemedStyles } from '../theme';
 import { toLocalDateInput } from '../utils/dateTime';
 import { FormField } from './FormField';
 import { PrimaryButton } from './PrimaryButton';
@@ -28,7 +28,7 @@ export function OtherFluidFields({
   onAddPhoto,
   onChange,
 }: OtherFluidFieldsProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
 
   function updateFluid(index: number, update: Partial<ClientOtherFluidDraft>) {
     onChange(
@@ -108,13 +108,13 @@ export function OtherFluidFields({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   section: {
     gap: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 18,
-    backgroundColor: '#fffafb',
+    backgroundColor: colors.surface,
     padding: spacing.md,
   },
   title: { color: colors.text, fontSize: 19, fontWeight: '800' },
@@ -139,4 +139,4 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.xs,
   },
-});
+}));

@@ -1,6 +1,6 @@
 import type { StoolRecord, UserProfile } from '@project4/contracts';
 import type { StoolDraft } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import {
   createPatientNoStoolMarker,
   createPatientStool,
@@ -13,7 +13,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 import { StoolFormScreen } from './StoolFormScreen';
 
@@ -46,7 +46,7 @@ export function PatientStoolScreen({
   onSaved,
   profile,
 }: PatientStoolScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [initialDraft, setInitialDraft] = useState<StoolDraft | null>(null);
   const [occurredAt, setOccurredAt] = useState<string | undefined>(entryToEdit?.occurredAt);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
@@ -183,7 +183,7 @@ export function PatientStoolScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   content: {
     alignItems: 'stretch',
     flexGrow: 1,
@@ -206,4 +206,4 @@ const styles = StyleSheet.create({
   entrySummary: { color: colors.accent, fontSize: 20, fontWeight: '800', textAlign: 'center' },
   detail: { color: colors.mutedText, fontSize: 16, lineHeight: 24, textAlign: 'center' },
   actions: { gap: spacing.sm, paddingTop: spacing.md },
-});
+}));

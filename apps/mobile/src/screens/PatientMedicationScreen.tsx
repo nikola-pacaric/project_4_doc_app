@@ -1,5 +1,5 @@
 import type { MedicationRecord, UserProfile } from '@project4/contracts';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import {
   createEntryPhotoSignedUrl,
   createPatientMedication,
@@ -48,7 +48,7 @@ export function PatientMedicationScreen({
   onSaved,
   profile,
 }: PatientMedicationScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [initialDraft, setInitialDraft] = useState<ClientMedicationDraft | null>(null);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);

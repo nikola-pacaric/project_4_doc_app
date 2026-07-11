@@ -12,7 +12,7 @@ import {
   type MealDraft,
   type OtherFluidDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import { PHOTO_MIME_TYPE } from '@project4/photo';
 import {
   createEntryPhotoSignedUrl,
@@ -36,7 +36,7 @@ import { OptionButtons } from '../components/OptionButtons';
 import { OtherFluidFields, type ClientOtherFluidDraft } from '../components/OtherFluidFields';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { localDayRange, toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 import { PhotoUploadScreen, type PreparedPhoto } from './PhotoUploadScreen';
 
@@ -221,7 +221,7 @@ function normalizeWaterLitersText(value: string): string {
 }
 
 export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const today = toLocalDateInput(new Date());
   const day = today;
   const [hydration, setHydration] = useState<FoodHydrationDraft>({ ...foodHydrationDefaults });
@@ -573,10 +573,10 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   form: { gap: spacing.lg },
   hydrationCard: {
-    backgroundColor: '#fffafb',
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 18,
     borderWidth: 1,
@@ -593,4 +593,4 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   action: { flex: 1 },
-});
+}));

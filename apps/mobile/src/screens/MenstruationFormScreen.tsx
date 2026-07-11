@@ -4,7 +4,7 @@ import {
   validateMenstruation,
   type MenstruationDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
@@ -14,7 +14,7 @@ import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { TimePickerField } from '../components/TimePickerField';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
 interface MenstruationFormScreenProps {
@@ -42,7 +42,7 @@ export function MenstruationFormScreen({
   onBack,
   onSave,
 }: MenstruationFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [draft, setDraft] = useState<MenstruationDraft>(
     () => initialDraft ?? createInitialDraft(),
   );
@@ -176,7 +176,7 @@ export function MenstruationFormScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   section: { gap: spacing.sm },
   segmentedRow: { flexDirection: 'row', gap: spacing.sm },
   segment: {
@@ -217,4 +217,4 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   action: { flex: 1 },
-});
+}));

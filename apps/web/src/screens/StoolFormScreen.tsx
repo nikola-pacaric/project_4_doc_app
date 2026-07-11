@@ -5,7 +5,7 @@ import type {
   UserProfile,
 } from '@project4/contracts';
 import { stoolDraftDefaults, validateStool, type StoolDraft } from '@project4/forms';
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
   createPatientNoStoolMarker,
   createPatientStool,
@@ -64,7 +64,7 @@ export function StoolFormScreen({
   onSaved,
   profile,
 }: StoolFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [draft, setDraft] = useState<StoolDraft>(initialDraft);
   const [occurredAt, setOccurredAt] = useState<string | undefined>(entryToEdit?.occurredAt);
   const [loading, setLoading] = useState(Boolean(entryToEdit));

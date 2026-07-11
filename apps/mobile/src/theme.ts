@@ -1,9 +1,45 @@
-import { lightTheme, spacing, typography } from '@project4/ui-tokens';
+import { darkTheme, lightTheme, spacing, typography } from '@project4/ui-tokens';
 import { Platform, StatusBar, StyleSheet } from 'react-native';
 
-export const colors = lightTheme.colors;
+type ThemeColors = { [Key in keyof typeof lightTheme.colors]: string };
+type ThemeName = 'light' | 'dark';
 
-export const sharedStyles = StyleSheet.create({
+let activeTheme: ThemeName = 'light';
+
+function getThemeColors(): ThemeColors {
+  return activeTheme === 'dark' ? darkTheme.colors : lightTheme.colors;
+}
+
+export function setAppTheme(theme: ThemeName): void {
+  activeTheme = theme;
+}
+
+export const colors: ThemeColors = new Proxy({} as ThemeColors, {
+  get(_target, property) {
+    return getThemeColors()[property as keyof ThemeColors];
+  },
+});
+
+export function createThemedStyles<T extends object>(factory: () => T): T {
+  let renderedTheme: ThemeName | null = null;
+  let renderedStyles: T | null = null;
+
+  function stylesForActiveTheme(): T {
+    if (!renderedStyles || renderedTheme !== activeTheme) {
+      renderedTheme = activeTheme;
+      renderedStyles = factory();
+    }
+    return renderedStyles;
+  }
+
+  return new Proxy({} as T, {
+    get(_target, property) {
+      return stylesForActiveTheme()[property as keyof T];
+    },
+  });
+}
+
+export const sharedStyles = createThemedStyles(() => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -62,4 +98,4 @@ export const sharedStyles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
-});
+}));

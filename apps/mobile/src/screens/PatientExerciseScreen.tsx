@@ -1,6 +1,6 @@
 import type { ExerciseRecord, UserProfile } from '@project4/contracts';
 import type { ExerciseDraft } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import {
   createPatientExercise,
   getPatientExercise,
@@ -12,7 +12,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { ExerciseFormScreen } from './ExerciseFormScreen';
 
 interface PatientExerciseScreenProps {
@@ -50,7 +50,7 @@ export function PatientExerciseScreen({
   onSaved,
   profile,
 }: PatientExerciseScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [initialDraft, setInitialDraft] = useState<ExerciseDraft | null>(null);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);
@@ -160,7 +160,7 @@ export function PatientExerciseScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   content: {
     alignItems: 'stretch',
     flexGrow: 1,
@@ -183,4 +183,4 @@ const styles = StyleSheet.create({
   detail: { color: colors.mutedText, fontSize: 16, lineHeight: 24, textAlign: 'center' },
   actions: { gap: spacing.sm, paddingTop: spacing.md },
   loadingScreen: { alignItems: 'center', justifyContent: 'center' },
-});
+}));

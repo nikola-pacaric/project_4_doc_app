@@ -4,7 +4,7 @@ import {
   normalizeMedicationDateTime,
   type MedicationDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import {
   createPatientMedication,
   getPatientMedication,
@@ -68,7 +68,7 @@ export function MedicationFormScreen({
   onSaved,
   profile,
 }: MedicationFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [draft, setDraft] = useState<ClientMedicationDraft>(createInitialDraft);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);

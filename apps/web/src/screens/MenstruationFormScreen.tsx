@@ -9,7 +9,7 @@ import {
   validateMenstruation,
   type MenstruationDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
   createPatientMenstruation,
   getPatientMenstruation,
@@ -59,7 +59,7 @@ export function MenstruationFormScreen({
   onSaved,
   profile,
 }: MenstruationFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [draft, setDraft] = useState<MenstruationDraft>(createInitialDraft);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);

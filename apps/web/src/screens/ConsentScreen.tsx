@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import { useState } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -10,7 +10,7 @@ interface ConsentScreenProps {
 }
 
 export function ConsentScreen({ displayName, onAccept, onSignOut }: ConsentScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

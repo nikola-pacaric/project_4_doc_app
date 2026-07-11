@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 
 interface ConditionalTextFieldProps {
   answer: boolean | undefined;
@@ -19,7 +19,7 @@ export function ConditionalTextField({
   questionKey,
   text,
 }: ConditionalTextFieldProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
 
   return (
     <div className="full-width choice-field conditional-question">

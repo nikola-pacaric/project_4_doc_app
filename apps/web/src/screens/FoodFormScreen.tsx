@@ -10,7 +10,7 @@ import {
   validateOtherFluid,
   type FoodHydrationDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import {
   getPatientFoodForm,
   listPatientMeals,
@@ -246,7 +246,7 @@ async function withFluidPhotoUris(
 }
 
 export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const day = localDateValue(new Date());
   const [hydration, setHydration] = useState<FoodHydrationDraft>({ ...foodHydrationDefaults });
   const [waterText, setWaterText] = useState('');

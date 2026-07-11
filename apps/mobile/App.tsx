@@ -1,5 +1,11 @@
 import type { UserProfile } from '@project4/contracts';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import {
+  defaultAppPreferences,
+  setActiveLocale,
+  setActiveVoiceLanguage,
+  t,
+  type AppPreferences,
+} from '@project4/i18n';
 import { acceptCurrentConsent, getCurrentProfile, type Session } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
 import { StatusBar } from 'expo-status-bar';
@@ -14,15 +20,30 @@ import { AuthScreen } from './src/screens/AuthScreen';
 import { ConsentScreen } from './src/screens/ConsentScreen';
 import { DoctorPendingScreen } from './src/screens/DoctorPendingScreen';
 import { PatientHomeScreen } from './src/screens/PatientHomeScreen';
-import { colors, sharedStyles } from './src/theme';
+import { SettingsScreen } from './src/screens/SettingsScreen';
+import { loadMobilePreferences, saveMobilePreferences } from './src/lib/preferences';
+import { colors, setAppTheme, sharedStyles, createThemedStyles } from './src/theme';
 
 function MainApp() {
-  const locale = DEFAULT_LOCALE;
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured);
+  const [preferences, setPreferences] = useState<AppPreferences>(defaultAppPreferences);
+  const [preferencesLoading, setPreferencesLoading] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [profileError, setProfileError] = useState(false);
   const [profileReloadToken, setProfileReloadToken] = useState(0);
+
+  useEffect(() => {
+    void loadMobilePreferences()
+      .then((loadedPreferences) => {
+        setActiveLocale(loadedPreferences.locale);
+        setActiveVoiceLanguage(loadedPreferences.voiceLanguage);
+        setAppTheme(loadedPreferences.theme);
+        setPreferences(loadedPreferences);
+      })
+      .finally(() => setPreferencesLoading(false));
+  }, []);
 
   useEffect(() => {
     if (!supabase) {
@@ -101,6 +122,17 @@ function MainApp() {
     setProfileReloadToken((current) => current + 1);
   }
 
+  function updatePreferences(changes: Partial<AppPreferences>) {
+    const nextPreferences = { ...preferences, ...changes };
+    setActiveLocale(nextPreferences.locale);
+    setActiveVoiceLanguage(nextPreferences.voiceLanguage);
+    setAppTheme(nextPreferences.theme);
+    setPreferences(nextPreferences);
+    void saveMobilePreferences(nextPreferences);
+  }
+
+  const locale = preferences.locale;
+
   const profileLoading = Boolean(session && !profile && !profileError);
   let content;
 
@@ -112,7 +144,7 @@ function MainApp() {
         </View>
       </SafeAreaView>
     );
-  } else if (authLoading || profileLoading) {
+  } else if (preferencesLoading || authLoading || profileLoading) {
     content = (
       <SafeAreaView style={sharedStyles.screen}>
         <View style={styles.centered}>
@@ -137,8 +169,23 @@ function MainApp() {
         </View>
       </SafeAreaView>
     );
+  } else if (settingsOpen) {
+    content = (
+      <SettingsScreen
+        onBack={() => setSettingsOpen(false)}
+        onChange={updatePreferences}
+        preferences={preferences}
+      />
+    );
   } else if (profile.role === 'doctor') {
-    content = <DoctorPendingScreen client={supabase} onSignOut={signOut} profile={profile} />;
+    content = (
+      <DoctorPendingScreen
+        client={supabase}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onSignOut={signOut}
+        profile={profile}
+      />
+    );
   } else if (!profile.consentAcceptedAt) {
     content = (
       <ConsentScreen
@@ -148,12 +195,19 @@ function MainApp() {
       />
     );
   } else {
-    content = <PatientHomeScreen client={supabase} onSignOut={signOut} profile={profile} />;
+    content = (
+      <PatientHomeScreen
+        client={supabase}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onSignOut={signOut}
+        profile={profile}
+      />
+    );
   }
 
   return (
     <>
-      <StatusBar style="dark" />
+      <StatusBar style={preferences.theme === 'dark' ? 'light' : 'dark'} />
       {content}
     </>
   );
@@ -167,13 +221,13 @@ export default function App() {
   return <MainApp />;
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   centered: {
     flex: 1,
     justifyContent: 'center',
     gap: spacing.lg,
     padding: spacing.lg,
   },
-});
+}));
 
 registerRootComponent(App);

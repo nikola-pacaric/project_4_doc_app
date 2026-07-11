@@ -7,7 +7,7 @@ import {
   type SymptomType,
 } from '@project4/contracts';
 import type { SymptomDraft, SymptomIntensity } from '@project4/forms';
-import { DEFAULT_LOCALE, t } from '@project4/i18n';
+import { getActiveLocale, t } from '@project4/i18n';
 import { VoiceTextField } from './VoiceTextField';
 
 interface SymptomFieldsProps {
@@ -32,7 +32,7 @@ export function SymptomFields({
   onToggle,
   onToggleExpanded,
 }: SymptomFieldsProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const today = localDateValue(new Date());
 
   function datePart(value: string | undefined): string {

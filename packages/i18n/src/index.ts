@@ -8,3 +8,14 @@ export function t(locale: Locale, key: TranslationKey): string {
 
 export { dictionaries };
 export type { Locale, TranslationKey };
+export {
+  defaultAppPreferences,
+  getActiveLocale,
+  getActiveVoiceLanguage,
+  normalizeAppPreferences,
+  setActiveLocale,
+  setActiveVoiceLanguage,
+  type AppPreferences,
+  type ThemePreference,
+  type VoiceLanguage,
+} from './preferences';

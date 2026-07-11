@@ -5,7 +5,7 @@ import {
 import { spacing } from '@project4/ui-tokens';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, sharedStyles } from '../theme';
+import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { toLocalTimeInput } from '../utils/dateTime';
 
 interface TimePickerFieldProps {
@@ -62,7 +62,7 @@ export function TimePickerField({ label, onChange, placeholder, value }: TimePic
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createThemedStyles(() => StyleSheet.create({
   field: { gap: spacing.xs },
   control: {
     alignItems: 'center',
@@ -79,4 +79,4 @@ const styles = StyleSheet.create({
   value: { color: colors.text, fontSize: 16, fontWeight: '700' },
   placeholder: { color: colors.mutedText },
   icon: { color: colors.accent, fontSize: 20, fontWeight: '900' },
-});
+}));

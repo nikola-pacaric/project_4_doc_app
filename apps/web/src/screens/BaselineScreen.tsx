@@ -5,7 +5,7 @@ import {
   parseRecentMajorWeightChange,
   type BaselineProfileDraft,
 } from '@project4/forms';
-import { DEFAULT_LOCALE, t, type TranslationKey } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
   getPatientBaseline,
   savePatientBaseline,
@@ -100,7 +100,7 @@ function savedYesNoFromText(
 }
 
 export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps) {
-  const locale = DEFAULT_LOCALE;
+  const locale = getActiveLocale();
   const [current, setCurrent] = useState<PatientBaselineProfile | null>(null);
   const [draft, setDraft] = useState<BaselineProfileDraft>({ ...baselineProfileDefaults });
   const [loading, setLoading] = useState(true);
