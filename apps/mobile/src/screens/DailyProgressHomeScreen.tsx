@@ -1,14 +1,49 @@
-import { ActivityIndicator, Platform, Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import type { EntryKind, PatientEntry, UserProfile } from '@project4/contracts';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
-import { spacing } from '@project4/ui-tokens';
+import { darkTheme } from '@project4/ui-tokens';
 
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { CircularProgress } from '../components/CircularProgress';
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
-import { colors, sharedStyles, createThemedStyles } from '../theme';
+import { colors } from '../theme';
 import { formatEntryTime, toLocalDateInput } from '../utils/dateTime';
+
+/**
+ * Stitch "Dashboard - Modern Redesign" / Tactile Bloom tokens.
+ * Scoped to the mobile patient home only so other surfaces stay unchanged.
+ */
+const stitch = {
+  background: '#fdf8fd',
+  surface: '#ffffff',
+  surfaceContainer: '#f1ecf2',
+  surfaceContainerLow: '#f7f2f8',
+  secondaryContainer: '#fcdae1',
+  primary: '#a63553',
+  primaryContainer: '#f4718f',
+  onPrimary: '#ffffff',
+  onPrimaryContainer: '#6b022a',
+  onSurface: '#1c1b1f',
+  onSurfaceVariant: '#564145',
+  outlineVariant: '#dcbfc3',
+  error: '#ba1a1a',
+  errorContainer: '#ffdad6',
+  onErrorContainer: '#93000a',
+  success: '#16a34a',
+  successSoft: '#f0fdf4',
+  shadow: 'rgba(166, 53, 83, 0.08)',
+} as const;
 
 interface DailyProgressHomeScreenProps {
   onOpenDaily: () => void;
@@ -57,43 +92,93 @@ interface DailyProgressHomeScreenProps {
 }
 
 interface QuickAction {
-  id: 'daily' | 'food' | 'symptoms' | 'exercise' | 'stool' | 'medication' | 'period' | 'notes';
+  id: 'daily' | 'food' | 'symptoms' | 'stool' | 'medication' | 'exercise' | 'period' | 'notes';
   icon: string;
   labelKey: TranslationKey;
+  iconColor: string;
+  iconBg: string;
 }
 
 const quickActions: QuickAction[] = [
-  { id: 'daily', icon: '☀️', labelKey: 'home.action.daily' },
-  { id: 'food', icon: '🍽️', labelKey: 'home.action.food' },
-  { id: 'symptoms', icon: '⚠️', labelKey: 'home.action.symptoms' },
-  { id: 'exercise', icon: '🏃', labelKey: 'home.action.exercise' },
-  { id: 'stool', icon: '💩', labelKey: 'home.action.stool' },
-  { id: 'medication', icon: '💊', labelKey: 'home.action.medication' },
-  { id: 'period', icon: '🩸', labelKey: 'home.action.period' },
-  { id: 'notes', icon: '📝', labelKey: 'home.action.notes' },
+  {
+    id: 'daily',
+    icon: '☀',
+    labelKey: 'home.action.daily',
+    iconColor: '#f97316',
+    iconBg: '#ffedd5',
+  },
+  {
+    id: 'food',
+    icon: '🍽',
+    labelKey: 'home.action.food',
+    iconColor: '#3b82f6',
+    iconBg: '#dbeafe',
+  },
+  {
+    id: 'symptoms',
+    icon: '✚',
+    labelKey: 'home.action.symptoms',
+    iconColor: '#ef4444',
+    iconBg: '#fee2e2',
+  },
+  {
+    id: 'stool',
+    icon: '≡',
+    labelKey: 'home.action.stool',
+    iconColor: '#f97316',
+    iconBg: '#ffedd5',
+  },
+  {
+    id: 'medication',
+    icon: '💊',
+    labelKey: 'home.action.medication',
+    iconColor: stitch.primary,
+    iconBg: 'rgba(244, 113, 143, 0.2)',
+  },
+  {
+    id: 'exercise',
+    icon: '🏃',
+    labelKey: 'home.action.exercise',
+    iconColor: '#22c55e',
+    iconBg: '#dcfce7',
+  },
+  {
+    id: 'period',
+    icon: '💧',
+    labelKey: 'home.action.period',
+    iconColor: '#ef4444',
+    iconBg: '#fee2e2',
+  },
+  {
+    id: 'notes',
+    icon: '✎',
+    labelKey: 'home.action.notes',
+    iconColor: '#ca8a04',
+    iconBg: '#fef9c3',
+  },
 ];
 
 const entryIcons: Record<EntryKind, string> = {
-  text: '📝',
-  daily: '☀️',
-  meal: '🍽️',
-  fluid: '🥤',
-  symptom: '⚠️',
-  stool: '💩',
+  text: '✎',
+  daily: '☀',
+  meal: '🍽',
+  fluid: '💧',
+  symptom: '✚',
+  stool: '≡',
   medication: '💊',
   exercise: '🏃',
-  menstruation: '🩸',
-  note: '📝',
-  custom: '📋',
+  menstruation: '💧',
+  note: '✎',
+  custom: '□',
 };
 
 const actionEntryKinds: Record<QuickAction['id'], EntryKind> = {
   daily: 'daily',
   food: 'meal',
   symptoms: 'symptom',
-  exercise: 'exercise',
   stool: 'stool',
   medication: 'medication',
+  exercise: 'exercise',
   period: 'menstruation',
   notes: 'note',
 };
@@ -104,19 +189,8 @@ function greetingKey(hour: number): TranslationKey {
   return 'home.greeting.evening';
 }
 
-function fitTextSize(
-  text: string,
-  availableWidth: number,
-  maxSize: number,
-  minSize: number,
-  widthFactor = 0.6,
-): number {
-  const longestWord = text
-    .split(/\s+/)
-    .map((word) => word.trim().length)
-    .reduce((max, length) => Math.max(max, length), 1);
-  const sizeForWidth = Math.floor(availableWidth / Math.max(1, longestWord * widthFactor));
-  return Math.max(minSize, Math.min(maxSize, sizeForWidth));
+function isDarkThemeActive(): boolean {
+  return colors.background === darkTheme.colors.background;
 }
 
 export function DailyProgressHomeScreen({
@@ -166,6 +240,29 @@ export function DailyProgressHomeScreen({
 }: DailyProgressHomeScreenProps) {
   const locale = getActiveLocale();
   const { width } = useWindowDimensions();
+  const dark = isDarkThemeActive();
+  const palette = dark
+    ? {
+        background: colors.background,
+        surface: colors.surface,
+        surfaceContainer: colors.surfaceAlt,
+        secondaryContainer: colors.surfaceAlt,
+        primary: colors.accentStrong,
+        primaryContainer: colors.accent,
+        onPrimary: colors.onAccent,
+        onPrimaryContainer: colors.onAccent,
+        onSurface: colors.text,
+        onSurfaceVariant: colors.mutedText,
+        outlineVariant: colors.border,
+        error: colors.danger,
+        errorContainer: colors.surfaceAlt,
+        onErrorContainer: colors.danger,
+        success: colors.accentStrong,
+        successSoft: colors.surfaceAlt,
+        shadow: '#000000',
+      }
+    : stitch;
+
   const now = new Date();
   const visibleQuickActions = canTrackMenstruation
     ? quickActions
@@ -181,42 +278,29 @@ export function DailyProgressHomeScreen({
   const allTodayEntries = recentEntries.filter(
     (entry) => toLocalDateInput(new Date(entry.occurredAt)) === today,
   );
-  const todayEntries = allTodayEntries.slice(0, 8);
+  const todayEntries = allTodayEntries.slice(0, 3);
   const pendingIds = new Set(pendingEntryIds);
   const completeMealIds = new Set(completeMealEntryIds);
   const completeMedicationIds = new Set(completeMedicationEntryIds);
   const completedKinds = new Set(allTodayEntries.map((entry) => entry.kind));
-  const completedItems = progressActions.filter((action) =>
-    action.id === 'daily'
-      ? dailyCompleted || dailyReadyToSubmit
-      : action.id === 'stool'
-        ? stoolCompleted
-        : action.id === 'food'
-          ? foodCompleted
-          : completedKinds.has(actionEntryKinds[action.id]),
-  ).length;
-  const progress = Math.round((completedItems / progressActions.length) * 100);
-  const actionColumns = 4;
-  const isSmallPhone = width < 360;
-  const isVerySmallPhone = width < 330;
-  const horizontalPadding = isSmallPhone ? spacing.md : spacing.lg;
-  const actionGridWidth = width - horizontalPadding * 2 - spacing.sm * (actionColumns - 1);
-  const actionCardWidth = Math.min(112, actionGridWidth / actionColumns);
-  const actionCardHeight = actionCardWidth;
-  const actionCardScale = Math.max(0.68, Math.min(1, actionCardWidth / 112));
-  const actionCardPadding = Math.max(3, Math.round(actionCardWidth * 0.06));
-  const actionCardGap = Math.max(1, Math.round(actionCardWidth * 0.035));
-  const actionIconBoxSize = Math.round(actionCardWidth * 0.27);
-  const actionIconFontSize = Math.round(actionIconBoxSize * 0.58);
-  const actionTextWidth = actionCardWidth - actionCardPadding * 2;
-  const actionStatusSlotHeight = Math.round(actionCardHeight * 0.13);
-  const actionLabelSlotHeight =
-    actionCardHeight -
-    actionCardPadding * 2 -
-    actionIconBoxSize -
-    actionStatusSlotHeight -
-    actionCardGap * 2;
+  const completedItems = progressActions.filter((action) => {
+    if (action.id === 'daily') return dailyCompleted || dailyReadyToSubmit;
+    if (action.id === 'stool') return stoolCompleted;
+    if (action.id === 'food') return foodCompleted;
+    return completedKinds.has(actionEntryKinds[action.id]);
+  }).length;
+  const progress = Math.round((completedItems / Math.max(progressActions.length, 1)) * 100);
+
+  const horizontalPadding = 20;
+  const gridGap = 8;
+  const actionCardWidth = (width - horizontalPadding * 2 - gridGap * 3) / 4;
   const displayName = profile.displayName?.trim() || t(locale, 'role.patient');
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
   const dateLabel = new Intl.DateTimeFormat(locale, {
     weekday: 'long',
     month: 'long',
@@ -224,81 +308,148 @@ export function DailyProgressHomeScreen({
   }).format(now);
   const submitHelpIsList = submitHelp.includes('\n- ');
 
+  function actionIsCompleted(action: QuickAction): boolean {
+    if (action.id === 'daily') return dailyCompleted || dailyReadyToSubmit;
+    if (action.id === 'food') return foodCompleted;
+    if (action.id === 'symptoms') return symptomsCompleted;
+    if (action.id === 'stool') return stoolCompleted;
+    if (action.id === 'medication') return medicationCompleted;
+    if (action.id === 'exercise') return exerciseCompleted;
+    if (action.id === 'period') return periodCompleted;
+    return completedKinds.has('note');
+  }
+
+  function actionIsRequired(action: QuickAction): boolean {
+    if (action.id === 'exercise') return exerciseRequired;
+    if (action.id === 'medication') return medicationRequired;
+    if (action.id === 'period') return periodRequired;
+    return action.id !== 'notes';
+  }
+
+  function actionPress(action: QuickAction): () => void {
+    if (action.id === 'daily') return onOpenDaily;
+    if (action.id === 'food') return onOpenFood;
+    if (action.id === 'symptoms') return onOpenSymptoms;
+    if (action.id === 'stool') return onOpenStool;
+    if (action.id === 'medication') return onOpenMedication;
+    if (action.id === 'exercise') return onOpenExercise;
+    if (action.id === 'period') return onOpenPeriod;
+    return onOpenNotes;
+  }
+
   return (
-    <SafeAreaView style={[sharedStyles.screen, styles.safeArea]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]}>
       <KeyboardAwareScrollView
-        keyboardDismissMode="on-drag"
         contentContainerStyle={[
           styles.content,
-          isSmallPhone && styles.contentCompact,
+          { paddingHorizontal: horizontalPadding, paddingBottom: 120 },
         ]}
         contentInsetAdjustmentBehavior="automatic"
+        keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
-        style={sharedStyles.screen}
+        showsVerticalScrollIndicator={false}
+        style={{ backgroundColor: palette.background }}
       >
-        <View style={styles.headerGroup}>
-          <View style={[styles.topBar, isVerySmallPhone && styles.topBarStacked]}>
-            <View style={styles.greetingBlock}>
-              <Text style={styles.date}>{dateLabel}</Text>
-              <Text
-                adjustsFontSizeToFit
-                minimumFontScale={0.82}
-                numberOfLines={1}
-                style={[styles.greeting, isSmallPhone && styles.greetingCompact]}
-              >
-                {t(locale, greetingKey(now.getHours()))},
+        {/* Top app bar — Stitch: avatar + VitalTrack + settings */}
+        <View style={styles.topBar}>
+          <View style={styles.brandRow}>
+            <Pressable
+              accessibilityLabel={t(locale, 'baseline.open')}
+              accessibilityHint={offlineMode ? t(locale, 'offline.actionsDisabled') : undefined}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: offlineMode }}
+              disabled={offlineMode}
+              onPress={onOpenBaseline}
+              style={({ pressed }) => [
+                styles.avatarButton,
+                {
+                  backgroundColor: palette.secondaryContainer,
+                  borderColor: dark ? palette.outlineVariant : 'rgba(166, 53, 83, 0.1)',
+                },
+                offlineMode && styles.disabled,
+                pressed && !offlineMode && styles.pressed,
+              ]}
+            >
+              <Text style={[styles.avatarText, { color: palette.primary }]}>
+                {initials || 'P'}
               </Text>
-              <Text
-                style={[styles.greetingName, isSmallPhone && styles.greetingNameCompact]}
-                numberOfLines={2}
-              >
-                {displayName}
-              </Text>
-            </View>
-            <View style={[styles.accountActions, isVerySmallPhone && styles.accountActionsStacked]}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => void onSignOut()}
-                style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}
-              >
-                <Text style={styles.signOutLabel}>{t(locale, 'auth.signOut')}</Text>
-              </Pressable>
-              <Pressable
-                accessibilityLabel={t(locale, 'settings.title')}
-                accessibilityRole="button"
-                onPress={onOpenSettings}
-                style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}
-              >
-                <Text style={styles.signOutLabel}>{t(locale, 'settings.title')}</Text>
-              </Pressable>
-              <Pressable
-                accessibilityLabel={t(locale, 'baseline.open')}
-                accessibilityHint={offlineMode ? t(locale, 'offline.actionsDisabled') : undefined}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: offlineMode }}
-                disabled={offlineMode}
-                onPress={onOpenBaseline}
-                style={({ pressed }) => [
-                  styles.avatar,
-                  offlineMode && styles.avatarDisabled,
-                  pressed && !offlineMode && styles.pressed,
-                ]}
-              >
-                <Text style={styles.avatarText}>{displayName.slice(0, 2).toUpperCase()}</Text>
-              </Pressable>
-            </View>
+            </Pressable>
+            <Text style={[styles.brandTitle, { color: palette.primary }]}>
+              {t(locale, 'app.brand')}
+            </Text>
           </View>
+          <Pressable
+            accessibilityLabel={t(locale, 'settings.title')}
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={onOpenSettings}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={[styles.topIcon, { color: palette.primary }]}>⚙</Text>
+          </Pressable>
         </View>
 
-        {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
+        {/* Welcome */}
+        <View style={styles.greetingBlock}>
+          <Text style={[styles.date, { color: palette.onSurfaceVariant }]}>{dateLabel}</Text>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.82}
+            numberOfLines={2}
+            style={[styles.greeting, { color: palette.onSurface }]}
+          >
+            {t(locale, greetingKey(now.getHours()))}, {displayName}
+          </Text>
+        </View>
 
-        <View style={styles.progressCard}>
-          <CircularProgress progress={progress} size={76} strokeWidth={7}>
-            <Text style={styles.progressValue}>{progress}%</Text>
+        {offlineMode ? (
+          <View
+            style={[
+              styles.offlineNotice,
+              {
+                backgroundColor: dark ? palette.errorContainer : 'rgba(255, 218, 214, 0.3)',
+                borderColor: dark ? palette.outlineVariant : 'rgba(186, 26, 26, 0.1)',
+              },
+            ]}
+          >
+            <Text style={[styles.offlineIcon, { color: palette.error }]}>☁</Text>
+            <Text style={[styles.offlineText, { color: palette.onErrorContainer }]}>
+              {t(locale, 'home.offlineNotice')}
+            </Text>
+          </View>
+        ) : null}
+
+        {error ? (
+          <Text style={[styles.errorText, { color: palette.error }]}>{error}</Text>
+        ) : null}
+
+        {/* Daily progress bubble */}
+        <View
+          style={[
+            styles.progressCard,
+            {
+              backgroundColor: palette.surface,
+              shadowColor: palette.shadow,
+            },
+          ]}
+        >
+          <CircularProgress
+            progress={progress}
+            progressColor={palette.primary}
+            size={96}
+            strokeWidth={10}
+            trackColor={palette.surfaceContainer}
+          >
+            <Text style={[styles.progressValue, { color: palette.primary }]}>{progress}%</Text>
           </CircularProgress>
           <View style={styles.progressCopy}>
-            <Text style={styles.progressTitle}>{t(locale, 'home.progress.title')}</Text>
-            <Text style={styles.progressDetail}>
+            <Text style={[styles.progressTitle, { color: palette.onSurface }]}>
+              {t(locale, 'home.progress.title')}
+            </Text>
+            <Text style={[styles.progressDetail, { color: palette.onSurfaceVariant }]}>
               {t(locale, 'home.progress.items')
                 .replace('{completed}', String(completedItems))
                 .replace('{total}', String(progressActions.length))}
@@ -306,10 +457,311 @@ export function DailyProgressHomeScreen({
           </View>
         </View>
 
-        <View style={styles.inviteCard}>
+        {/* Quick actions */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: palette.onSurfaceVariant }]}>
+            {t(locale, 'home.quickActions')}
+          </Text>
+          <View style={[styles.actionGrid, { gap: gridGap }]}>
+            {visibleQuickActions.map((action) => {
+              const completed = actionIsCompleted(action);
+              const required = actionIsRequired(action);
+              const offlineDisabled = offlineMode && action.id !== 'notes';
+              const actionLabel = t(locale, action.labelKey);
+              // Stitch highlights incomplete required clinical tiles (e.g. Medication) as Pending.
+              const isPending =
+                !completed &&
+                ((action.id === 'medication' && medicationRequired) ||
+                  (action.id === 'exercise' && exerciseRequired) ||
+                  (action.id === 'period' && periodRequired));
+
+              let statusKey: TranslationKey = required
+                ? 'home.action.required'
+                : 'home.action.optional';
+
+              if (completed) statusKey = 'home.action.completed';
+              else if (isPending) statusKey = 'home.action.pending';
+              if (action.id === 'food' && foodStarted && !foodCompleted) {
+                statusKey = 'daily.statusDraft';
+              }
+              if (offlineDisabled) statusKey = 'offline.onlyNotes';
+
+              const highlightPending = isPending;
+
+              return (
+                <Pressable
+                  accessibilityLabel={actionLabel}
+                  accessibilityHint={
+                    offlineDisabled ? t(locale, 'offline.actionsDisabled') : undefined
+                  }
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: offlineDisabled }}
+                  disabled={offlineDisabled}
+                  key={action.id}
+                  onPress={actionPress(action)}
+                  style={({ pressed }) => [
+                    styles.actionCard,
+                    {
+                      width: actionCardWidth,
+                      backgroundColor: palette.surface,
+                      borderColor: highlightPending
+                        ? dark
+                          ? palette.primary
+                          : 'rgba(166, 53, 83, 0.3)'
+                        : 'transparent',
+                      shadowColor: palette.shadow,
+                    },
+                    offlineDisabled && styles.disabled,
+                    pressed && !offlineDisabled && styles.actionCardPressed,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.actionIconContainer,
+                      {
+                        backgroundColor: dark ? palette.surfaceContainer : action.iconBg,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.actionIcon,
+                        { color: dark ? palette.primary : action.iconColor },
+                      ]}
+                    >
+                      {action.icon}
+                    </Text>
+                  </View>
+                  <Text
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.72}
+                    numberOfLines={2}
+                    style={[styles.actionLabel, { color: palette.onSurface }]}
+                  >
+                    {actionLabel}
+                  </Text>
+                  <Text
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                    numberOfLines={1}
+                    style={[
+                      styles.actionStatus,
+                      { color: palette.onSurfaceVariant },
+                      completed && { color: palette.success },
+                      highlightPending && { color: palette.primary },
+                      action.id === 'food' &&
+                        foodStarted &&
+                        !foodCompleted && { color: palette.onSurfaceVariant },
+                    ]}
+                  >
+                    {t(locale, statusKey)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Recent entries */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: palette.onSurfaceVariant }]}>
+              {t(locale, 'home.recentEntries')}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={onOpenTimeline}
+              style={({ pressed }) => [styles.viewAllButton, pressed && styles.pressed]}
+            >
+              <Text style={[styles.viewAllLabel, { color: palette.primary }]}>
+                {t(locale, 'home.viewAll')}
+              </Text>
+            </Pressable>
+          </View>
+          {loading ? (
+            <ActivityIndicator color={palette.primary} size="small" />
+          ) : todayEntries.length ? (
+            <View style={styles.entryList}>
+              {todayEntries.map((entry) => {
+                const kindLabel = t(locale, ('entry.kind.' + entry.kind) as TranslationKey);
+                const dailyEntryReady = entry.kind === 'daily' && dailyReadyToSubmit;
+                const entryPending = pendingIds.has(entry.id);
+                const entryOfflineDisabled =
+                  offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
+                const entryCompleted =
+                  entry.kind === 'daily'
+                    ? dailyCompleted
+                    : entry.kind === 'meal'
+                      ? completeMealIds.has(entry.id) && foodCompleted
+                      : entry.kind === 'medication'
+                        ? completeMedicationIds.has(entry.id)
+                        : true;
+                const statusKey: TranslationKey = entryPending
+                  ? 'sync.pending'
+                  : entryOfflineDisabled
+                    ? 'offline.onlyNotes'
+                    : entryCompleted || dailyEntryReady
+                      ? 'home.action.completed'
+                      : 'daily.statusDraft';
+
+                return (
+                  <Pressable
+                    accessibilityHint={
+                      entryOfflineDisabled
+                        ? t(locale, 'offline.actionsDisabled')
+                        : t(locale, 'home.entryOpenHint')
+                    }
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: entryPending || entryOfflineDisabled }}
+                    disabled={entryPending || entryOfflineDisabled}
+                    key={entry.id}
+                    onPress={() => onOpenEntry(entry)}
+                    style={({ pressed }) => [
+                      styles.entryCard,
+                      {
+                        backgroundColor: palette.surface,
+                        borderColor: entryPending
+                          ? dark
+                            ? palette.primary
+                            : 'rgba(166, 53, 83, 0.05)'
+                          : 'transparent',
+                        shadowColor: palette.shadow,
+                      },
+                      entryOfflineDisabled && styles.disabled,
+                      pressed && !entryPending && !entryOfflineDisabled && styles.pressed,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.entryIconContainer,
+                        {
+                          backgroundColor: entryPending
+                            ? dark
+                              ? palette.surfaceContainer
+                              : 'rgba(244, 113, 143, 0.2)'
+                            : palette.surfaceContainer,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.entryIcon,
+                          {
+                            color: entryPending ? palette.primary : palette.onSurfaceVariant,
+                          },
+                        ]}
+                      >
+                        {entryIcons[entry.kind]}
+                      </Text>
+                    </View>
+                    <View style={styles.entryCopy}>
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.entryTitle, { color: palette.onSurface }]}
+                      >
+                        {entry.text?.trim() || kindLabel}
+                      </Text>
+                      <Text style={[styles.entryTime, { color: palette.onSurfaceVariant }]}>
+                        {formatEntryTime(entry.occurredAt, locale)}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.entryStatusPill,
+                        {
+                          backgroundColor: entryPending
+                            ? palette.secondaryContainer
+                            : entryCompleted || dailyEntryReady
+                              ? palette.successSoft
+                              : palette.surfaceContainer,
+                        },
+                      ]}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.entryStatusText,
+                          {
+                            color: entryPending
+                              ? dark
+                                ? palette.onSurface
+                                : '#775e64'
+                              : entryCompleted || dailyEntryReady
+                                ? palette.success
+                                : palette.onSurfaceVariant,
+                          },
+                        ]}
+                      >
+                        {t(locale, statusKey)}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={[styles.emptyEntries, { color: palette.onSurfaceVariant }]}>
+              {t(locale, 'home.noEntriesToday')}
+            </Text>
+          )}
+        </View>
+
+        {/* Submit day CTA */}
+        <View style={styles.submitBlock}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: submitDisabled || submitBusy }}
+            disabled={submitDisabled || submitBusy}
+            onPress={() => void onSubmitDay()}
+            style={({ pressed }) => [
+              styles.submitButton,
+              {
+                backgroundColor: palette.primary,
+                shadowColor: palette.primary,
+              },
+              (submitDisabled || submitBusy) && styles.disabled,
+              pressed && !submitDisabled && !submitBusy && styles.submitPressed,
+            ]}
+          >
+            {submitBusy ? (
+              <ActivityIndicator color={palette.onPrimary} />
+            ) : (
+              <Text style={[styles.submitLabel, { color: palette.onPrimary }]}>
+                {t(locale, dailyCompleted ? 'home.submitCompleted' : 'home.submit')}
+              </Text>
+            )}
+          </Pressable>
+          <Text
+            style={[
+              styles.submitHelp,
+              { color: palette.onSurfaceVariant },
+              submitHelpIsList && styles.submitHelpList,
+              dailyCompleted && { color: palette.primary, fontWeight: '700' },
+            ]}
+          >
+            {submitHelp}
+          </Text>
+        </View>
+
+        {/* Doctor invite — product requirement, styled to match Tactile Bloom cards */}
+        <View
+          style={[
+            styles.inviteCard,
+            {
+              backgroundColor: palette.surface,
+              borderColor: palette.outlineVariant,
+              shadowColor: palette.shadow,
+            },
+          ]}
+        >
           <View style={styles.inviteCopy}>
-            <Text style={styles.inviteTitle}>{t(locale, 'patientInvite.title')}</Text>
-            <Text style={styles.inviteHelp}>{t(locale, 'patientInvite.help')}</Text>
+            <Text style={[styles.inviteTitle, { color: palette.onSurface }]}>
+              {t(locale, 'patientInvite.title')}
+            </Text>
+            <Text style={[styles.inviteHelp, { color: palette.onSurfaceVariant }]}>
+              {t(locale, 'patientInvite.help')}
+            </Text>
           </View>
           <FormField
             autoCapitalize="characters"
@@ -323,8 +775,11 @@ export function DailyProgressHomeScreen({
             <Text
               style={[
                 styles.inviteMessage,
-                doctorInviteMessage === t(locale, 'patientInvite.success') &&
-                  styles.inviteSuccess,
+                { color: palette.error },
+                doctorInviteMessage === t(locale, 'patientInvite.success') && {
+                  color: palette.primary,
+                  fontWeight: '700',
+                },
               ]}
             >
               {doctorInviteMessage}
@@ -337,542 +792,454 @@ export function DailyProgressHomeScreen({
             onPress={() => void onRedeemDoctorInvite()}
             variant="secondary"
           />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t(locale, 'home.quickActions')}</Text>
-          <View style={styles.actionGrid}>
-            {visibleQuickActions.map((action) => {
-              const onPress =
-                action.id === 'daily'
-                  ? onOpenDaily
-                  : action.id === 'symptoms'
-                    ? onOpenSymptoms
-                    : action.id === 'exercise'
-                      ? onOpenExercise
-                      : action.id === 'food'
-                        ? onOpenFood
-                        : action.id === 'stool'
-                          ? onOpenStool
-                          : action.id === 'medication'
-                            ? onOpenMedication
-                            : action.id === 'period'
-                              ? onOpenPeriod
-                              : onOpenNotes;
-              const showExerciseStatus = action.id === 'exercise';
-              const showMedicationStatus = action.id === 'medication';
-              const showPeriodStatus = action.id === 'period';
-              const showStoolCompleted = action.id === 'stool' && stoolCompleted;
-              const showDailyCompleted = action.id === 'daily' && dailyCompleted;
-              const showDailyReady = action.id === 'daily' && !dailyCompleted && dailyReadyToSubmit;
-              const showSymptomsCompleted = action.id === 'symptoms' && symptomsCompleted;
-              const exerciseStatusKey = exerciseCompleted
-                ? 'home.action.completed'
-                : exerciseRequired
-                  ? 'home.action.required'
-                  : 'home.action.optional';
-              const medicationStatusKey = medicationCompleted
-                ? 'home.action.completed'
-                : medicationRequired
-                  ? 'home.action.required'
-                  : 'home.action.optional';
-              const periodStatusKey = periodCompleted
-                ? 'home.action.completed'
-                : periodRequired
-                  ? 'home.action.required'
-                  : 'home.action.optional';
-              const actionRequired =
-                (showExerciseStatus && exerciseRequired && !exerciseCompleted) ||
-                (showMedicationStatus && medicationRequired && !medicationCompleted) ||
-                (showPeriodStatus && periodRequired && !periodCompleted);
-              const offlineDisabled = offlineMode && action.id !== 'notes';
-              const actionLabel = t(locale, action.labelKey);
-              let actionStatusText: string | null = null;
-              let actionStatusStyle = null;
-
-              if (offlineDisabled) {
-                actionStatusText = t(locale, 'offline.onlyNotes');
-                actionStatusStyle = styles.actionStatusOffline;
-              } else if (showExerciseStatus) {
-                actionStatusText = t(locale, exerciseStatusKey);
-                actionStatusStyle =
-                  exerciseRequired && !exerciseCompleted
-                    ? styles.actionStatusRequired
-                    : exerciseCompleted
-                      ? styles.actionStatusCompleted
-                      : null;
-              } else if (showMedicationStatus) {
-                actionStatusText = t(locale, medicationStatusKey);
-                actionStatusStyle =
-                  medicationRequired && !medicationCompleted
-                    ? styles.actionStatusRequired
-                    : medicationCompleted
-                      ? styles.actionStatusCompleted
-                      : null;
-              } else if (showPeriodStatus) {
-                actionStatusText = t(locale, periodStatusKey);
-                actionStatusStyle =
-                  periodRequired && !periodCompleted
-                    ? styles.actionStatusRequired
-                    : periodCompleted
-                      ? styles.actionStatusCompleted
-                      : null;
-              } else if (action.id === 'food') {
-                if (foodCompleted) {
-                  actionStatusText = t(locale, 'home.action.completed');
-                  actionStatusStyle = styles.actionStatusCompleted;
-                } else if (foodStarted) {
-                  actionStatusText = t(locale, 'daily.statusDraft');
-                  actionStatusStyle = styles.actionStatusDraft;
-                }
-              } else if (
-                showDailyCompleted ||
-                showDailyReady ||
-                showStoolCompleted ||
-                showSymptomsCompleted
-              ) {
-                actionStatusText = t(locale, 'home.action.completed');
-                actionStatusStyle = styles.actionStatusCompleted;
-              }
-
-              const maxLabelSizeByHeight = Math.floor(actionLabelSlotHeight / 2) - 1;
-              const actionLabelFontSize = Math.min(
-                fitTextSize(actionLabel, actionTextWidth, 12, 7.5),
-                Math.max(7.5, maxLabelSizeByHeight),
-              );
-              const actionLabelLineHeight = Math.max(
-                9,
-                Math.floor(actionLabelSlotHeight / 2),
-              );
-              const actionStatusFontSize = actionStatusText
-                ? Math.min(
-                    fitTextSize(actionStatusText, actionTextWidth, 10, 7, 0.64),
-                    Math.max(7, actionStatusSlotHeight - 3),
-                  )
-                : 10;
-              const actionStatusLineHeight = Math.max(8, actionStatusSlotHeight);
-
-              return (
-                <Pressable
-                  accessibilityLabel={actionLabel}
-                  accessibilityHint={
-                    offlineDisabled ? t(locale, 'offline.actionsDisabled') : undefined
-                  }
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: offlineDisabled }}
-                  disabled={offlineDisabled}
-                  key={action.id}
-                  onPress={onPress}
-                  style={({ pressed }) => [
-                    styles.actionCard,
-                    styles.actionCardEnabled,
-                    actionRequired && styles.actionCardRequired,
-                    offlineDisabled && styles.actionCardDisabled,
-                    pressed && !offlineDisabled && styles.actionCardPressed,
-                    {
-                      gap: actionCardGap,
-                      height: actionCardHeight,
-                      paddingHorizontal: actionCardPadding,
-                      paddingVertical: actionCardPadding,
-                      width: actionCardWidth,
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.actionIconContainer,
-                      {
-                        borderRadius: actionIconBoxSize / 2,
-                        height: actionIconBoxSize,
-                        width: actionIconBoxSize,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.actionIcon,
-                        { fontSize: actionIconFontSize, lineHeight: actionIconBoxSize },
-                      ]}
-                    >
-                      {action.icon}
-                    </Text>
-                  </View>
-                  <Text
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.72}
-                    numberOfLines={2}
-                    style={[
-                      styles.actionLabel,
-                      { fontSize: actionLabelFontSize, lineHeight: actionLabelLineHeight },
-                    ]}
-                  >
-                    {actionLabel}
-                  </Text>
-                  {actionStatusText ? (
-                    <Text
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.72}
-                      numberOfLines={1}
-                      style={[
-                        styles.actionStatus,
-                        {
-                          fontSize: actionStatusFontSize,
-                          lineHeight: actionStatusLineHeight,
-                        },
-                        actionStatusStyle,
-                      ]}
-                    >
-                      {actionStatusText}
-                    </Text>
-                  ) : null}
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{t(locale, 'home.recentEntries')}</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={onOpenTimeline}
-              style={({ pressed }) => [styles.viewAllButton, pressed && styles.pressed]}
-            >
-              <Text style={styles.viewAllLabel}>{t(locale, 'home.viewAll')}</Text>
-            </Pressable>
-          </View>
-          {loading ? (
-            <ActivityIndicator color={colors.accent} size="large" />
-          ) : todayEntries.length ? (
-            <View style={styles.entryList}>
-              {todayEntries.map((entry) => {
-                const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
-                const dailyEntryReady = entry.kind === 'daily' && dailyReadyToSubmit;
-                const entryPending = pendingIds.has(entry.id);
-                const entryOfflineDisabled = offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
-                const entryCompleted =
-                  entry.kind === 'daily'
-                    ? dailyCompleted
-                    : entry.kind === 'meal'
-                      ? completeMealIds.has(entry.id) && foodCompleted
-                    : entry.kind === 'medication'
-                      ? completeMedicationIds.has(entry.id)
-                      : true;
-                const statusKey =
-                  entryPending
-                    ? 'sync.pending'
-                    : entryOfflineDisabled
-                    ? 'offline.onlyNotes'
-                    : entryCompleted || dailyEntryReady
-                    ? 'home.action.completed'
-                    : 'daily.statusDraft';
-                return (
-                  <Pressable
-                    accessibilityHint={
-                      entryOfflineDisabled
-                        ? t(locale, 'offline.actionsDisabled')
-                        : t(locale, 'home.entryOpenHint')
-                    }
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: entryPending || entryOfflineDisabled }}
-                    disabled={entryPending || entryOfflineDisabled}
-                    key={entry.id}
-                    onPress={() => {
-                      if (!entryPending && !entryOfflineDisabled) onOpenEntry(entry);
-                    }}
-                    style={({ pressed }) => [
-                      styles.entryCard,
-                      entryOfflineDisabled && styles.entryCardDisabled,
-                      pressed && !entryPending && !entryOfflineDisabled && styles.pressed,
-                    ]}
-                  >
-                    <View style={styles.entryIconContainer}>
-                      <Text style={styles.entryIcon}>{entryIcons[entry.kind]}</Text>
-                    </View>
-                    <View style={styles.entryCopy}>
-                      <Text numberOfLines={1} style={styles.entryTitle}>
-                        {entry.text?.trim() || kindLabel}
-                      </Text>
-                      <Text style={styles.entryTime}>
-                        {formatEntryTime(entry.occurredAt, locale)}
-                      </Text>
-                    </View>
-                    <View style={styles.entryTrailing}>
-                      <Text
-                        style={[
-                          styles.entryStatus,
-                          entryPending && styles.entryStatusPending,
-                          !entryCompleted && !dailyEntryReady && styles.entryStatusDraft,
-                          entryOfflineDisabled && styles.entryStatusOffline,
-                        ]}
-                      >
-                        {t(locale, statusKey)}
-                      </Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : (
-            <Text style={styles.emptyEntries}>{t(locale, 'home.noEntriesToday')}</Text>
-          )}
-        </View>
-
-        <View style={styles.submitBlock}>
-          <PrimaryButton
-            busy={submitBusy}
-            disabled={submitDisabled}
-            label={t(locale, dailyCompleted ? 'home.submitCompleted' : 'home.submit')}
-            onPress={() => void onSubmitDay()}
-            variant={dailyCompleted ? 'secondary' : 'primary'}
-          />
-          <Text
-            style={[
-              styles.submitHelp,
-              submitHelpIsList && styles.submitHelpList,
-              dailyCompleted && styles.submitHelpCompleted,
-            ]}
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void onSignOut()}
+            style={({ pressed }) => [styles.signOutLink, pressed && styles.pressed]}
           >
-            {submitHelp}
-          </Text>
+            <Text style={[styles.signOutText, { color: palette.onSurfaceVariant }]}>
+              {t(locale, 'auth.signOut')}
+            </Text>
+          </Pressable>
         </View>
       </KeyboardAwareScrollView>
+
+      {/* Bottom nav — Stitch rounded glass bar */}
+      <View
+        style={[
+          styles.bottomNav,
+          {
+            backgroundColor: dark ? colors.surface : 'rgba(241, 236, 242, 0.92)',
+            shadowColor: palette.shadow,
+          },
+        ]}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: true }}
+          style={({ pressed }) => [
+            styles.navItem,
+            styles.navItemActive,
+            {
+              backgroundColor: dark ? palette.primaryContainer : stitch.primaryContainer,
+            },
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text
+            style={[
+              styles.navIcon,
+              {
+                color: dark ? palette.onPrimaryContainer : stitch.onPrimaryContainer,
+              },
+            ]}
+          >
+            📅
+          </Text>
+          <Text
+            style={[
+              styles.navLabel,
+              styles.navLabelActive,
+              {
+                color: dark ? palette.onPrimaryContainer : stitch.onPrimaryContainer,
+              },
+            ]}
+          >
+            {t(locale, 'home.nav.today')}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onOpenTimeline}
+          style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}
+        >
+          <Text style={[styles.navIcon, { color: palette.onSurfaceVariant }]}>☰</Text>
+          <Text style={[styles.navLabel, { color: palette.onSurfaceVariant }]}>
+            {t(locale, 'home.nav.timeline')}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityHint={offlineMode ? t(locale, 'offline.actionsDisabled') : undefined}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: offlineMode }}
+          disabled={offlineMode}
+          onPress={onOpenBaseline}
+          style={({ pressed }) => [
+            styles.navItem,
+            offlineMode && styles.disabled,
+            pressed && !offlineMode && styles.pressed,
+          ]}
+        >
+          <Text style={[styles.navIcon, { color: palette.onSurfaceVariant }]}>👤</Text>
+          <Text style={[styles.navLabel, { color: palette.onSurfaceVariant }]}>
+            {t(locale, 'home.nav.profile')}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onOpenSettings}
+          style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}
+        >
+          <Text style={[styles.navIcon, { color: palette.onSurfaceVariant }]}>⚙</Text>
+          <Text style={[styles.navLabel, { color: palette.onSurfaceVariant }]}>
+            {t(locale, 'settings.title')}
+          </Text>
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
+const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   content: {
     flexGrow: 1,
-    gap: spacing.lg,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl + spacing.lg,
+    gap: 24,
+    paddingTop: 8,
   },
-  contentCompact: {
-    padding: spacing.md,
-    paddingBottom: spacing.xl + spacing.md,
-  },
-  headerGroup: {
-    gap: spacing.md,
-  },
+  pressed: { opacity: 0.72 },
+  disabled: { opacity: 0.5 },
   topBar: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'space-between',
-  },
-  topBarStacked: {
-    alignItems: 'stretch',
-    flexDirection: 'column',
-  },
-  pressed: { opacity: 0.7 },
-  accountActions: {
-    alignItems: 'flex-end',
-    flexShrink: 0,
-    gap: spacing.sm,
-  },
-  accountActionsStacked: {
-    alignSelf: 'flex-end',
-  },
-  signOutButton: {
-    alignItems: 'center',
-    borderColor: colors.border,
-    borderRadius: 18,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 40,
-    paddingHorizontal: spacing.md,
-  },
-  signOutLabel: { color: colors.accent, fontSize: 13, fontWeight: '800' },
-  avatar: {
-    alignItems: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: 24,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  avatarText: { color: '#ffffff', fontSize: 15, fontWeight: '800' },
-  greetingBlock: {
-    flex: 1,
-    flexBasis: '64%',
-    gap: spacing.xs,
-    minWidth: 0,
-    paddingTop: spacing.xs,
-  },
-  date: {
-    color: colors.mutedText,
-    fontSize: 14,
-    fontWeight: '700',
-    textTransform: 'capitalize',
-  },
-  greeting: { color: colors.text, fontSize: 25, fontWeight: '800', lineHeight: 30 },
-  greetingCompact: { fontSize: 23, lineHeight: 28 },
-  greetingName: { color: colors.text, fontSize: 27, fontWeight: '800', lineHeight: 32 },
-  greetingNameCompact: { fontSize: 24, lineHeight: 29 },
-  progressCard: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 22,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.md,
-    padding: spacing.lg,
-  },
-  progressValue: {
-    color: colors.text,
-    fontSize: 18,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '800',
-  },
-  progressCopy: { flex: 1, gap: spacing.xs },
-  progressTitle: { color: colors.text, fontSize: 19, fontWeight: '800' },
-  progressDetail: { color: colors.mutedText, fontSize: 15, lineHeight: 21 },
-  inviteCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 18,
-    borderWidth: 1,
-    gap: spacing.md,
-    padding: spacing.md,
-  },
-  inviteCopy: {
-    gap: spacing.xs,
-  },
-  inviteTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  inviteHelp: {
-    color: colors.mutedText,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  inviteMessage: {
-    color: colors.danger,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  inviteSuccess: {
-    color: '#16794b',
-    fontWeight: '700',
-  },
-  section: { gap: spacing.md },
-  sectionHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: spacing.sm,
+    minHeight: 48,
+    paddingVertical: 8,
   },
-  sectionTitle: {
-    color: colors.mutedText,
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
-  },
-  viewAllButton: {
+  brandRow: {
     alignItems: 'center',
-    minHeight: 36,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.sm,
-  },
-  viewAllLabel: { color: colors.accent, fontSize: 13, fontWeight: '800' },
-  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  actionCard: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: spacing.xs,
-    justifyContent: 'center',
-    overflow: 'hidden',
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xs,
-  },
-  actionCardEnabled: { borderColor: colors.accent },
-  actionCardRequired: { backgroundColor: colors.surface, borderColor: colors.accent },
-  actionCardDisabled: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    opacity: 0.48,
-  },
-  avatarDisabled: { backgroundColor: colors.border, opacity: 0.55 },
-  actionCardPressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
-  actionIconContainer: {
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    justifyContent: 'center',
-  },
-  actionIcon: { lineHeight: 22 },
-  actionLabel: {
-    alignSelf: 'stretch',
-    color: colors.text,
-    fontWeight: '700',
-    lineHeight: 15,
-    textAlign: 'center',
-  },
-  actionStatus: {
-    alignSelf: 'stretch',
-    color: colors.mutedText,
-    fontWeight: '800',
-    lineHeight: 12,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-  },
-  actionStatusRequired: { color: '#b42318' },
-  actionStatusCompleted: { color: '#16794b' },
-  actionStatusOffline: { color: colors.mutedText },
-  actionStatusDraft: { color: '#a15c00' },
-  entryList: { gap: spacing.sm },
-  entryCard: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 14,
-    borderWidth: 1,
     flexDirection: 'row',
-    gap: spacing.sm,
-    minHeight: 68,
-    padding: spacing.sm,
+    gap: 12,
+    flexShrink: 1,
   },
-  entryIconContainer: {
+  avatarButton: {
     alignItems: 'center',
-    backgroundColor: colors.background,
+    borderRadius: 20,
+    borderWidth: 2,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  avatarText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  brandTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  iconButton: {
+    alignItems: 'center',
     borderRadius: 20,
     height: 40,
     justifyContent: 'center',
     width: 40,
   },
-  entryIcon: { fontSize: 21 },
-  entryCopy: { flex: 1, gap: 2 },
-  entryTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
-  entryTime: { color: colors.mutedText, fontSize: 13, fontWeight: '600' },
-  entryTrailing: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
-  entryStatus: { color: '#16794b', fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
-  entryStatusDraft: { color: '#a15c00' },
-  entryStatusPending: { color: '#a15c00' },
-  entryStatusOffline: { color: colors.mutedText },
-  entryCardDisabled: { opacity: 0.52 },
-  emptyEntries: { color: colors.mutedText, fontSize: 14, lineHeight: 20 },
-  submitBlock: { gap: spacing.sm, marginTop: 'auto' },
-  submitHelp: {
-    color: colors.mutedText,
+  topIcon: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  greetingBlock: { gap: 4 },
+  date: {
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+    textTransform: 'capitalize',
+  },
+  greeting: {
+    fontSize: 28,
+    fontWeight: '700',
+    lineHeight: 36,
+    letterSpacing: -0.2,
+  },
+  offlineNotice: {
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 52,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  offlineIcon: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  offlineText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  errorText: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  progressCard: {
+    alignItems: 'center',
+    borderRadius: 32,
+    elevation: 4,
+    flexDirection: 'row',
+    gap: 24,
+    minHeight: 120,
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 30,
+  },
+  progressValue: {
+    fontSize: 22,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '700',
+  },
+  progressCopy: { flex: 1, gap: 4 },
+  progressTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    lineHeight: 24,
+  },
+  progressDetail: {
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  section: { gap: 16 },
+  sectionHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    lineHeight: 16,
+    textTransform: 'uppercase',
+  },
+  viewAllButton: {
+    justifyContent: 'center',
+    minHeight: 28,
+    paddingHorizontal: 4,
+  },
+  viewAllLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  actionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  actionCard: {
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 2,
+    elevation: 2,
+    gap: 4,
+    justifyContent: 'center',
+    minHeight: 96,
+    paddingHorizontal: 4,
+    paddingVertical: 12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+  },
+  actionCardPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
+  },
+  actionIconContainer: {
+    alignItems: 'center',
+    borderRadius: 999,
+    height: 40,
+    justifyContent: 'center',
+    marginBottom: 4,
+    width: 40,
+  },
+  actionIcon: {
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  actionLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    lineHeight: 13,
+    minHeight: 26,
+    textAlign: 'center',
+  },
+  actionStatus: {
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    lineHeight: 10,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  entryList: { gap: 12 },
+  entryCard: {
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    elevation: 2,
+    flexDirection: 'row',
+    gap: 16,
+    minHeight: 72,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 14,
+  },
+  entryIconContainer: {
+    alignItems: 'center',
+    borderRadius: 12,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  entryIcon: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  entryCopy: { flex: 1, gap: 2, minWidth: 0 },
+  entryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  entryTime: {
+    fontSize: 12,
+    fontWeight: '400',
+  },
+  entryStatusPill: {
+    borderRadius: 999,
+    maxWidth: 96,
+    overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  entryStatusText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  emptyEntries: {
     fontSize: 14,
     lineHeight: 20,
+  },
+  submitBlock: {
+    gap: 16,
+    marginTop: 8,
+  },
+  submitButton: {
+    alignItems: 'center',
+    borderRadius: 999,
+    elevation: 6,
+    height: 60,
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+  },
+  submitPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.97 }],
+  },
+  submitLabel: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  submitHelp: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    lineHeight: 16,
+    paddingHorizontal: 24,
     textAlign: 'center',
   },
   submitHelpList: {
     alignSelf: 'stretch',
     textAlign: 'left',
   },
-  submitHelpCompleted: { color: '#16794b', fontWeight: '700' },
-}));
+  inviteCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    elevation: 2,
+    gap: 12,
+    padding: 16,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 14,
+  },
+  inviteCopy: { gap: 4 },
+  inviteTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  inviteHelp: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  inviteMessage: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  signOutLink: {
+    alignItems: 'center',
+    minHeight: 40,
+    justifyContent: 'center',
+  },
+  signOutText: {
+    fontSize: 13,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  bottomNav: {
+    alignItems: 'center',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    bottom: 0,
+    elevation: 12,
+    flexDirection: 'row',
+    gap: 4,
+    justifyContent: 'space-around',
+    left: 0,
+    paddingBottom: Platform.OS === 'android' ? 14 : 20,
+    paddingHorizontal: 12,
+    paddingTop: 14,
+    position: 'absolute',
+    right: 0,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+  },
+  navItem: {
+    alignItems: 'center',
+    borderRadius: 999,
+    flex: 1,
+    gap: 2,
+    justifyContent: 'center',
+    minHeight: 52,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  navItemActive: {
+    flex: 1.15,
+    paddingHorizontal: 14,
+  },
+  navIcon: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  navLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  navLabelActive: {
+    fontWeight: '800',
+  },
+});

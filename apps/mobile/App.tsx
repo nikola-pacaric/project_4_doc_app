@@ -154,7 +154,13 @@ function MainApp() {
       </SafeAreaView>
     );
   } else if (!session) {
-    content = <AuthScreen client={supabase} />;
+    content = (
+      <AuthScreen
+        client={supabase}
+        locale={locale}
+        onChangeLocale={(nextLocale) => updatePreferences({ locale: nextLocale })}
+      />
+    );
   } else if (profileError || !profile) {
     content = (
       <SafeAreaView style={sharedStyles.screen}>
@@ -172,8 +178,10 @@ function MainApp() {
   } else if (settingsOpen) {
     content = (
       <SettingsScreen
+        displayName={profile.displayName ?? undefined}
         onBack={() => setSettingsOpen(false)}
         onChange={updatePreferences}
+        onSignOut={signOut}
         preferences={preferences}
       />
     );

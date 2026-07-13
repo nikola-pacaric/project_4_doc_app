@@ -1,12 +1,19 @@
 import { spacing, typography } from '@project4/ui-tokens';
-import { ActivityIndicator, Keyboard, Pressable, StyleSheet, Text, type PressableProps } from 'react-native';
+import {
+  ActivityIndicator,
+  Keyboard,
+  Pressable,
+  StyleSheet,
+  Text,
+  type PressableProps,
+} from 'react-native';
 
 import { colors, createThemedStyles } from '../theme';
 
 interface PrimaryButtonProps extends Omit<PressableProps, 'children'> {
   label: string;
   busy?: boolean;
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'auth';
 }
 
 export function PrimaryButton({
@@ -32,13 +39,14 @@ export function PrimaryButton({
         variant === 'primary' && styles.primary,
         variant === 'secondary' && styles.secondary,
         variant === 'danger' && styles.danger,
+        variant === 'auth' && styles.auth,
         pressed && styles.pressed,
         isDisabled && styles.disabled,
       ]}
       {...props}
     >
       {busy ? (
-        <ActivityIndicator color={variant === 'secondary' ? colors.accent : '#ffffff'} />
+        <ActivityIndicator color={variant === 'secondary' ? colors.accent : colors.onAccent} />
       ) : (
         <Text
           style={[
@@ -75,6 +83,12 @@ const styles = createThemedStyles(() => StyleSheet.create({
     backgroundColor: colors.danger,
     borderColor: colors.danger,
   },
+  auth: {
+    minHeight: 52,
+    borderRadius: 999,
+    backgroundColor: colors.accentStrong,
+    borderColor: colors.accentStrong,
+  },
   pressed: {
     opacity: 0.78,
   },
@@ -87,7 +101,7 @@ const styles = createThemedStyles(() => StyleSheet.create({
     textAlign: 'center',
   },
   primaryLabel: {
-    color: '#ffffff',
+    color: colors.onAccent,
   },
   secondaryLabel: {
     color: colors.accent,

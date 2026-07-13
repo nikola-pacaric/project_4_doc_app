@@ -1,22 +1,36 @@
 import { getActiveLocale, getActiveVoiceLanguage, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
-import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type StyleProp,
+  type TextInputProps,
+  type TextStyle,
+} from 'react-native';
 
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { useKeyboardAwareInput } from './KeyboardAwareScrollView';
-import {
-  appendVoiceTranscript,
-  isVoiceInputSupported,
-  startVoiceInput,
-} from '../lib/voiceInput';
+import { appendVoiceTranscript, isVoiceInputSupported, startVoiceInput } from '../lib/voiceInput';
 
 interface FormFieldProps extends TextInputProps {
   enableVoice?: boolean;
   label: string;
+  labelStyle?: StyleProp<TextStyle>;
+  leadingIcon?: ReactNode;
 }
 
-export function FormField({ enableVoice = false, label, ...props }: FormFieldProps) {
+export function FormField({
+  enableVoice = false,
+  label,
+  labelStyle,
+  leadingIcon,
+  style,
+  ...props
+}: FormFieldProps) {
   const locale = getActiveLocale();
   const keyboardAwareInput = useKeyboardAwareInput();
   const inputRef = useRef<TextInput>(null);
@@ -75,7 +89,7 @@ export function FormField({ enableVoice = false, label, ...props }: FormFieldPro
 
   return (
     <View style={styles.field}>
-      <Text style={sharedStyles.fieldLabel}>{label}</Text>
+      <Text style={[sharedStyles.fieldLabel, labelStyle]}>{label}</Text>
       <View style={styles.inputWrap}>
         <TextInput
           accessibilityLabel={label}
@@ -92,15 +106,21 @@ export function FormField({ enableVoice = false, label, ...props }: FormFieldPro
           spellCheck={false}
           style={[
             sharedStyles.input,
+            leadingIcon ? styles.leadingInput : undefined,
             props.multiline && styles.multiline,
             canUseVoice && styles.voiceInput,
             canUseVoice && props.multiline && styles.voiceMultilineInput,
             props.editable === false && styles.readOnly,
-            props.style,
+            style,
           ]}
           {...props}
           ref={inputRef}
         />
+        {leadingIcon ? (
+          <View pointerEvents="none" style={styles.leadingIcon}>
+            {leadingIcon}
+          </View>
+        ) : null}
         {showVoiceButton ? (
           <Pressable
             accessibilityLabel={t(locale, 'voice.start')}
@@ -143,6 +163,19 @@ const styles = createThemedStyles(() => StyleSheet.create({
   },
   inputWrap: {
     position: 'relative',
+  },
+  leadingInput: {
+    paddingLeft: 52,
+  },
+  leadingIcon: {
+    alignItems: 'center',
+    bottom: 0,
+    justifyContent: 'center',
+    left: 4,
+    opacity: 0.72,
+    position: 'absolute',
+    top: 0,
+    width: 44,
   },
   multiline: {
     minHeight: 112,

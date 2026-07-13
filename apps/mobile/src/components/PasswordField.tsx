@@ -1,12 +1,24 @@
 import { spacing } from '@project4/ui-tokens';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import type { ReactNode } from 'react';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type StyleProp,
+  type TextStyle,
+} from 'react-native';
 
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { useKeyboardAwareInput } from './KeyboardAwareScrollView';
 
 interface PasswordFieldProps {
   hidden: boolean;
+  inputStyle?: StyleProp<TextStyle>;
   label: string;
+  labelStyle?: StyleProp<TextStyle>;
+  leadingIcon?: ReactNode;
   onChangeText: (value: string) => void;
   onToggleVisibility: () => void;
   textContentType: 'newPassword' | 'password';
@@ -16,7 +28,10 @@ interface PasswordFieldProps {
 
 export function PasswordField({
   hidden,
+  inputStyle,
   label,
+  labelStyle,
+  leadingIcon,
   onChangeText,
   onToggleVisibility,
   textContentType,
@@ -27,7 +42,7 @@ export function PasswordField({
 
   return (
     <View style={styles.field}>
-      <Text style={sharedStyles.fieldLabel}>{label}</Text>
+      <Text style={[sharedStyles.fieldLabel, labelStyle]}>{label}</Text>
       <View style={styles.inputWrap}>
         <TextInput
           accessibilityLabel={label}
@@ -41,10 +56,20 @@ export function PasswordField({
           placeholderTextColor={colors.mutedText}
           secureTextEntry={hidden}
           spellCheck={false}
-          style={[sharedStyles.input, styles.input]}
+          style={[
+            sharedStyles.input,
+            styles.input,
+            leadingIcon ? styles.leadingInput : undefined,
+            inputStyle,
+          ]}
           textContentType={textContentType}
           value={value}
         />
+        {leadingIcon ? (
+          <View pointerEvents="none" style={styles.leadingIcon}>
+            {leadingIcon}
+          </View>
+        ) : null}
         <Pressable
           accessibilityLabel={toggleLabel}
           accessibilityRole="button"
@@ -73,12 +98,25 @@ const styles = createThemedStyles(() => StyleSheet.create({
   input: {
     paddingRight: 56,
   },
+  leadingInput: {
+    paddingLeft: 52,
+  },
+  leadingIcon: {
+    alignItems: 'center',
+    bottom: 0,
+    justifyContent: 'center',
+    left: 4,
+    opacity: 0.72,
+    position: 'absolute',
+    top: 0,
+    width: 44,
+  },
   toggle: {
     position: 'absolute',
-    top: 2,
+    bottom: 0,
     right: 2,
+    top: 0,
     width: 44,
-    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     opacity: 0.5,
