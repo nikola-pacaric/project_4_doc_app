@@ -25,3 +25,6 @@ service-account*.json
 *.log
 .DS_Store
 Thumbs.db
+
+# Local Stitch design dumps (not app source)
+.tmp_stitch/
