@@ -1,16 +1,18 @@
 import { exerciseIntensities } from '@project4/contracts';
 import { exerciseDraftDefaults, validateExercise, type ExerciseDraft } from '@project4/forms';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
-import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
-import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { FormField } from '../components/FormField';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { TactileChoiceRow } from '../components/TactileChoiceRow';
+import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
+import { TactileSectionCard } from '../components/TactileSectionCard';
 import { TimePickerField } from '../components/TimePickerField';
-import { colors, sharedStyles, createThemedStyles } from '../theme';
+import {
+  tactileFieldLabelStyle,
+  tactileMultilineInputStyle,
+  tactilePillInputStyle,
+} from '../theme/tactileForm';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
 interface ExerciseFormScreenProps {
@@ -18,6 +20,8 @@ interface ExerciseFormScreenProps {
   error?: string | null;
   initialDraft?: ExerciseDraft;
   onBack: () => void;
+  onCancelProfile?: () => void;
+  onCancelTimeline?: () => void;
   onSave: (draft: ExerciseDraft) => void | Promise<void>;
 }
 
@@ -34,11 +38,17 @@ export function ExerciseFormScreen({
   error,
   initialDraft,
   onBack,
+  onCancelProfile,
+  onCancelTimeline,
   onSave,
 }: ExerciseFormScreenProps) {
   const locale = getActiveLocale();
+  const palette = useTactileFormPalette();
   const [draft, setDraft] = useState<ExerciseDraft>(() => initialDraft ?? createInitialDraft());
   const [showErrors, setShowErrors] = useState(false);
+  const pill = tactilePillInputStyle(palette);
+  const multi = tactileMultilineInputStyle(palette);
+  const label = tactileFieldLabelStyle(palette);
 
   function update<K extends keyof ExerciseDraft>(field: K, value: ExerciseDraft[K]) {
     setShowErrors(false);
@@ -54,7 +64,6 @@ export function ExerciseFormScreen({
       setShowErrors(true);
       return;
     }
-
     void onSave(draft);
   }
 
@@ -62,130 +71,78 @@ export function ExerciseFormScreen({
   const time = draft.occurredAt?.slice(11, 16) ?? '';
 
   return (
-    <SafeAreaView style={sharedStyles.formScreen}>
-      <KeyboardAwareScrollView
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={sharedStyles.formScrollContent}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-      >
-        <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'exercise.title')} />
-        <Text style={sharedStyles.body}>{t(locale, 'exercise.subtitle')}</Text>
-
+    <TactileFormShell
+      error={showErrors ? t(locale, 'exercise.requiredError') : error}
+      onCancelProfile={onCancelProfile}
+      onCancelTimeline={onCancelTimeline}
+      onCancelToday={onBack}
+      onSave={save}
+      saveBusy={busy}
+      subtitle={t(locale, 'exercise.subtitle')}
+      title={t(locale, 'exercise.title')}
+    >
+      <TactileSectionCard icon="🏃" palette={palette} title={t(locale, 'exercise.title')}>
         <FormField
           autoCapitalize="sentences"
           enableVoice
           label={t(locale, 'exercise.activity')}
+          labelStyle={label}
           onChangeText={(value) => update('activity', value)}
           placeholder={t(locale, 'exercise.activityPlaceholder')}
+          style={pill}
           value={draft.activity ?? ''}
         />
         <FormField
           keyboardType="number-pad"
           label={t(locale, 'exercise.duration')}
+          labelStyle={label}
           onChangeText={(value) => {
             const parsed = Number(value);
             update('durationMinutes', value.trim() && Number.isFinite(parsed) ? parsed : undefined);
           }}
           placeholder={t(locale, 'exercise.durationPlaceholder')}
+          style={pill}
           value={draft.durationMinutes === undefined ? '' : String(draft.durationMinutes)}
         />
-
-        <View style={styles.section}>
-          <Text style={sharedStyles.fieldLabel}>{t(locale, 'exercise.intensity')}</Text>
-          <View accessibilityRole="radiogroup" style={styles.segmentedRow}>
-            {exerciseIntensities.map((intensity) => {
-              const selected = draft.intensity === intensity;
-              return (
-                <Pressable
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: selected }}
-                  key={intensity}
-                  onPress={() => update('intensity', intensity)}
-                  style={[styles.segment, selected && styles.selectedOption]}
-                >
-                  <Text style={[styles.segmentText, selected && styles.selectedText]}>
-                    {t(locale, `exercise.intensity.${intensity}` as TranslationKey)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
+        <TactileChoiceRow
+          label={t(locale, 'exercise.intensity')}
+          mode="segmented"
+          onChange={(value) => update('intensity', value as ExerciseDraft['intensity'])}
+          options={exerciseIntensities.map((intensity) => ({
+            value: intensity,
+            label: t(locale, `exercise.intensity.${intensity}` as TranslationKey),
+          }))}
+          palette={palette}
+          value={draft.intensity}
+        />
         <FormField
           autoCapitalize="none"
           editable={false}
           label={t(locale, 'exercise.date')}
+          labelStyle={label}
+          style={pill}
           value={date}
         />
         <TimePickerField
           label={t(locale, 'exercise.time')}
+          labelStyle={label}
           onChange={(value) => updateDateTime(date, value)}
           placeholder={t(locale, 'exercise.timePlaceholder')}
+          style={pill}
           value={time}
+          valueStyle={{ color: palette.onSurface }}
         />
         <FormField
           enableVoice
           label={t(locale, 'exercise.notes')}
+          labelStyle={label}
           multiline
           onChangeText={(value) => update('notes', value)}
           placeholder={t(locale, 'exercise.notesPlaceholder')}
+          style={multi}
           value={draft.notes ?? ''}
         />
-
-        {showErrors ? (
-          <Text selectable style={sharedStyles.error}>
-            {t(locale, 'exercise.requiredError')}
-          </Text>
-        ) : null}
-        {error ? (
-          <Text selectable style={sharedStyles.error}>
-            {error}
-          </Text>
-        ) : null}
-
-        <View style={styles.actions}>
-          <View style={styles.action}>
-            <PrimaryButton
-              label={t(locale, 'common.cancel')}
-              onPress={onBack}
-              variant="secondary"
-            />
-          </View>
-          <View style={styles.action}>
-            <PrimaryButton busy={busy} label={t(locale, 'common.save')} onPress={save} />
-          </View>
-        </View>
-      </KeyboardAwareScrollView>
-    </SafeAreaView>
+      </TactileSectionCard>
+    </TactileFormShell>
   );
 }
-
-const styles = createThemedStyles(() => StyleSheet.create({
-  section: { gap: spacing.sm },
-  segmentedRow: { flexDirection: 'row', gap: spacing.sm },
-  segment: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flex: 1,
-    justifyContent: 'center',
-    minHeight: 48,
-    paddingHorizontal: spacing.xs,
-  },
-  segmentText: { color: colors.text, fontSize: 13, fontWeight: '700', textAlign: 'center' },
-  selectedOption: { backgroundColor: colors.accent, borderColor: colors.accent },
-  selectedText: { color: '#ffffff' },
-  actions: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: 'auto',
-    paddingTop: spacing.md,
-  },
-  action: { flex: 1 },
-}));

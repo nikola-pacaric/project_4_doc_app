@@ -26,6 +26,32 @@ export function toPatientEntry(row: PatientEntryRow): PatientEntry {
 
 const entryColumns = 'id, patient_id, kind, occurred_at, text, created_at, updated_at';
 
+/**
+ * Load patient timeline entries in an half-open ISO range [rangeStart, rangeEnd).
+ * Use with local day bounds (e.g. localDayRange) for a single calendar day.
+ */
+export async function listPatientEntriesInRange(
+  client: AppSupabaseClient,
+  patientId: string,
+  rangeStart: string,
+  rangeEnd: string,
+): Promise<PatientEntry[]> {
+  const { data, error } = await client
+    .from('patient_entries')
+    .select(entryColumns)
+    .eq('patient_id', patientId)
+    .gte('occurred_at', rangeStart)
+    .lt('occurred_at', rangeEnd)
+    .order('occurred_at', { ascending: false })
+    .returns<PatientEntryRow[]>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data.map(toPatientEntry);
+}
+
 export async function listRecentPatientEntries(
   client: AppSupabaseClient,
   patientId: string,

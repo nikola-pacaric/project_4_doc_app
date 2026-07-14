@@ -1,15 +1,29 @@
-import type { TextInputProps } from 'react-native';
+import type { StyleProp, TextInputProps, TextStyle } from 'react-native';
 
 import { FormField } from './FormField';
 
 interface VoiceTextFieldProps extends Omit<TextInputProps, 'onChangeText' | 'value'> {
   label: string;
+  labelStyle?: StyleProp<TextStyle>;
   onChangeText: (text: string) => void;
   value: string;
 }
 
-export function VoiceTextField({ label, onChangeText, value, ...props }: VoiceTextFieldProps) {
+export function VoiceTextField({
+  label,
+  labelStyle,
+  onChangeText,
+  value,
+  ...props
+}: VoiceTextFieldProps) {
   return (
-    <FormField enableVoice label={label} onChangeText={onChangeText} value={value} {...props} />
+    <FormField
+      enableVoice
+      label={label}
+      labelStyle={labelStyle}
+      onChangeText={onChangeText}
+      value={value}
+      {...props}
+    />
   );
 }

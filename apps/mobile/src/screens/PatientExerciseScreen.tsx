@@ -19,6 +19,8 @@ interface PatientExerciseScreenProps {
   client: AppSupabaseClient;
   entryToEdit?: { id: string; occurredAt: string } | null;
   onBack: () => void;
+  onCancelProfile?: () => void;
+  onCancelTimeline?: () => void;
   onSaved: () => void;
   profile: UserProfile;
 }
@@ -47,6 +49,8 @@ export function PatientExerciseScreen({
   client,
   entryToEdit,
   onBack,
+  onCancelProfile,
+  onCancelTimeline,
   onSaved,
   profile,
 }: PatientExerciseScreenProps) {
@@ -155,6 +159,8 @@ export function PatientExerciseScreen({
       initialDraft={initialDraft ?? undefined}
       key={formVersion}
       onBack={onBack}
+      onCancelProfile={onCancelProfile}
+      onCancelTimeline={onCancelTimeline}
       onSave={save}
     />
   );

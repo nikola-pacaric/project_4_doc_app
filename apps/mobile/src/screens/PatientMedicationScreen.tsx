@@ -21,6 +21,8 @@ interface PatientMedicationScreenProps {
   client: AppSupabaseClient;
   entryToEdit?: { id: string; occurredAt: string } | null;
   onBack: () => void;
+  onCancelProfile?: () => void;
+  onCancelTimeline?: () => void;
   onSaved: () => void;
   profile: UserProfile;
 }
@@ -45,6 +47,8 @@ export function PatientMedicationScreen({
   client,
   entryToEdit,
   onBack,
+  onCancelProfile,
+  onCancelTimeline,
   onSaved,
   profile,
 }: PatientMedicationScreenProps) {
@@ -173,6 +177,8 @@ export function PatientMedicationScreen({
       initialDraft={initialDraft ?? undefined}
       onAddPhoto={handleAddPhoto}
       onBack={onBack}
+      onCancelProfile={onCancelProfile}
+      onCancelTimeline={onCancelTimeline}
       onSave={save}
     />
   );

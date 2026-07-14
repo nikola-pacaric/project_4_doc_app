@@ -1,21 +1,71 @@
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import {
+  DateTimePickerAndroid,
+  type DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import { isNoStoolTodayEntry, type PatientEntry } from '@project4/contracts';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
-import { spacing } from '@project4/ui-tokens';
+import { darkTheme } from '@project4/ui-tokens';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { colors, sharedStyles, createThemedStyles } from '../theme';
-import { formatEntryDate, formatEntryTime } from '../utils/dateTime';
+import { PatientBottomNav } from '../components/PatientBottomNav';
+import { WeekDayStrip } from '../components/WeekDayStrip';
+import { colors } from '../theme';
+import {
+  addLocalDays,
+  formatEntryTime,
+  parseLocalDateInput,
+  toLocalDateInput,
+} from '../utils/dateTime';
+
+/**
+ * Stitch "Timeline - Patient History" / Tactile Bloom tokens.
+ * Mobile-only surface — web timeline is intentionally unchanged.
+ */
+const stitch = {
+  background: '#fdf8fd',
+  surface: '#ffffff',
+  surfaceContainer: '#f1ecf2',
+  surfaceContainerLow: '#f7f2f8',
+  surfaceContainerHigh: '#ebe7ec',
+  secondaryContainer: '#fcdae1',
+  primary: '#a63553',
+  primaryContainer: '#f4718f',
+  onPrimary: '#ffffff',
+  onPrimaryContainer: '#6b022a',
+  onSurface: '#1c1b1f',
+  onSurfaceVariant: '#564145',
+  outline: '#897174',
+  outlineVariant: '#dcbfc3',
+  error: '#ba1a1a',
+  errorContainer: '#ffdad6',
+  onErrorContainer: '#93000a',
+  tertiary: '#7d5260',
+  tertiarySoft: 'rgba(192, 142, 157, 0.28)',
+  shadow: 'rgba(166, 53, 83, 0.08)',
+} as const;
 
 interface PatientTimelineScreenProps {
+  displayName?: string | null;
   entries: PatientEntry[];
   error: string | null;
   loading: boolean;
   onBack: () => void;
+  onOpenBaseline?: () => void;
+  onOpenSettings?: () => void;
   onRefresh: () => void | Promise<void>;
+  onSelectedDayChange: (day: string) => void;
   pendingEntryIds?: string[];
+  selectedDay: string;
 }
 
 const entryIcons: Record<PatientEntry['kind'], string> = {
@@ -32,48 +82,193 @@ const entryIcons: Record<PatientEntry['kind'], string> = {
   custom: '📋',
 };
 
+function isDarkThemeActive(): boolean {
+  return colors.background === darkTheme.colors.background;
+}
+
+function initialsFromName(name: string | null | undefined): string {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'P';
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
+function localeTag(locale: 'en' | 'sr'): string {
+  return locale === 'sr' ? 'sr-Latn' : 'en';
+}
+
+function daySectionLabel(day: string, locale: 'en' | 'sr'): string {
+  const today = toLocalDateInput(new Date());
+  const yesterday = toLocalDateInput(addLocalDays(new Date(), -1));
+  if (day === today) return t(locale, 'timeline.todayLabel');
+  if (day === yesterday) return t(locale, 'timeline.yesterdayLabel');
+  return new Intl.DateTimeFormat(localeTag(locale), {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  }).format(parseLocalDateInput(day));
+}
+
 export function PatientTimelineScreen({
+  displayName,
   entries,
   error,
   loading,
   onBack,
+  onOpenBaseline,
+  onOpenSettings,
   onRefresh,
+  onSelectedDayChange,
   pendingEntryIds = [],
+  selectedDay,
 }: PatientTimelineScreenProps) {
   const locale = getActiveLocale();
+  const dark = isDarkThemeActive();
+  const palette = dark
+    ? {
+        background: colors.background,
+        surface: colors.surface,
+        surfaceContainer: colors.surfaceAlt,
+        surfaceContainerLow: colors.surfaceAlt,
+        surfaceContainerHigh: colors.surfaceAlt,
+        secondaryContainer: colors.surfaceAlt,
+        primary: colors.accentStrong,
+        primaryContainer: colors.accent,
+        onPrimary: colors.onAccent,
+        onPrimaryContainer: colors.onAccent,
+        onSurface: colors.text,
+        onSurfaceVariant: colors.mutedText,
+        outline: colors.mutedText,
+        outlineVariant: colors.border,
+        error: colors.danger,
+        errorContainer: colors.surfaceAlt,
+        onErrorContainer: colors.danger,
+        tertiary: colors.accentStrong,
+        tertiarySoft: colors.surfaceAlt,
+        shadow: '#000000',
+      }
+    : stitch;
+
   const pendingIds = new Set(pendingEntryIds);
+  const today = toLocalDateInput(new Date());
+  const initials = initialsFromName(displayName);
+  const sectionLabel = daySectionLabel(selectedDay, locale);
+
+  function openCalendar() {
+    DateTimePickerAndroid.open({
+      display: 'calendar',
+      maximumDate: new Date(),
+      mode: 'date',
+      onChange: (event: DateTimePickerEvent, date?: Date) => {
+        if (event.type === 'set' && date) {
+          onSelectedDayChange(toLocalDateInput(date));
+        }
+      },
+      value: parseLocalDateInput(selectedDay),
+    });
+  }
 
   return (
-    <SafeAreaView style={sharedStyles.formScreen}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]}>
       <KeyboardAwareScrollView
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={sharedStyles.formScrollContent}
-        contentInsetAdjustmentBehavior="automatic"
+        showsVerticalScrollIndicator={false}
+        style={{ backgroundColor: palette.background }}
       >
-        <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'timeline.title')} />
-
-        <View style={styles.actions}>
-          <View style={styles.action}>
-            <PrimaryButton
-              label={t(locale, 'common.back')}
-              onPress={onBack}
-              variant="secondary"
-            />
+        {/* Top app bar */}
+        <View style={styles.topBar}>
+          <View style={styles.brandRow}>
+            <View
+              style={[
+                styles.avatar,
+                {
+                  backgroundColor: palette.secondaryContainer,
+                  borderColor: dark ? palette.outlineVariant : 'rgba(166, 53, 83, 0.25)',
+                },
+              ]}
+            >
+              <Text style={[styles.avatarText, { color: palette.primary }]}>{initials}</Text>
+            </View>
+            <Text style={[styles.brandTitle, { color: palette.primary }]}>
+              {t(locale, 'app.brand')}
+            </Text>
           </View>
-          <View style={styles.action}>
-            <PrimaryButton
-              label={t(locale, 'timeline.refresh')}
+          <Pressable
+            accessibilityLabel={t(locale, onOpenSettings ? 'settings.title' : 'common.back')}
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={onOpenSettings ?? onBack}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+          >
+            <Text style={[styles.topIcon, { color: palette.primary }]}>⚙</Text>
+          </Pressable>
+        </View>
+
+        {/* Title + calendar */}
+        <View style={styles.titleRow}>
+          <Text style={[styles.pageTitle, { color: palette.onSurface }]}>
+            {t(locale, 'timeline.title')}
+          </Text>
+          <View style={styles.titleActions}>
+            <Pressable
+              accessibilityLabel={t(locale, 'timeline.refresh')}
+              accessibilityRole="button"
+              hitSlop={8}
               onPress={() => void onRefresh()}
-              variant="secondary"
-            />
+              style={({ pressed }) => [
+                styles.roundButton,
+                { backgroundColor: palette.surfaceContainer },
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={[styles.roundButtonIcon, { color: palette.onSurfaceVariant }]}>↻</Text>
+            </Pressable>
+            <Pressable
+              accessibilityLabel={t(locale, 'timeline.openCalendar')}
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={openCalendar}
+              style={({ pressed }) => [
+                styles.roundButton,
+                { backgroundColor: palette.surfaceContainer },
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={[styles.roundButtonIcon, { color: palette.onSurfaceVariant }]}>📅</Text>
+            </Pressable>
           </View>
         </View>
 
-        {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
-        {loading ? <ActivityIndicator color={colors.accent} size="large" /> : null}
+        <WeekDayStrip
+          locale={locale}
+          maximumDay={today}
+          onSelectedDayChange={onSelectedDayChange}
+          palette={palette}
+          selectedDay={selectedDay}
+        />
+
+        {/* Day section label */}
+        <View style={styles.sectionDivider}>
+          <View style={[styles.sectionLine, { backgroundColor: palette.outlineVariant }]} />
+          <Text style={[styles.sectionLabel, { color: palette.outline }]}>{sectionLabel}</Text>
+          <View style={[styles.sectionLine, { backgroundColor: palette.outlineVariant }]} />
+        </View>
+
+        {error ? (
+          <Text style={[styles.statusError, { color: palette.error }]}>{error}</Text>
+        ) : null}
+        {loading ? (
+          <ActivityIndicator color={palette.primary} size="large" style={styles.loader} />
+        ) : null}
         {!loading && !entries.length ? (
-          <Text style={styles.empty}>{t(locale, 'entry.empty')}</Text>
+          <Text style={[styles.empty, { color: palette.onSurfaceVariant }]}>
+            {t(locale, 'timeline.emptyDay')}
+          </Text>
         ) : null}
 
         <View style={styles.list}>
@@ -83,64 +278,286 @@ export function PatientTimelineScreen({
               ? t(locale, 'stool.noStoolToday')
               : entry.text?.trim() || kindLabel;
             const pending = pendingIds.has(entry.id);
+            const timeLabel = formatEntryTime(entry.occurredAt, locale);
 
             return (
-              <View key={entry.id} style={[styles.card, pending && styles.pendingCard]}>
-                <View style={styles.iconContainer}>
+              <View
+                key={entry.id}
+                style={[
+                  styles.card,
+                  {
+                    backgroundColor: palette.surface,
+                    shadowColor: palette.shadow,
+                  },
+                  pending && styles.pendingCard,
+                ]}
+              >
+                {pending ? (
+                  <View style={[styles.pendingStripe, { backgroundColor: palette.error }]} />
+                ) : null}
+                <View
+                  style={[
+                    styles.iconBubble,
+                    {
+                      backgroundColor: pending
+                        ? palette.errorContainer
+                        : palette.secondaryContainer,
+                    },
+                  ]}
+                >
                   <Text style={styles.icon}>{entryIcons[entry.kind]}</Text>
                 </View>
                 <View style={styles.copy}>
-                  <Text style={styles.title}>{title}</Text>
-                  <Text style={styles.meta}>
-                    {formatEntryDate(entry.occurredAt, locale)} -{' '}
-                    {formatEntryTime(entry.occurredAt, locale)}
-                  </Text>
+                  <View style={styles.cardTopRow}>
+                    <Text
+                      numberOfLines={2}
+                      style={[styles.cardTitle, { color: palette.onSurface }]}
+                    >
+                      {title}
+                    </Text>
+                    <View
+                      style={[
+                        styles.statusChip,
+                        {
+                          backgroundColor: pending
+                            ? palette.errorContainer
+                            : palette.surfaceContainerHigh,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusChipText,
+                          {
+                            color: pending
+                              ? palette.onErrorContainer
+                              : palette.onSurfaceVariant,
+                          },
+                        ]}
+                      >
+                        {t(locale, pending ? 'sync.pending' : 'timeline.synced')}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.timeRow}>
+                    <Text style={[styles.timeIcon, { color: palette.onSurfaceVariant }]}>
+                      🕐
+                    </Text>
+                    <Text style={[styles.timeText, { color: palette.onSurfaceVariant }]}>
+                      {timeLabel}
+                    </Text>
+                  </View>
                   {entry.text && !isNoStoolTodayEntry(entry) ? (
-                    <Text style={styles.kind}>{kindLabel}</Text>
+                    <Text style={[styles.kindLabel, { color: palette.primary }]}>
+                      {kindLabel}
+                    </Text>
                   ) : null}
-                  {pending ? <Text style={styles.pending}>{t(locale, 'sync.pending')}</Text> : null}
                 </View>
               </View>
             );
           })}
         </View>
       </KeyboardAwareScrollView>
+
+      <PatientBottomNav
+        active="timeline"
+        onProfile={onOpenBaseline ?? onBack}
+        onSettings={onOpenSettings ?? onBack}
+        onTimeline={() => undefined}
+        onToday={onBack}
+        palette={{
+          background: dark ? colors.surface : 'rgba(241, 236, 242, 0.92)',
+          onPrimaryContainer: dark ? palette.onPrimaryContainer : stitch.onPrimaryContainer,
+          onSurfaceVariant: palette.onSurfaceVariant,
+          primaryContainer: dark ? palette.primaryContainer : stitch.primaryContainer,
+          shadow: palette.shadow,
+        }}
+      />
     </SafeAreaView>
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
-  action: { flex: 1 },
-  empty: { color: colors.mutedText, fontSize: 15, lineHeight: 22 },
-  list: { gap: spacing.sm },
-  card: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    minHeight: 76,
-    padding: spacing.md,
+  content: {
+    flexGrow: 1,
+    gap: 24,
+    paddingBottom: 140,
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
-  iconContainer: {
+  pressed: { opacity: 0.72 },
+  loader: { marginTop: 16 },
+  topBar: {
     alignItems: 'center',
-    backgroundColor: colors.background,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 48,
+    paddingVertical: 8,
+  },
+  brandRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexShrink: 1,
+    gap: 12,
+  },
+  avatar: {
+    alignItems: 'center',
+    borderRadius: 20,
+    borderWidth: 2,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  avatarText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  brandTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  iconButton: {
+    alignItems: 'center',
     borderRadius: 20,
     height: 40,
     justifyContent: 'center',
     width: 40,
   },
-  icon: { fontSize: 21 },
-  copy: { flex: 1, gap: 3 },
-  title: { color: colors.text, fontSize: 16, fontWeight: '800', lineHeight: 22 },
-  meta: { color: colors.mutedText, fontSize: 13, fontWeight: '600' },
-  kind: { color: colors.accent, fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
-  pending: { color: '#a15c00', fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
-  pendingCard: { borderColor: colors.accent },
-}));
+  topIcon: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  titleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  pageTitle: {
+    flex: 1,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 32,
+  },
+  titleActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  roundButton: {
+    alignItems: 'center',
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  roundButtonIcon: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  sectionDivider: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  sectionLine: {
+    flex: 1,
+    height: 1,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  statusError: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  empty: {
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  list: {
+    gap: 12,
+  },
+  card: {
+    alignItems: 'center',
+    borderRadius: 16,
+    elevation: 2,
+    flexDirection: 'row',
+    gap: 14,
+    minHeight: 88,
+    overflow: 'hidden',
+    padding: 18,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+  },
+  pendingCard: {
+    paddingLeft: 18,
+  },
+  pendingStripe: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+    width: 4,
+  },
+  iconBubble: {
+    alignItems: 'center',
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  icon: {
+    fontSize: 22,
+  },
+  copy: {
+    flex: 1,
+    gap: 6,
+  },
+  cardTopRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'space-between',
+  },
+  cardTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  statusChip: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  statusChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  timeRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  timeIcon: {
+    fontSize: 13,
+  },
+  timeText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  kindLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+});

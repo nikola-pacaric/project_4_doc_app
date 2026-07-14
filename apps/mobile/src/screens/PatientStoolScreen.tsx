@@ -21,6 +21,8 @@ interface PatientStoolScreenProps {
   client: AppSupabaseClient;
   entryToEdit?: { id: string; occurredAt: string } | null;
   onBack: () => void;
+  onCancelProfile?: () => void;
+  onCancelTimeline?: () => void;
   onSaved: () => void;
   profile: UserProfile;
 }
@@ -43,6 +45,8 @@ export function PatientStoolScreen({
   client,
   entryToEdit,
   onBack,
+  onCancelProfile,
+  onCancelTimeline,
   onSaved,
   profile,
 }: PatientStoolScreenProps) {
@@ -177,6 +181,8 @@ export function PatientStoolScreen({
       initialDraft={initialDraft ?? undefined}
       key={formVersion}
       onBack={onBack}
+      onCancelProfile={onCancelProfile}
+      onCancelTimeline={onCancelTimeline}
       onSave={save}
       onSaveNoStool={saveNoStool}
     />

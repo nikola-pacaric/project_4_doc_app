@@ -1,0 +1,138 @@
+import type { ReactNode } from 'react';
+import {
+  ActivityIndicator,
+  Keyboard,
+  SafeAreaView,
+  Text,
+  View,
+} from 'react-native';
+
+import { FormBottomNav } from './FormBottomNav';
+import { KeyboardAwareScrollView } from './KeyboardAwareScrollView';
+import {
+  getTactilePalette,
+  isDarkThemeActive,
+  tactileFormLayout as layout,
+  tactileStitch,
+  type TactilePalette,
+} from '../theme/tactileForm';
+import { colors } from '../theme';
+
+interface TactileFormShellProps {
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  loading?: boolean;
+  error?: string | null;
+  message?: string | null;
+  /** Leave form without saving (Today). */
+  onCancelToday: () => void;
+  /** Leave form without saving (Timeline). Defaults to onCancelToday. */
+  onCancelTimeline?: () => void;
+  /** Leave form without saving (Profile). Defaults to onCancelToday. */
+  onCancelProfile?: () => void;
+  /** Save form (pink nav Save). */
+  onSave?: () => void;
+  saveBusy?: boolean;
+  saveDisabled?: boolean;
+  /** Extra footer content above the bottom nav. */
+  footer?: ReactNode;
+  /** Hide bottom nav (e.g. loading-only shell). */
+  hideNav?: boolean;
+}
+
+export function useTactileFormPalette(): TactilePalette {
+  return getTactilePalette();
+}
+
+/**
+ * Baseline-style form chrome with form bottom nav:
+ * Today / Timeline / Profile = cancel, pink Save = save.
+ */
+export function TactileFormShell({
+  title,
+  subtitle,
+  children,
+  loading = false,
+  error,
+  message,
+  onCancelToday,
+  onCancelTimeline,
+  onCancelProfile,
+  onSave,
+  saveBusy = false,
+  saveDisabled = false,
+  footer,
+  hideNav = false,
+}: TactileFormShellProps) {
+  const palette = getTactilePalette();
+  const dark = isDarkThemeActive();
+
+  function dismissAnd(action: () => void) {
+    Keyboard.dismiss();
+    action();
+  }
+
+  return (
+    <SafeAreaView style={[layout.safeArea, { backgroundColor: palette.background }]}>
+      <KeyboardAwareScrollView
+        contentContainerStyle={[layout.content, !hideNav && { paddingBottom: 140 }]}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        style={{ backgroundColor: palette.background }}
+      >
+        <View style={layout.headerBlock}>
+          <Text style={[layout.pageTitle, { color: palette.onSurface }]}>{title}</Text>
+          {subtitle ? (
+            <Text style={[layout.pageSubtitle, { color: palette.onSurfaceVariant }]}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+
+        {loading ? (
+          <ActivityIndicator color={palette.primary} size="large" style={{ marginTop: 24 }} />
+        ) : (
+          children
+        )}
+
+        {!loading && error ? (
+          <Text selectable style={[layout.errorText, { color: palette.error }]}>
+            {error}
+          </Text>
+        ) : null}
+        {!loading && message ? (
+          <Text selectable style={[layout.successText, { color: palette.primary }]}>
+            {message}
+          </Text>
+        ) : null}
+
+        {!loading && footer ? footer : null}
+      </KeyboardAwareScrollView>
+
+      {!hideNav && onSave ? (
+        <FormBottomNav
+          onProfile={() => dismissAnd(onCancelProfile ?? onCancelToday)}
+          onSave={() => dismissAnd(onSave)}
+          onTimeline={() => dismissAnd(onCancelTimeline ?? onCancelToday)}
+          onToday={() => dismissAnd(onCancelToday)}
+          palette={{
+            background: dark ? colors.surface : 'rgba(241, 236, 242, 0.92)',
+            onPrimaryContainer: dark
+              ? palette.onPrimaryContainer
+              : tactileStitch.onPrimaryContainer,
+            onSurfaceVariant: palette.onSurfaceVariant,
+            primaryContainer: dark
+              ? palette.primaryContainer
+              : tactileStitch.primaryContainer,
+            shadow: palette.shadow,
+          }}
+          saveBusy={saveBusy}
+          saveDisabled={saveDisabled || loading}
+        />
+      ) : null}
+    </SafeAreaView>
+  );
+}

@@ -8,6 +8,36 @@ export function toLocalDateInput(value: Date): string {
   return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
 }
 
+/** Parse YYYY-MM-DD as a local calendar date (noon-safe for formatting). */
+export function parseLocalDateInput(day: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  if (!match) return new Date();
+  const [, yearText = '', monthText = '', dateText = ''] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const date = Number(dateText);
+  const parsed = new Date(year, month - 1, date);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+export function addLocalDays(value: Date, days: number): Date {
+  const next = new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+/** Monday-start week containing the given local date. */
+export function startOfWeekMonday(value: Date): Date {
+  const day = new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  const weekday = day.getDay(); // 0 Sun … 6 Sat
+  const offset = weekday === 0 ? -6 : 1 - weekday;
+  return addLocalDays(day, offset);
+}
+
+export function weekDayKeys(weekStart: Date): string[] {
+  return Array.from({ length: 7 }, (_, index) => toLocalDateInput(addLocalDays(weekStart, index)));
+}
+
 export function toLocalMonthInput(value: Date): string {
   return `${value.getFullYear()}-${pad(value.getMonth() + 1)}`;
 }

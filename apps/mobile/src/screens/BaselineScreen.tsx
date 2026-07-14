@@ -11,27 +11,61 @@ import {
   savePatientBaseline,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
-import { spacing } from '@project4/ui-tokens';
+import { darkTheme } from '@project4/ui-tokens';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, LayoutAnimation, Platform, Pressable, SafeAreaView, StyleSheet, Text, UIManager, View } from 'react-native';
+import {
+  ActivityIndicator,
+  LayoutAnimation,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  UIManager,
+  View,
+} from 'react-native';
 
-import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { FormField } from '../components/FormField';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { colors, sharedStyles, createThemedStyles } from '../theme';
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
+import { PatientBottomNav } from '../components/PatientBottomNav';
+import { colors } from '../theme';
+
+/**
+ * Stitch "Baseline Profile - Tactile Redesign" / Tactile Bloom tokens.
+ * Mobile-only surface — web baseline is intentionally unchanged.
+ */
+const stitch = {
+  background: '#fdf8fd',
+  surface: '#ffffff',
+  surfaceContainer: '#f1ecf2',
+  surfaceContainerLow: '#f7f2f8',
+  secondaryContainer: '#fcdae1',
+  primary: '#a63553',
+  primaryContainer: '#f4718f',
+  onPrimary: '#ffffff',
+  onPrimaryContainer: '#6b022a',
+  onSurface: '#1c1b1f',
+  onSurfaceVariant: '#564145',
+  outline: '#897174',
+  outlineVariant: '#dcbfc3',
+  error: '#ba1a1a',
+  shadow: 'rgba(166, 53, 83, 0.08)',
+} as const;
 
 interface BaselineScreenProps {
   client: AppSupabaseClient;
   profile: UserProfile;
   onBack: () => void;
+  onOpenSettings?: () => void;
+  onOpenTimeline?: () => void;
 }
 
-const sexOptions: Array<{ value: PatientSex; key: TranslationKey }> = [
-  { value: 'female', key: 'baseline.sexFemale' },
-  { value: 'male', key: 'baseline.sexMale' },
-  { value: 'other', key: 'baseline.sexOther' },
-  { value: 'prefer_not_to_say', key: 'baseline.sexPreferNot' },
+const sexOptions: Array<{ value: PatientSex; key: TranslationKey; icon: string }> = [
+  { value: 'female', key: 'baseline.sexFemale', icon: '♀' },
+  { value: 'male', key: 'baseline.sexMale', icon: '♂' },
+  { value: 'other', key: 'baseline.sexOther', icon: '⚧' },
+  { value: 'prefer_not_to_say', key: 'baseline.sexPreferNot', icon: '◌' },
 ];
 
 if (Platform.OS === 'android') {
@@ -108,8 +142,118 @@ function savedYesNoFromText(
   return Boolean(value?.trim());
 }
 
-export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps) {
+function isDarkThemeActive(): boolean {
+  return colors.background === darkTheme.colors.background;
+}
+
+function initialsFromName(name: string | null | undefined): string {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'P';
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
+type Palette = {
+  background: string;
+  surface: string;
+  surfaceContainer: string;
+  surfaceContainerLow: string;
+  secondaryContainer: string;
+  primary: string;
+  primaryContainer: string;
+  onPrimary: string;
+  onPrimaryContainer: string;
+  onSurface: string;
+  onSurfaceVariant: string;
+  outline: string;
+  outlineVariant: string;
+  error: string;
+  shadow: string;
+};
+
+function YesNoToggle({
+  value,
+  onChange,
+  palette,
+  yesLabel,
+  noLabel,
+}: {
+  value: boolean | undefined;
+  onChange: (next: boolean) => void;
+  palette: Palette;
+  yesLabel: string;
+  noLabel: string;
+}) {
+  return (
+    <View
+      accessibilityRole="radiogroup"
+      style={[styles.yesNoTrack, { backgroundColor: palette.surfaceContainer }]}
+    >
+      {([true, false] as const).map((answer) => {
+        const selected = value === answer;
+        return (
+          <Pressable
+            accessibilityRole="radio"
+            accessibilityState={{ checked: selected }}
+            key={String(answer)}
+            onPress={() => onChange(answer)}
+            style={({ pressed }) => [
+              styles.yesNoItem,
+              selected && {
+                backgroundColor: palette.primaryContainer,
+              },
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text
+              style={[
+                styles.yesNoLabel,
+                {
+                  color: selected ? palette.onPrimaryContainer : palette.onSurfaceVariant,
+                  fontWeight: selected ? '700' : '600',
+                },
+              ]}
+            >
+              {answer ? yesLabel : noLabel}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+export function BaselineScreen({
+  client,
+  profile,
+  onBack,
+  onOpenSettings,
+  onOpenTimeline,
+}: BaselineScreenProps) {
   const locale = getActiveLocale();
+  const dark = isDarkThemeActive();
+  const palette: Palette = dark
+    ? {
+        background: colors.background,
+        surface: colors.surface,
+        surfaceContainer: colors.surfaceAlt,
+        surfaceContainerLow: colors.surfaceAlt,
+        secondaryContainer: colors.surfaceAlt,
+        primary: colors.accentStrong,
+        primaryContainer: colors.accent,
+        onPrimary: colors.onAccent,
+        onPrimaryContainer: colors.onAccent,
+        onSurface: colors.text,
+        onSurfaceVariant: colors.mutedText,
+        outline: colors.mutedText,
+        outlineVariant: colors.border,
+        error: colors.danger,
+        shadow: '#000000',
+      }
+    : stitch;
+
   const [current, setCurrent] = useState<PatientBaselineProfile | null>(null);
   const [draft, setDraft] = useState<BaselineProfileDraft>({ ...baselineProfileDefaults });
   const [loading, setLoading] = useState(true);
@@ -122,6 +266,29 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
   const [chronicTherapies, setChronicTherapies] = useState<ChronicTherapyInput[]>([
     { name: '', dose: '' },
   ]);
+
+  const initials = initialsFromName(profile.displayName);
+  const pillInputStyle = {
+    backgroundColor: palette.surfaceContainerLow,
+    borderColor: 'transparent',
+    borderRadius: 999,
+    borderWidth: 0,
+    color: palette.onSurface,
+  };
+  const fieldLabelStyle = {
+    color: palette.primary,
+    fontSize: 11,
+    fontWeight: '700' as const,
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    textTransform: 'uppercase' as const,
+  };
+  const softFieldLabelStyle = {
+    color: palette.onSurfaceVariant,
+    fontSize: 13,
+    fontWeight: '500' as const,
+    marginBottom: 8,
+  };
 
   function selectWeightChange(answer: 'yes' | 'no') {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -185,175 +352,205 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
   }
 
   return (
-    <SafeAreaView style={sharedStyles.formScreen}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]}>
       <KeyboardAwareScrollView
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
-        contentContainerStyle={sharedStyles.formScrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        style={{ backgroundColor: palette.background }}
       >
-        <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'baseline.title')} />
-        <Text style={sharedStyles.body}>{t(locale, 'baseline.subtitle')}</Text>
-        {loading ? <ActivityIndicator color={colors.accent} size="large" /> : null}
-        {!loading ? (
-          <View style={styles.form}>
-            <View style={styles.field}>
-              <Text style={sharedStyles.fieldLabel}>{t(locale, 'baseline.sex')}</Text>
-              <View style={styles.optionGrid}>
-                {sexOptions.map((option) => (
-                  <Pressable
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: draft.sex === option.value }}
-                    key={option.value}
-                    onPress={() => setDraft((value) => ({ ...value, sex: option.value }))}
-                    style={[styles.option, draft.sex === option.value && styles.optionSelected]}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        draft.sex === option.value && styles.optionTextSelected,
-                      ]}
-                    >
-                      {t(locale, option.key)}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+        {/* Top app bar */}
+        <View style={styles.topBar}>
+          <View style={styles.brandRow}>
+            <View
+              style={[
+                styles.avatar,
+                {
+                  backgroundColor: palette.secondaryContainer,
+                  borderColor: dark ? palette.outlineVariant : 'rgba(166, 53, 83, 0.2)',
+                },
+              ]}
+            >
+              <Text style={[styles.avatarText, { color: palette.primary }]}>{initials}</Text>
             </View>
-            <FormField
-              keyboardType="number-pad"
-              label={t(locale, 'baseline.birthYear')}
-              onChangeText={(value) =>
-                setDraft((state) => ({ ...state, birthYear: optionalNumber(value) }))
-              }
-              value={draft.birthYear?.toString() ?? ''}
-            />
-            <FormField
-              enableVoice
-              label={t(locale, 'baseline.occupation')}
-              onChangeText={(value) => setDraft((state) => ({ ...state, occupation: value }))}
-              value={draft.occupation ?? ''}
-            />
-            <FormField
-              keyboardType="decimal-pad"
-              label={t(locale, 'baseline.weightKg')}
-              onChangeText={(value) =>
-                setDraft((state) => ({ ...state, weightKg: optionalNumber(value) }))
-              }
-              value={draft.weightKg?.toString() ?? ''}
-            />
-            <FormField
-              keyboardType="decimal-pad"
-              label={t(locale, 'baseline.heightCm')}
-              onChangeText={(value) =>
-                setDraft((state) => ({ ...state, heightCm: optionalNumber(value) }))
-              }
-              value={draft.heightCm?.toString() ?? ''}
-            />
-            <View style={styles.field}>
-              <Text style={sharedStyles.fieldLabel}>
-                {t(locale, 'baseline.recentWeightChange')}
-              </Text>
-              <View accessibilityRole="radiogroup" style={styles.optionGrid}>
-                {(['yes', 'no'] as const).map((answer) => (
-                  <Pressable
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: draft.recentMajorWeightChange === answer }}
-                    key={answer}
-                    onPress={() => selectWeightChange(answer)}
-                    style={[
-                      styles.option,
-                      draft.recentMajorWeightChange === answer && styles.optionSelected,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        draft.recentMajorWeightChange === answer && styles.optionTextSelected,
-                      ]}
-                    >
-                      {t(locale, answer === 'yes' ? 'common.yes' : 'common.no')}
-                    </Text>
-                  </Pressable>
-                ))}
+            <Text style={[styles.brandTitle, { color: palette.primary }]}>
+              {t(locale, 'app.brand')}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityLabel={t(locale, onOpenSettings ? 'settings.title' : 'common.back')}
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={onOpenSettings ?? onBack}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+          >
+            <Text style={[styles.topIcon, { color: palette.primary }]}>⚙</Text>
+          </Pressable>
+        </View>
+
+        {/* Header */}
+        <View style={styles.headerBlock}>
+          <Text style={[styles.pageTitle, { color: palette.onSurface }]}>
+            {t(locale, 'baseline.title')}
+          </Text>
+          <Text style={[styles.pageSubtitle, { color: palette.onSurfaceVariant }]}>
+            {t(locale, 'baseline.subtitle')}
+          </Text>
+        </View>
+
+        {loading ? (
+          <ActivityIndicator color={palette.primary} size="large" style={styles.loader} />
+        ) : (
+          <>
+            {/* Demographics */}
+            <View
+              style={[
+                styles.card,
+                { backgroundColor: palette.surface, shadowColor: palette.shadow },
+              ]}
+            >
+              <View style={styles.cardHeader}>
+                <View
+                  style={[styles.sectionIcon, { backgroundColor: palette.secondaryContainer }]}
+                >
+                  <Text style={[styles.sectionIconGlyph, { color: palette.primary }]}>👤</Text>
+                </View>
+                <Text style={[styles.sectionTitle, { color: palette.onSurface }]}>
+                  {t(locale, 'baseline.demographics')}
+                </Text>
               </View>
+
+              <View style={styles.fieldBlock}>
+                <Text style={[styles.capsLabel, { color: palette.primary }]}>
+                  {t(locale, 'baseline.sex')}
+                </Text>
+                <View style={styles.sexGrid}>
+                  {sexOptions.map((option) => {
+                    const selected = draft.sex === option.value;
+                    return (
+                      <Pressable
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: selected }}
+                        key={option.value}
+                        onPress={() => setDraft((value) => ({ ...value, sex: option.value }))}
+                        style={({ pressed }) => [
+                          styles.sexCard,
+                          {
+                            backgroundColor: palette.surfaceContainerLow,
+                            borderColor: selected ? palette.primary : 'transparent',
+                          },
+                          selected && {
+                            backgroundColor: dark
+                              ? palette.surfaceContainer
+                              : 'rgba(166, 53, 83, 0.05)',
+                          },
+                          pressed && styles.cardPressed,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.sexIcon,
+                            { color: selected ? palette.primary : palette.outline },
+                          ]}
+                        >
+                          {option.icon}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.sexLabel,
+                            {
+                              color: selected ? palette.onSurface : palette.onSurfaceVariant,
+                              fontWeight: selected ? '600' : '500',
+                            },
+                          ]}
+                        >
+                          {t(locale, option.key)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <FormField
+                keyboardType="number-pad"
+                label={t(locale, 'baseline.birthYear')}
+                labelStyle={fieldLabelStyle}
+                onChangeText={(value) =>
+                  setDraft((state) => ({ ...state, birthYear: optionalNumber(value) }))
+                }
+                placeholder={t(locale, 'baseline.birthYearPlaceholder')}
+                style={pillInputStyle}
+                value={draft.birthYear?.toString() ?? ''}
+              />
+              <FormField
+                enableVoice
+                label={t(locale, 'baseline.occupation')}
+                labelStyle={fieldLabelStyle}
+                onChangeText={(value) => setDraft((state) => ({ ...state, occupation: value }))}
+                placeholder={t(locale, 'baseline.occupationPlaceholder')}
+                style={pillInputStyle}
+                value={draft.occupation ?? ''}
+              />
             </View>
-            {draft.recentMajorWeightChange === 'yes' ? (
-              <View style={styles.conditionalBubble}>
-                <FormField
-                  enableVoice
-                  label={t(locale, 'baseline.recentWeightChangeDescription')}
-                  multiline
-                  onChangeText={(value) =>
-                    setDraft((state) => ({
-                      ...state,
-                      recentMajorWeightChangeDescription: value,
-                    }))
-                  }
-                  value={draft.recentMajorWeightChangeDescription ?? ''}
+
+            {/* Medical Background */}
+            <View
+              style={[
+                styles.card,
+                { backgroundColor: palette.surface, shadowColor: palette.shadow },
+              ]}
+            >
+              <View style={styles.cardHeader}>
+                <View
+                  style={[styles.sectionIcon, { backgroundColor: palette.secondaryContainer }]}
+                >
+                  <Text style={[styles.sectionIconGlyph, { color: palette.primary }]}>✚</Text>
+                </View>
+                <Text style={[styles.sectionTitle, { color: palette.onSurface }]}>
+                  {t(locale, 'baseline.medicalBackground')}
+                </Text>
+              </View>
+
+              <View style={styles.toggleRow}>
+                <Text style={[styles.toggleQuestion, { color: palette.onSurface }]}>
+                  {t(locale, 'baseline.chronicDiseases')}
+                </Text>
+                <YesNoToggle
+                  noLabel={t(locale, 'common.no')}
+                  onChange={(answer) => {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setHasChronicDiseases(answer);
+                    if (!answer) {
+                      setHasChronicTherapy(false);
+                      setDraft((value) => ({
+                        ...value,
+                        chronicDiseases: '',
+                        chronicTherapy: '',
+                      }));
+                      setChronicDiseaseNames(['']);
+                      setChronicTherapies([{ name: '', dose: '' }]);
+                    }
+                  }}
+                  palette={palette}
+                  value={hasChronicDiseases}
+                  yesLabel={t(locale, 'common.yes')}
                 />
               </View>
-            ) : null}
-            <View style={styles.field}>
-              <Text style={sharedStyles.fieldLabel}>{t(locale, 'baseline.chronicDiseases')}</Text>
-              <View accessibilityRole="radiogroup" style={styles.optionGrid}>
-                {([true, false] as const).map((answer) => (
-                  <Pressable
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: hasChronicDiseases === answer }}
-                    key={String(answer)}
-                    onPress={() => {
-                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                      setHasChronicDiseases(answer);
-                      if (!answer) {
-                        setHasChronicTherapy(false);
-                        setDraft((value) => ({
-                          ...value,
-                          chronicDiseases: '',
-                          chronicTherapy: '',
-                        }));
-                        setChronicDiseaseNames(['']);
-                        setChronicTherapies([{ name: '', dose: '' }]);
-                      }
-                    }}
-                    style={[styles.option, hasChronicDiseases === answer && styles.optionSelected]}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        hasChronicDiseases === answer && styles.optionTextSelected,
-                      ]}
-                    >
-                      {t(locale, answer ? 'common.yes' : 'common.no')}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-            {hasChronicDiseases ? (
-              <View style={styles.conditionalBubble}>
-                {chronicDiseaseNames.map((name, index) => (
-                  <View key={index} style={styles.repeatableRow}>
-                    <FormField
-                      enableVoice
-                      label={t(locale, 'baseline.chronicDiseaseName')}
-                      onChangeText={(value) => {
-                        const next = chronicDiseaseNames.map((current, currentIndex) =>
-                          currentIndex === index ? value : current,
-                        );
-                        setChronicDiseaseNames(next);
-                        setDraft((state) => ({
-                          ...state,
-                          chronicDiseases: serializeDiseaseNames(next),
-                        }));
-                      }}
-                      value={name}
-                    />
-                    {chronicDiseaseNames.length > 1 ? (
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => {
-                          const next = chronicDiseaseNames.filter(
-                            (_current, currentIndex) => currentIndex !== index,
+
+              {hasChronicDiseases ? (
+                <View style={styles.conditionalBlock}>
+                  {chronicDiseaseNames.map((name, index) => (
+                    <View key={index} style={styles.repeatableBlock}>
+                      <FormField
+                        enableVoice
+                        label={t(locale, 'baseline.chronicDiseaseName')}
+                        labelStyle={softFieldLabelStyle}
+                        onChangeText={(value) => {
+                          const next = chronicDiseaseNames.map((currentName, currentIndex) =>
+                            currentIndex === index ? value : currentName,
                           );
                           setChronicDiseaseNames(next);
                           setDraft((state) => ({
@@ -361,95 +558,88 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
                             chronicDiseases: serializeDiseaseNames(next),
                           }));
                         }}
-                        style={styles.removeButton}
-                      >
-                        <Text style={styles.removeButtonText}>{t(locale, 'common.remove')}</Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                ))}
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => setChronicDiseaseNames((current) => [...current, ''])}
-                  style={styles.addButton}
-                >
-                  <Text style={styles.addButtonText}>
-                    + {t(locale, 'baseline.addChronicDisease')}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : null}
-            <View style={styles.field}>
-              <Text style={sharedStyles.fieldLabel}>{t(locale, 'baseline.chronicTherapy')}</Text>
-              <View accessibilityRole="radiogroup" style={styles.optionGrid}>
-                {([true, false] as const).map((answer) => (
+                        placeholder={t(locale, 'baseline.diseaseNamePlaceholder')}
+                        style={pillInputStyle}
+                        value={name}
+                      />
+                      {chronicDiseaseNames.length > 1 ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={() => {
+                            const next = chronicDiseaseNames.filter(
+                              (_current, currentIndex) => currentIndex !== index,
+                            );
+                            setChronicDiseaseNames(next);
+                            setDraft((state) => ({
+                              ...state,
+                              chronicDiseases: serializeDiseaseNames(next),
+                            }));
+                          }}
+                          style={styles.removeButton}
+                        >
+                          <Text style={[styles.removeButtonText, { color: palette.error }]}>
+                            {t(locale, 'common.remove')}
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  ))}
                   <Pressable
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: hasChronicTherapy === answer }}
-                    key={String(answer)}
-                    onPress={() => {
-                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                      setHasChronicTherapy(answer);
-                      if (!answer) {
-                        setDraft((value) => ({ ...value, chronicTherapy: '' }));
-                        setChronicTherapies([{ name: '', dose: '' }]);
-                      }
-                    }}
-                    style={[styles.option, hasChronicTherapy === answer && styles.optionSelected]}
+                    accessibilityRole="button"
+                    onPress={() => setChronicDiseaseNames((currentNames) => [...currentNames, ''])}
+                    style={({ pressed }) => [
+                      styles.addButton,
+                      {
+                        borderColor: dark
+                          ? palette.outlineVariant
+                          : 'rgba(166, 53, 83, 0.2)',
+                      },
+                      pressed && styles.cardPressed,
+                    ]}
                   >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        hasChronicTherapy === answer && styles.optionTextSelected,
-                      ]}
-                    >
-                      {t(locale, answer ? 'common.yes' : 'common.no')}
+                    <Text style={[styles.addButtonText, { color: palette.primary }]}>
+                      + {t(locale, 'baseline.addChronicDisease')}
                     </Text>
                   </Pressable>
-                ))}
+                </View>
+              ) : null}
+
+              <View style={[styles.divider, { backgroundColor: palette.surfaceContainer }]} />
+
+              <View style={styles.toggleRow}>
+                <Text style={[styles.toggleQuestion, { color: palette.onSurface }]}>
+                  {t(locale, 'baseline.chronicTherapy')}
+                </Text>
+                <YesNoToggle
+                  noLabel={t(locale, 'common.no')}
+                  onChange={(answer) => {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setHasChronicTherapy(answer);
+                    if (!answer) {
+                      setDraft((value) => ({ ...value, chronicTherapy: '' }));
+                      setChronicTherapies([{ name: '', dose: '' }]);
+                    }
+                  }}
+                  palette={palette}
+                  value={hasChronicTherapy}
+                  yesLabel={t(locale, 'common.yes')}
+                />
               </View>
-            </View>
-            {hasChronicTherapy ? (
-              <View style={styles.conditionalBubble}>
-                {chronicTherapies.map((therapy, index) => (
-                  <View key={index} style={styles.repeatableRow}>
-                    <FormField
-                      autoCapitalize="words"
-                      enableVoice
-                      label={t(locale, 'baseline.chronicTherapyName')}
-                      onChangeText={(value) => {
-                        const next = chronicTherapies.map((current, currentIndex) =>
-                          currentIndex === index ? { ...current, name: value } : current,
-                        );
-                        setChronicTherapies(next);
-                        setDraft((state) => ({
-                          ...state,
-                          chronicTherapy: serializeChronicTherapies(next),
-                        }));
-                      }}
-                      value={therapy.name}
-                    />
-                    <FormField
-                      enableVoice
-                      label={t(locale, 'baseline.chronicTherapyDose')}
-                      onChangeText={(value) => {
-                        const next = chronicTherapies.map((current, currentIndex) =>
-                          currentIndex === index ? { ...current, dose: value } : current,
-                        );
-                        setChronicTherapies(next);
-                        setDraft((state) => ({
-                          ...state,
-                          chronicTherapy: serializeChronicTherapies(next),
-                        }));
-                      }}
-                      value={therapy.dose}
-                    />
-                    {chronicTherapies.length > 1 ? (
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => {
-                          const next = chronicTherapies.filter(
-                            (_current, currentIndex) => currentIndex !== index,
+
+              {hasChronicTherapy ? (
+                <View style={styles.conditionalBlock}>
+                  {chronicTherapies.map((therapy, index) => (
+                    <View key={index} style={styles.repeatableBlock}>
+                      <FormField
+                        autoCapitalize="words"
+                        enableVoice
+                        label={t(locale, 'baseline.chronicTherapyName')}
+                        labelStyle={softFieldLabelStyle}
+                        onChangeText={(value) => {
+                          const next = chronicTherapies.map((currentTherapy, currentIndex) =>
+                            currentIndex === index
+                              ? { ...currentTherapy, name: value }
+                              : currentTherapy,
                           );
                           setChronicTherapies(next);
                           setDraft((state) => ({
@@ -457,111 +647,559 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
                             chronicTherapy: serializeChronicTherapies(next),
                           }));
                         }}
-                        style={styles.removeButton}
-                      >
-                        <Text style={styles.removeButtonText}>{t(locale, 'common.remove')}</Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                ))}
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() =>
-                    setChronicTherapies((current) => [...current, { name: '', dose: '' }])
-                  }
-                  style={styles.addButton}
-                >
-                  <Text style={styles.addButtonText}>
-                    + {t(locale, 'baseline.addChronicTherapy')}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : null}
-            {draft.sex === 'female' ? (
-              <FormField
-                enableVoice
-                label={t(locale, 'baseline.menstrualHistory')}
-                multiline
-                onChangeText={(value) =>
-                  setDraft((state) => ({ ...state, menstrualHistory: value }))
-                }
-                value={draft.menstrualHistory ?? ''}
-              />
-            ) : null}
-            {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
-            {message ? <Text style={sharedStyles.success}>{message}</Text> : null}
-            <View style={styles.actions}>
-              <View style={styles.action}>
-                <PrimaryButton
-                  label={t(locale, 'common.cancel')}
-                  onPress={onBack}
-                  variant="secondary"
-                />
-              </View>
-              <View style={styles.action}>
-                <PrimaryButton
-                  busy={saving}
-                  label={t(locale, 'common.save')}
-                  onPress={() => void save()}
-                />
-              </View>
+                        placeholder={t(locale, 'baseline.medicineNamePlaceholder')}
+                        style={pillInputStyle}
+                        value={therapy.name}
+                      />
+                      <FormField
+                        enableVoice
+                        label={t(locale, 'baseline.chronicTherapyDose')}
+                        labelStyle={softFieldLabelStyle}
+                        onChangeText={(value) => {
+                          const next = chronicTherapies.map((currentTherapy, currentIndex) =>
+                            currentIndex === index
+                              ? { ...currentTherapy, dose: value }
+                              : currentTherapy,
+                          );
+                          setChronicTherapies(next);
+                          setDraft((state) => ({
+                            ...state,
+                            chronicTherapy: serializeChronicTherapies(next),
+                          }));
+                        }}
+                        placeholder={t(locale, 'baseline.dosePlaceholder')}
+                        style={pillInputStyle}
+                        value={therapy.dose}
+                      />
+                      {chronicTherapies.length > 1 ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={() => {
+                            const next = chronicTherapies.filter(
+                              (_current, currentIndex) => currentIndex !== index,
+                            );
+                            setChronicTherapies(next);
+                            setDraft((state) => ({
+                              ...state,
+                              chronicTherapy: serializeChronicTherapies(next),
+                            }));
+                          }}
+                          style={styles.removeButton}
+                        >
+                          <Text style={[styles.removeButtonText, { color: palette.error }]}>
+                            {t(locale, 'common.remove')}
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  ))}
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() =>
+                      setChronicTherapies((currentTherapies) => [
+                        ...currentTherapies,
+                        { name: '', dose: '' },
+                      ])
+                    }
+                    style={({ pressed }) => [
+                      styles.addButton,
+                      {
+                        borderColor: dark
+                          ? palette.outlineVariant
+                          : 'rgba(166, 53, 83, 0.2)',
+                      },
+                      pressed && styles.cardPressed,
+                    ]}
+                  >
+                    <Text style={[styles.addButtonText, { color: palette.primary }]}>
+                      + {t(locale, 'baseline.addChronicTherapy')}
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
             </View>
-          </View>
-        ) : null}
+
+            {/* Measurements */}
+            <View
+              style={[
+                styles.card,
+                { backgroundColor: palette.surface, shadowColor: palette.shadow },
+              ]}
+            >
+              <View style={styles.cardHeader}>
+                <View
+                  style={[styles.sectionIcon, { backgroundColor: palette.secondaryContainer }]}
+                >
+                  <Text style={[styles.sectionIconGlyph, { color: palette.primary }]}>⛶</Text>
+                </View>
+                <Text style={[styles.sectionTitle, { color: palette.onSurface }]}>
+                  {t(locale, 'baseline.measurements')}
+                </Text>
+              </View>
+
+              <View style={styles.measureRow}>
+                <View style={styles.measureField}>
+                  <FormField
+                    keyboardType="decimal-pad"
+                    label={t(locale, 'baseline.heightCm')}
+                    labelStyle={fieldLabelStyle}
+                    onChangeText={(value) =>
+                      setDraft((state) => ({ ...state, heightCm: optionalNumber(value) }))
+                    }
+                    placeholder={t(locale, 'baseline.heightPlaceholder')}
+                    style={pillInputStyle}
+                    value={draft.heightCm?.toString() ?? ''}
+                  />
+                </View>
+                <View style={styles.measureField}>
+                  <FormField
+                    keyboardType="decimal-pad"
+                    label={t(locale, 'baseline.weightKg')}
+                    labelStyle={fieldLabelStyle}
+                    onChangeText={(value) =>
+                      setDraft((state) => ({ ...state, weightKg: optionalNumber(value) }))
+                    }
+                    placeholder={t(locale, 'baseline.weightPlaceholder')}
+                    style={pillInputStyle}
+                    value={draft.weightKg?.toString() ?? ''}
+                  />
+                </View>
+              </View>
+
+              <View
+                style={[
+                  styles.weightChangeRow,
+                  { backgroundColor: palette.surfaceContainerLow },
+                ]}
+              >
+                <View style={styles.weightChangeCopy}>
+                  <Text style={[styles.toggleQuestion, { color: palette.onSurface }]}>
+                    {t(locale, 'baseline.recentWeightChange')}
+                  </Text>
+                  <Text style={[styles.weightChangeHelp, { color: palette.onSurfaceVariant }]}>
+                    {t(locale, 'baseline.recentWeightChangeHelp')}
+                  </Text>
+                </View>
+                <YesNoToggle
+                  noLabel={t(locale, 'common.no')}
+                  onChange={(answer) => selectWeightChange(answer ? 'yes' : 'no')}
+                  palette={palette}
+                  value={
+                    draft.recentMajorWeightChange === 'yes'
+                      ? true
+                      : draft.recentMajorWeightChange === 'no'
+                        ? false
+                        : undefined
+                  }
+                  yesLabel={t(locale, 'common.yes')}
+                />
+              </View>
+
+              {draft.recentMajorWeightChange === 'yes' ? (
+                <FormField
+                  enableVoice
+                  label={t(locale, 'baseline.recentWeightChangeDescription')}
+                  labelStyle={softFieldLabelStyle}
+                  multiline
+                  onChangeText={(value) =>
+                    setDraft((state) => ({
+                      ...state,
+                      recentMajorWeightChangeDescription: value,
+                    }))
+                  }
+                  style={[pillInputStyle, styles.multilineInput]}
+                  value={draft.recentMajorWeightChangeDescription ?? ''}
+                />
+              ) : null}
+            </View>
+
+            {/* Women's Health — female only */}
+            {draft.sex === 'female' ? (
+              <View
+                style={[
+                  styles.card,
+                  { backgroundColor: palette.surface, shadowColor: palette.shadow },
+                ]}
+              >
+                <View style={styles.cardHeader}>
+                  <View
+                    style={[styles.sectionIcon, { backgroundColor: palette.secondaryContainer }]}
+                  >
+                    <Text style={[styles.sectionIconGlyph, { color: palette.primary }]}>♀</Text>
+                  </View>
+                  <Text style={[styles.sectionTitle, { color: palette.onSurface }]}>
+                    {t(locale, 'baseline.womensHealth')}
+                  </Text>
+                </View>
+                <FormField
+                  enableVoice
+                  label={t(locale, 'baseline.menstrualHistory')}
+                  labelStyle={fieldLabelStyle}
+                  multiline
+                  onChangeText={(value) =>
+                    setDraft((state) => ({ ...state, menstrualHistory: value }))
+                  }
+                  placeholder={t(locale, 'baseline.menstrualHistoryPlaceholder')}
+                  style={[pillInputStyle, styles.multilineInput]}
+                  value={draft.menstrualHistory ?? ''}
+                />
+              </View>
+            ) : null}
+
+            {/* Privacy note */}
+            <View
+              style={[
+                styles.privacyCard,
+                {
+                  backgroundColor: palette.surface,
+                  borderColor: palette.surfaceContainer,
+                  shadowColor: palette.shadow,
+                },
+              ]}
+            >
+              <Text style={[styles.privacyIcon, { color: palette.primary }]}>🔒</Text>
+              <Text style={[styles.privacyText, { color: palette.onSurfaceVariant }]}>
+                {t(locale, 'baseline.privacyNote')}
+              </Text>
+            </View>
+
+            {error ? (
+              <Text style={[styles.statusError, { color: palette.error }]}>{error}</Text>
+            ) : null}
+            {message ? (
+              <Text style={[styles.statusSuccess, { color: palette.primary }]}>{message}</Text>
+            ) : null}
+
+            {/* Save */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: saving }}
+              disabled={saving}
+              onPress={() => void save()}
+              style={({ pressed }) => [
+                styles.saveButton,
+                {
+                  backgroundColor: palette.primaryContainer,
+                  shadowColor: palette.primary,
+                },
+                pressed && styles.cardPressed,
+                saving && styles.disabled,
+              ]}
+            >
+              {saving ? (
+                <ActivityIndicator color={palette.onPrimaryContainer} />
+              ) : (
+                <>
+                  <Text style={[styles.saveIcon, { color: palette.onPrimaryContainer }]}>💾</Text>
+                  <Text style={[styles.saveLabel, { color: palette.onPrimaryContainer }]}>
+                    {t(locale, 'baseline.saveProfile')}
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          </>
+        )}
       </KeyboardAwareScrollView>
+
+      <PatientBottomNav
+        active="profile"
+        onProfile={() => undefined}
+        onSettings={onOpenSettings ?? onBack}
+        onTimeline={onOpenTimeline ?? onBack}
+        onToday={onBack}
+        palette={{
+          background: dark ? colors.surface : 'rgba(241, 236, 242, 0.92)',
+          onPrimaryContainer: dark ? palette.onPrimaryContainer : stitch.onPrimaryContainer,
+          onSurfaceVariant: palette.onSurfaceVariant,
+          primaryContainer: dark ? palette.primaryContainer : stitch.primaryContainer,
+          shadow: palette.shadow,
+        }}
+      />
     </SafeAreaView>
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
-  form: { gap: spacing.lg },
-  field: { gap: spacing.xs },
-  optionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  option: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
-  optionSelected: { borderColor: colors.accent, backgroundColor: colors.accent },
-  optionText: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  optionTextSelected: { color: '#ffffff' },
-  conditionalBubble: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 18,
-    backgroundColor: colors.background,
-    gap: spacing.md,
-    padding: spacing.md,
+  content: {
+    flexGrow: 1,
+    gap: 24,
+    paddingBottom: 140,
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
-  repeatableRow: {
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    gap: spacing.sm,
-    paddingBottom: spacing.md,
+  pressed: { opacity: 0.72 },
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.98 }],
+  },
+  disabled: { opacity: 0.5 },
+  loader: { marginTop: 40 },
+  topBar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 48,
+    paddingVertical: 8,
+  },
+  brandRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexShrink: 1,
+    gap: 12,
+  },
+  avatar: {
+    alignItems: 'center',
+    borderRadius: 20,
+    borderWidth: 2,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  avatarText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  brandTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  iconButton: {
+    alignItems: 'center',
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  topIcon: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  headerBlock: {
+    gap: 8,
+  },
+  pageTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 32,
+  },
+  pageSubtitle: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  card: {
+    borderRadius: 24,
+    elevation: 2,
+    gap: 20,
+    padding: 24,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+  },
+  cardHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 16,
+  },
+  sectionIcon: {
+    alignItems: 'center',
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  sectionIconGlyph: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  sectionTitle: {
+    flexShrink: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    lineHeight: 24,
+  },
+  fieldBlock: {
+    gap: 12,
+  },
+  capsLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    paddingHorizontal: 4,
+    textTransform: 'uppercase',
+  },
+  sexGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  sexCard: {
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 2,
+    flexBasis: '47%',
+    flexDirection: 'row',
+    flexGrow: 1,
+    gap: 10,
+    minHeight: 56,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  sexIcon: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  sexLabel: {
+    flexShrink: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  toggleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  toggleQuestion: {
+    flex: 1,
+    flexShrink: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  yesNoTrack: {
+    borderRadius: 999,
+    flexDirection: 'row',
+    padding: 4,
+    width: 112,
+  },
+  yesNoItem: {
+    alignItems: 'center',
+    borderRadius: 999,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 28,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  yesNoLabel: {
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  conditionalBlock: {
+    gap: 14,
+  },
+  repeatableBlock: {
+    gap: 8,
   },
   addButton: {
     alignItems: 'center',
-    borderColor: colors.accent,
-    borderRadius: 10,
+    borderRadius: 16,
     borderStyle: 'dashed',
-    borderWidth: 1,
+    borderWidth: 2,
     justifyContent: 'center',
     minHeight: 48,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  addButtonText: { color: colors.accent, fontSize: 15, fontWeight: '800' },
-  removeButton: { alignSelf: 'flex-end', minHeight: 36, justifyContent: 'center' },
-  removeButtonText: { color: colors.danger, fontSize: 14, fontWeight: '700' },
-  actions: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
+  addButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  removeButton: {
+    alignSelf: 'flex-end',
+    justifyContent: 'center',
+    minHeight: 32,
+  },
+  removeButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  divider: {
+    height: 1,
+    width: '100%',
+  },
+  measureRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: 'auto',
-    paddingTop: spacing.md,
+    gap: 16,
   },
-  action: { flex: 1 },
-}));
+  measureField: {
+    flex: 1,
+  },
+  weightChangeRow: {
+    alignItems: 'center',
+    borderRadius: 24,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  weightChangeCopy: {
+    flex: 1,
+    flexShrink: 1,
+    gap: 2,
+  },
+  weightChangeHelp: {
+    fontSize: 11,
+    lineHeight: 14,
+  },
+  multilineInput: {
+    borderRadius: 24,
+    minHeight: 120,
+    textAlignVertical: 'top',
+  },
+  privacyCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    elevation: 1,
+    flexDirection: 'row',
+    gap: 14,
+    padding: 20,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+  },
+  privacyIcon: {
+    fontSize: 20,
+    marginTop: 2,
+  },
+  privacyText: {
+    flex: 1,
+    fontSize: 13,
+    fontStyle: 'italic',
+    lineHeight: 20,
+  },
+  statusError: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  statusSuccess: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  saveButton: {
+    alignItems: 'center',
+    borderRadius: 999,
+    elevation: 4,
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+    minHeight: 56,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+  },
+  saveIcon: {
+    fontSize: 20,
+  },
+  saveLabel: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+});

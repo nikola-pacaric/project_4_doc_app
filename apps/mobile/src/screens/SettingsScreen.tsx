@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
+import { PatientBottomNav } from '../components/PatientBottomNav';
 import { colors } from '../theme';
 
 /**
@@ -451,81 +452,20 @@ export function SettingsScreen({
         </View>
       </KeyboardAwareScrollView>
 
-      {/* Bottom nav — Settings is active; other tabs return to the previous surface */}
-      <View
-        style={[
-          styles.bottomNav,
-          {
-            backgroundColor: dark ? colors.surface : 'rgba(241, 236, 242, 0.92)',
-            shadowColor: palette.shadow,
-          },
-        ]}
-      >
-        <Pressable
-          accessibilityRole="button"
-          onPress={onBack}
-          style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}
-        >
-          <Text style={[styles.navIcon, { color: palette.onSurfaceVariant }]}>📅</Text>
-          <Text style={[styles.navLabel, { color: palette.onSurfaceVariant }]}>
-            {t(locale, 'home.nav.today')}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onBack}
-          style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}
-        >
-          <Text style={[styles.navIcon, { color: palette.onSurfaceVariant }]}>☰</Text>
-          <Text style={[styles.navLabel, { color: palette.onSurfaceVariant }]}>
-            {t(locale, 'home.nav.timeline')}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onBack}
-          style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}
-        >
-          <Text style={[styles.navIcon, { color: palette.onSurfaceVariant }]}>👤</Text>
-          <Text style={[styles.navLabel, { color: palette.onSurfaceVariant }]}>
-            {t(locale, 'home.nav.profile')}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ selected: true }}
-          style={({ pressed }) => [
-            styles.navItem,
-            styles.navItemActive,
-            {
-              backgroundColor: dark ? palette.primaryContainer : stitch.primaryContainer,
-            },
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text
-            style={[
-              styles.navIcon,
-              {
-                color: dark ? palette.onPrimaryContainer : stitch.onPrimaryContainer,
-              },
-            ]}
-          >
-            ⚙
-          </Text>
-          <Text
-            style={[
-              styles.navLabel,
-              styles.navLabelActive,
-              {
-                color: dark ? palette.onPrimaryContainer : stitch.onPrimaryContainer,
-              },
-            ]}
-          >
-            {t(locale, 'settings.title')}
-          </Text>
-        </Pressable>
-      </View>
+      <PatientBottomNav
+        active="settings"
+        onProfile={onBack}
+        onSettings={() => undefined}
+        onTimeline={onBack}
+        onToday={onBack}
+        palette={{
+          background: dark ? colors.surface : 'rgba(241, 236, 242, 0.92)',
+          onPrimaryContainer: dark ? palette.onPrimaryContainer : stitch.onPrimaryContainer,
+          onSurfaceVariant: palette.onSurfaceVariant,
+          primaryContainer: dark ? palette.primaryContainer : stitch.primaryContainer,
+          shadow: palette.shadow,
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -720,50 +660,5 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: 8,
     textAlign: 'center',
-  },
-  bottomNav: {
-    alignItems: 'center',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    bottom: 0,
-    elevation: 12,
-    flexDirection: 'row',
-    gap: 4,
-    justifyContent: 'space-around',
-    left: 0,
-    paddingBottom: Platform.OS === 'android' ? 14 : 20,
-    paddingHorizontal: 12,
-    paddingTop: 14,
-    position: 'absolute',
-    right: 0,
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 1,
-    shadowRadius: 20,
-  },
-  navItem: {
-    alignItems: 'center',
-    borderRadius: 999,
-    flex: 1,
-    gap: 2,
-    justifyContent: 'center',
-    minHeight: 52,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-  },
-  navItemActive: {
-    flexGrow: 1.15,
-    paddingHorizontal: 14,
-  },
-  navIcon: {
-    fontSize: 18,
-    lineHeight: 22,
-  },
-  navLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    lineHeight: 16,
-  },
-  navLabelActive: {
-    fontWeight: '700',
   },
 });

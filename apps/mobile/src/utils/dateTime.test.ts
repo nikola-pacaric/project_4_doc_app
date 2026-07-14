@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  addLocalDays,
   formatTimeInput,
   isValidTrackedDay,
   localDayRange,
+  parseLocalDateInput,
   parseLocalDateTime,
+  startOfWeekMonday,
   toLocalDateInput,
   toLocalMonthInput,
   toLocalTimeInput,
+  weekDayKeys,
 } from './dateTime';
 
 describe('mobile date and time helpers', () => {
@@ -60,5 +64,21 @@ describe('mobile date and time helpers', () => {
     expect(new Date(range.start).getHours()).toBe(0);
     expect(new Date(range.end).getDate()).toBe(22);
     expect(new Date(range.occurredAt).getHours()).toBe(12);
+  });
+
+  it('builds Monday-start week day keys for a local date', () => {
+    // 2026-07-15 is a Wednesday
+    const weekStart = startOfWeekMonday(parseLocalDateInput('2026-07-15'));
+    expect(toLocalDateInput(weekStart)).toBe('2026-07-13');
+    expect(weekDayKeys(weekStart)).toEqual([
+      '2026-07-13',
+      '2026-07-14',
+      '2026-07-15',
+      '2026-07-16',
+      '2026-07-17',
+      '2026-07-18',
+      '2026-07-19',
+    ]);
+    expect(toLocalDateInput(addLocalDays(weekStart, 7))).toBe('2026-07-20');
   });
 });

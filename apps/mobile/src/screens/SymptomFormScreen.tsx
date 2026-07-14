@@ -6,16 +6,14 @@ import {
   type SymptomDraft,
 } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
-import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
-import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { ScreenHeader } from '../components/ScreenHeader';
 import { SymptomDetailsCard } from '../components/SymptomDetailsCard';
 import { SymptomSelector } from '../components/SymptomSelector';
-import { colors, sharedStyles, createThemedStyles } from '../theme';
+import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
+import { TactileSectionCard } from '../components/TactileSectionCard';
+import { tactileFormLayout as layout } from '../theme/tactileForm';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
 interface SymptomFormScreenProps {
@@ -24,6 +22,8 @@ interface SymptomFormScreenProps {
   initialDrafts?: SymptomDraft[];
   message?: string | null;
   onBack: () => void;
+  onCancelProfile?: () => void;
+  onCancelTimeline?: () => void;
   onSave: (drafts: SymptomDraft[]) => void | Promise<void>;
 }
 
@@ -38,9 +38,12 @@ export function SymptomFormScreen({
   initialDrafts = [],
   message,
   onBack,
+  onCancelProfile,
+  onCancelTimeline,
   onSave,
 }: SymptomFormScreenProps) {
   const locale = getActiveLocale();
+  const palette = useTactileFormPalette();
   const [drafts, setDrafts] = useState<SymptomDraft[]>(initialDrafts);
   const [expandedTypes, setExpandedTypes] = useState<SymptomType[]>(
     initialDrafts.flatMap((draft) => (draft.type ? [draft.type] : [])),
@@ -88,29 +91,29 @@ export function SymptomFormScreen({
       setShowErrors(true);
       return;
     }
-
     setShowErrors(false);
     void onSave(drafts);
   }
 
   const selectedTypes = drafts.flatMap((draft) => (draft.type ? [draft.type] : []));
-  return (
-    <SafeAreaView style={sharedStyles.formScreen}>
-      <KeyboardAwareScrollView
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={sharedStyles.formScrollContent}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-      >
-        <ScreenHeader
-          eyebrow={t(locale, 'role.patient')}
-          subtitle={t(locale, 'symptom.subtitle')}
-          title={t(locale, 'symptom.title')}
-        />
 
-        <View style={styles.selectorSection}>
-          <Text style={styles.sectionTitle}>{t(locale, 'symptom.selectTitle')}</Text>
-          <Text style={styles.sectionHelp}>{t(locale, 'symptom.selectHelp')}</Text>
+  return (
+    <TactileFormShell
+      error={showErrors ? t(locale, 'symptom.requiredError') : error}
+      message={message}
+      onCancelProfile={onCancelProfile}
+      onCancelTimeline={onCancelTimeline}
+      onCancelToday={onBack}
+      onSave={save}
+      saveBusy={busy}
+      subtitle={t(locale, 'symptom.subtitle')}
+      title={t(locale, 'symptom.title')}
+    >
+      <TactileSectionCard icon="⚠️" palette={palette} title={t(locale, 'symptom.selectTitle')}>
+        <Text style={[layout.helpText, { color: palette.onSurfaceVariant }]}>
+          {t(locale, 'symptom.selectHelp')}
+        </Text>
+        <View style={{ gap: 12 }}>
           <SymptomSelector
             expanded={expandedTypes}
             onToggle={toggleSymptom}
@@ -129,50 +132,7 @@ export function SymptomFormScreen({
             selected={selectedTypes}
           />
         </View>
-
-        {showErrors ? (
-          <Text style={sharedStyles.error}>{t(locale, 'symptom.requiredError')}</Text>
-        ) : null}
-        {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
-        {message ? <Text style={sharedStyles.success}>{message}</Text> : null}
-        <View style={styles.actions}>
-          <View style={styles.action}>
-            <PrimaryButton
-              label={t(locale, 'common.cancel')}
-              onPress={onBack}
-              variant="secondary"
-            />
-          </View>
-          <View style={styles.action}>
-            <PrimaryButton busy={busy} label={t(locale, 'common.save')} onPress={save} />
-          </View>
-        </View>
-      </KeyboardAwareScrollView>
-    </SafeAreaView>
+      </TactileSectionCard>
+    </TactileFormShell>
   );
 }
-
-const styles = createThemedStyles(() => StyleSheet.create({
-  selectorSection: {
-    gap: spacing.md,
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  sectionHelp: {
-    color: colors.mutedText,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  actions: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: 'auto',
-    paddingTop: spacing.md,
-  },
-  action: { flex: 1 },
-}));

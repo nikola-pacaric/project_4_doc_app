@@ -33,6 +33,7 @@ import {
   getPatientFoodForm,
   listCompletePatientMealEntryIds,
   listCompletePatientMedicationEntryIds,
+  listPatientEntriesInRange,
   listRecentPatientEntries,
   redeemDoctorInviteCode,
   updateEntryTimestamp,
@@ -42,6 +43,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import {
   appendPendingEntry,
+  loadCachedEntriesForDay,
   loadCachedOpenedDayEntries,
   loadCachedRecentEntries,
   loadPendingEntries,
@@ -158,6 +160,10 @@ export function PatientHomeScreen({
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [noteEntryToEdit, setNoteEntryToEdit] = useState<PatientEntry | null>(null);
   const [showTimeline, setShowTimeline] = useState(false);
+  const [timelineDay, setTimelineDay] = useState(() => toLocalDateInput(new Date()));
+  const [timelineDayEntries, setTimelineDayEntries] = useState<PatientEntry[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
   const [pendingEntries, setPendingEntries] = useState<LocalPendingEntry[]>([]);
   const [foodForm, setFoodForm] = useState<FoodFormRecord | null>(null);
@@ -166,6 +172,7 @@ export function PatientHomeScreen({
   const [doctorInviteRedeeming, setDoctorInviteRedeeming] = useState(false);
   const syncPendingPromiseRef = useRef<Promise<LocalPendingEntry[]> | null>(null);
   const loadEntriesPromiseRef = useRef<Promise<void> | null>(null);
+  const timelineDayRequestIdRef = useRef(0);
 
   const handleActivityAnswerChange = useCallback((answer: boolean | undefined) => {
     setExerciseRequired(answer === true);
@@ -271,6 +278,77 @@ export function PatientHomeScreen({
       syncPendingPromiseRef.current = null;
     }
   }, [client, profile.id]);
+
+  const entryLocalDay = useCallback(
+    (entry: PatientEntry) => toLocalDateInput(new Date(entry.occurredAt)),
+    [],
+  );
+
+  const loadTimelineDay = useCallback(
+    async (day: string, options: LoadEntriesOptions = {}) => {
+      const requestId = timelineDayRequestIdRef.current + 1;
+      timelineDayRequestIdRef.current = requestId;
+
+      if (options.showLoading !== false) {
+        setTimelineLoading(true);
+      }
+      setTimelineError(null);
+
+      try {
+        await withTimeout(syncPendingQueue(), ONLINE_LOAD_TIMEOUT_MS);
+        const range = localDayRange(day);
+        const nextEntries = await withTimeout(
+          listPatientEntriesInRange(client, profile.id, range.start, range.end),
+          ONLINE_LOAD_TIMEOUT_MS,
+        );
+        if (requestId !== timelineDayRequestIdRef.current) return;
+
+        const visible = filterPatientTimelineEntries(
+          nextEntries,
+          canTrackMenstruation ? 'female' : null,
+        );
+        setTimelineDayEntries(visible);
+        setOfflineMode(false);
+        await saveCachedOpenedDayEntries(profile.id, visible, entryLocalDay, [day]);
+      } catch {
+        if (requestId !== timelineDayRequestIdRef.current) return;
+
+        const cached = await loadCachedEntriesForDay(profile.id, day, entryLocalDay);
+        if (requestId !== timelineDayRequestIdRef.current) return;
+
+        setOfflineMode(true);
+        if (cached.length) {
+          setTimelineDayEntries(
+            filterPatientTimelineEntries(cached, canTrackMenstruation ? 'female' : null),
+          );
+          setTimelineError(null);
+        } else {
+          setTimelineDayEntries([]);
+          setTimelineError(t(locale, 'entry.loadError'));
+        }
+      } finally {
+        if (requestId === timelineDayRequestIdRef.current) {
+          setTimelineLoading(false);
+        }
+      }
+    },
+    [canTrackMenstruation, client, entryLocalDay, locale, profile.id, syncPendingQueue],
+  );
+
+  const openTimeline = useCallback(() => {
+    const today = toLocalDateInput(new Date());
+    setTimelineDay(today);
+    setShowTimeline(true);
+    void loadTimelineDay(today);
+  }, [loadTimelineDay]);
+
+  const handleTimelineDayChange = useCallback(
+    (day: string) => {
+      setTimelineDay(day);
+      void loadTimelineDay(day);
+    },
+    [loadTimelineDay],
+  );
 
   const loadEntries = useCallback(async (options: LoadEntriesOptions = {}) => {
     if (loadEntriesPromiseRef.current) return loadEntriesPromiseRef.current;
@@ -413,22 +491,44 @@ export function PatientHomeScreen({
           setShowBaseline(false);
           void loadEntries();
         }}
+        onOpenSettings={() => {
+          setShowBaseline(false);
+          onOpenSettings();
+        }}
+        onOpenTimeline={() => {
+          setShowBaseline(false);
+          openTimeline();
+        }}
         profile={profile}
       />
     );
   }
 
+  /** Leave form without saving, then open another patient surface. */
+  function cancelFormToTimeline(closeForm: () => void) {
+    closeForm();
+    openTimeline();
+  }
+
+  function cancelFormToProfile(closeForm: () => void) {
+    closeForm();
+    setShowBaseline(true);
+  }
+
   if (showDailyForm) {
+    const closeDaily = () => {
+      setShowDailyForm(false);
+      void loadEntries();
+    };
     return (
       <DailyFormScreen
         client={client}
         onActivityAnswerChange={handleActivityAnswerChange}
         onMenstruationAnswerChange={handleMenstruationAnswerChange}
         onMedicationAnswerChange={handleMedicationAnswerChange}
-        onBack={() => {
-          setShowDailyForm(false);
-          void loadEntries();
-        }}
+        onBack={closeDaily}
+        onCancelProfile={() => cancelFormToProfile(closeDaily)}
+        onCancelTimeline={() => cancelFormToTimeline(closeDaily)}
         onSaved={() => {
           setShowDailyForm(false);
           void loadEntries();
@@ -439,10 +539,13 @@ export function PatientHomeScreen({
   }
 
   if (showFoodForm) {
+    const closeFood = () => setShowFoodForm(false);
     return (
       <FoodFormScreen
         client={client}
-        onBack={() => setShowFoodForm(false)}
+        onBack={closeFood}
+        onCancelProfile={() => cancelFormToProfile(closeFood)}
+        onCancelTimeline={() => cancelFormToTimeline(closeFood)}
         onSaved={() => {
           setShowFoodForm(false);
           void loadEntries();
@@ -453,12 +556,13 @@ export function PatientHomeScreen({
   }
 
   if (showSymptomForm) {
+    const closeSymptoms = () => setShowSymptomForm(false);
     return (
       <PatientSymptomsScreen
         client={client}
-        onBack={() => {
-          setShowSymptomForm(false);
-        }}
+        onBack={closeSymptoms}
+        onCancelProfile={() => cancelFormToProfile(closeSymptoms)}
+        onCancelTimeline={() => cancelFormToTimeline(closeSymptoms)}
         onSaved={() => {
           setSymptomsCompleted(true);
           setShowSymptomForm(false);
@@ -470,14 +574,17 @@ export function PatientHomeScreen({
   }
 
   if (showStoolForm) {
+    const closeStool = () => {
+      setShowStoolForm(false);
+      setStoolEntryToEdit(null);
+    };
     return (
       <PatientStoolScreen
         client={client}
         entryToEdit={stoolEntryToEdit}
-        onBack={() => {
-          setShowStoolForm(false);
-          setStoolEntryToEdit(null);
-        }}
+        onBack={closeStool}
+        onCancelProfile={() => cancelFormToProfile(closeStool)}
+        onCancelTimeline={() => cancelFormToTimeline(closeStool)}
         onSaved={() => {
           setShowStoolForm(false);
           setStoolEntryToEdit(null);
@@ -489,14 +596,17 @@ export function PatientHomeScreen({
   }
 
   if (showMedicationForm) {
+    const closeMedication = () => {
+      setShowMedicationForm(false);
+      setMedicationEntryToEdit(null);
+    };
     return (
       <PatientMedicationScreen
         client={client}
         entryToEdit={medicationEntryToEdit}
-        onBack={() => {
-          setShowMedicationForm(false);
-          setMedicationEntryToEdit(null);
-        }}
+        onBack={closeMedication}
+        onCancelProfile={() => cancelFormToProfile(closeMedication)}
+        onCancelTimeline={() => cancelFormToTimeline(closeMedication)}
         onSaved={() => {
           setMedicationCompleted(true);
           setShowMedicationForm(false);
@@ -509,14 +619,17 @@ export function PatientHomeScreen({
   }
 
   if (showExerciseForm) {
+    const closeExercise = () => {
+      setShowExerciseForm(false);
+      setExerciseEntryToEdit(null);
+    };
     return (
       <PatientExerciseScreen
         client={client}
         entryToEdit={exerciseEntryToEdit}
-        onBack={() => {
-          setShowExerciseForm(false);
-          setExerciseEntryToEdit(null);
-        }}
+        onBack={closeExercise}
+        onCancelProfile={() => cancelFormToProfile(closeExercise)}
+        onCancelTimeline={() => cancelFormToTimeline(closeExercise)}
         onSaved={() => {
           setExerciseCompleted(true);
           setShowExerciseForm(false);
@@ -529,14 +642,17 @@ export function PatientHomeScreen({
   }
 
   if (showMenstruationForm && canTrackMenstruation) {
+    const closePeriod = () => {
+      setShowMenstruationForm(false);
+      setMenstruationEntryToEdit(null);
+    };
     return (
       <PatientMenstruationScreen
         client={client}
         entryToEdit={menstruationEntryToEdit}
-        onBack={() => {
-          setShowMenstruationForm(false);
-          setMenstruationEntryToEdit(null);
-        }}
+        onBack={closePeriod}
+        onCancelProfile={() => cancelFormToProfile(closePeriod)}
+        onCancelTimeline={() => cancelFormToTimeline(closePeriod)}
         onSaved={() => {
           setPeriodCompleted(true);
           setShowMenstruationForm(false);
@@ -549,14 +665,17 @@ export function PatientHomeScreen({
   }
 
   if (showNoteForm) {
+    const closeNote = () => {
+      setShowNoteForm(false);
+      setNoteEntryToEdit(null);
+    };
     return (
       <PatientNoteScreen
         client={client}
         entryToEdit={noteEntryToEdit}
-        onBack={() => {
-          setShowNoteForm(false);
-          setNoteEntryToEdit(null);
-        }}
+        onBack={closeNote}
+        onCancelProfile={() => cancelFormToProfile(closeNote)}
+        onCancelTimeline={() => cancelFormToTimeline(closeNote)}
         onPendingSaved={async (entry) => {
           setPendingEntries(await appendPendingEntry(profile.id, entry));
         }}
@@ -571,16 +690,31 @@ export function PatientHomeScreen({
   }
 
   if (showTimeline) {
-    const visibleEntries = mergePendingTextEntries(entries, pendingEntries);
-    const pendingIds = pendingTimelineEntryIds(pendingEntries);
+    const dayEntries = mergePendingTextEntries(timelineDayEntries, pendingEntries).filter(
+      (entry) => entryLocalDay(entry) === timelineDay,
+    );
+    const pendingIds = pendingTimelineEntryIds(pendingEntries).filter((id) =>
+      dayEntries.some((entry) => entry.id === id),
+    );
     return (
       <PatientTimelineScreen
-        entries={visibleEntries}
-        error={error}
-        loading={loading}
+        displayName={profile.displayName}
+        entries={dayEntries}
+        error={timelineError}
+        loading={timelineLoading}
         onBack={() => setShowTimeline(false)}
-        onRefresh={loadEntries}
+        onOpenBaseline={() => {
+          setShowTimeline(false);
+          setShowBaseline(true);
+        }}
+        onOpenSettings={() => {
+          setShowTimeline(false);
+          onOpenSettings();
+        }}
+        onRefresh={() => loadTimelineDay(timelineDay)}
+        onSelectedDayChange={handleTimelineDayChange}
         pendingEntryIds={pendingIds}
+        selectedDay={timelineDay}
       />
     );
   }
@@ -721,7 +855,7 @@ export function PatientHomeScreen({
       }}
       onOpenSymptoms={() => setShowSymptomForm(true)}
       onOpenEntry={openRecentEntry}
-      onOpenTimeline={() => setShowTimeline(true)}
+      onOpenTimeline={openTimeline}
       onRedeemDoctorInvite={redeemDoctorInvite}
       onOpenSettings={onOpenSettings}
       onSubmitDay={submitDay}

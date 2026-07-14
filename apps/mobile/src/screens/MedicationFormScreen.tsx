@@ -4,17 +4,20 @@ import {
   type MedicationDraft,
 } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
-import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
-import { Image, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { FormField } from '../components/FormField';
-import { OptionButtons } from '../components/OptionButtons';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { TactileChoiceRow } from '../components/TactileChoiceRow';
+import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
+import { TactileSectionCard } from '../components/TactileSectionCard';
 import { TimePickerField } from '../components/TimePickerField';
-import { colors, sharedStyles, createThemedStyles } from '../theme';
+import {
+  tactileFieldLabelStyle,
+  tactileFormLayout as layout,
+  tactileMultilineInputStyle,
+  tactilePillInputStyle,
+} from '../theme/tactileForm';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 import { type PreparedPhoto } from './PhotoUploadScreen';
 
@@ -29,6 +32,8 @@ interface MedicationFormScreenProps {
   initialDraft?: ClientMedicationDraft;
   onAddPhoto?: (draft: ClientMedicationDraft) => void;
   onBack: () => void;
+  onCancelProfile?: () => void;
+  onCancelTimeline?: () => void;
   onSave: (draft: ClientMedicationDraft) => void | Promise<void>;
 }
 
@@ -47,13 +52,24 @@ export function MedicationFormScreen({
   initialDraft,
   onAddPhoto,
   onBack,
+  onCancelProfile,
+  onCancelTimeline,
   onSave,
 }: MedicationFormScreenProps) {
   const locale = getActiveLocale();
-  const [draft, setDraft] = useState<ClientMedicationDraft>(() => initialDraft ?? createInitialDraft());
+  const palette = useTactileFormPalette();
+  const [draft, setDraft] = useState<ClientMedicationDraft>(
+    () => initialDraft ?? createInitialDraft(),
+  );
   const [showErrors, setShowErrors] = useState(false);
+  const pill = tactilePillInputStyle(palette);
+  const multi = tactileMultilineInputStyle(palette);
+  const label = tactileFieldLabelStyle(palette);
 
-  function update<K extends keyof ClientMedicationDraft>(field: K, value: ClientMedicationDraft[K]) {
+  function update<K extends keyof ClientMedicationDraft>(
+    field: K,
+    value: ClientMedicationDraft[K],
+  ) {
     setShowErrors(false);
     setDraft((current) => ({ ...current, [field]: value }));
   }
@@ -64,9 +80,7 @@ export function MedicationFormScreen({
   }
 
   function handleAddPhoto() {
-    if (onAddPhoto) {
-      onAddPhoto(draft);
-    }
+    onAddPhoto?.(draft);
   }
 
   function save() {
@@ -78,161 +92,142 @@ export function MedicationFormScreen({
   }
 
   return (
-    <SafeAreaView style={sharedStyles.formScreen}>
-      <KeyboardAwareScrollView
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={sharedStyles.formScrollContent}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-      >
-        <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'medication.title')} />
-        <Text style={sharedStyles.body}>{t(locale, 'medication.subtitle')}</Text>
-
+    <TactileFormShell
+      error={showErrors ? t(locale, 'medication.timeRequiredError') : error}
+      onCancelProfile={onCancelProfile}
+      onCancelTimeline={onCancelTimeline}
+      onCancelToday={onBack}
+      onSave={save}
+      saveBusy={busy}
+      subtitle={t(locale, 'medication.subtitle')}
+      title={t(locale, 'medication.title')}
+    >
+      <TactileSectionCard icon="💊" palette={palette} title={t(locale, 'medication.title')}>
         <FormField
           autoCapitalize="words"
           enableVoice
           label={t(locale, 'medication.name')}
+          labelStyle={label}
           onChangeText={(value) => update('name', value)}
           placeholder={t(locale, 'medication.namePlaceholder')}
+          style={pill}
           value={draft.name ?? ''}
         />
         <FormField
           enableVoice
           label={t(locale, 'medication.dose')}
+          labelStyle={label}
           onChangeText={(value) => update('dose', value)}
           placeholder={t(locale, 'medication.dosePlaceholder')}
+          style={pill}
           value={draft.dose ?? ''}
         />
-        <View style={styles.chronicTherapyField}>
-          <OptionButtons
-            label={t(locale, 'medication.chronicTherapy')}
-            onChange={(value) => update('isChronicTherapy', value === 'yes')}
-            options={[
-              { value: 'yes', label: t(locale, 'common.yes') },
-              { value: 'no', label: t(locale, 'common.no') },
-            ]}
-            value={
-              draft.isChronicTherapy === undefined
-                ? undefined
-                : draft.isChronicTherapy
-                  ? 'yes'
-                  : 'no'
-            }
-          />
-          <Text style={styles.chronicTherapyHelp}>
-            {t(locale, 'medication.chronicTherapyHelp')}
-          </Text>
-        </View>
+        <TactileChoiceRow
+          label={t(locale, 'medication.chronicTherapy')}
+          mode="segmented"
+          onChange={(value) => update('isChronicTherapy', value === 'yes')}
+          options={[
+            { value: 'yes', label: t(locale, 'common.yes') },
+            { value: 'no', label: t(locale, 'common.no') },
+          ]}
+          palette={palette}
+          value={
+            draft.isChronicTherapy === undefined
+              ? undefined
+              : draft.isChronicTherapy
+                ? 'yes'
+                : 'no'
+          }
+        />
+        <Text style={[layout.helpText, { color: palette.onSurfaceVariant }]}>
+          {t(locale, 'medication.chronicTherapyHelp')}
+        </Text>
         <TimePickerField
           label={t(locale, 'medication.timeTaken')}
+          labelStyle={label}
           onChange={updateTime}
           placeholder={t(locale, 'medication.timePlaceholder')}
+          style={pill}
           value={draft.takenAt?.slice(11, 16) ?? ''}
+          valueStyle={{ color: palette.onSurface }}
         />
         <FormField
           enableVoice
           label={t(locale, 'medication.reason')}
+          labelStyle={label}
           multiline
           onChangeText={(value) => update('reason', value)}
           placeholder={t(locale, 'medication.reasonPlaceholder')}
+          style={multi}
           value={draft.reason ?? ''}
         />
+
         {draft.localPhoto ? (
-          <View style={styles.photoPreviewContainer}>
-            <Image source={{ uri: draft.localPhoto.photo.uri }} style={styles.photoPreview} />
-            <PrimaryButton
-              label={t(locale, 'common.remove')}
+          <View style={styles.photoRow}>
+            <Image source={{ uri: draft.localPhoto.photo.uri }} style={styles.photo} />
+            <Pressable
+              accessibilityRole="button"
               onPress={() => update('localPhoto', null)}
-              variant="danger"
-            />
+              style={({ pressed }) => [
+                layout.secondaryButton,
+                { borderColor: palette.error, flex: 1 },
+                pressed && layout.pressed,
+              ]}
+            >
+              <Text style={[layout.buttonLabel, { color: palette.error }]}>
+                {t(locale, 'common.remove')}
+              </Text>
+            </Pressable>
           </View>
         ) : onAddPhoto ? (
-          <PrimaryButton
-            label={t(locale, 'photo.add')}
+          <Pressable
+            accessibilityRole="button"
             onPress={handleAddPhoto}
-            variant="secondary"
-          />
+            style={({ pressed }) => [
+              layout.dashedAdd,
+              { borderColor: 'rgba(166, 53, 83, 0.25)' },
+              pressed && layout.pressed,
+            ]}
+          >
+            <Text style={{ color: palette.primary, fontSize: 14, fontWeight: '600' }}>
+              + {t(locale, 'photo.add')}
+            </Text>
+          </Pressable>
         ) : null}
+
         {existingPhotoUris.length ? (
           <View style={styles.savedPhotos}>
-            <Text style={styles.savedPhotosTitle}>{t(locale, 'photo.savedPhotos')}</Text>
-            <View style={styles.savedPhotoList}>
+            <Text style={[layout.helpText, { color: palette.onSurface, fontWeight: '700' }]}>
+              {t(locale, 'photo.savedPhotos')}
+            </Text>
+            <View style={styles.photoList}>
               {existingPhotoUris.map((uri) => (
-                <Image key={uri} source={{ uri }} style={styles.photoPreview} />
+                <Image key={uri} source={{ uri }} style={styles.photo} />
               ))}
             </View>
           </View>
         ) : null}
-
-        {showErrors ? (
-          <Text selectable style={sharedStyles.error}>
-            {t(locale, 'medication.timeRequiredError')}
-          </Text>
-        ) : null}
-        {error ? (
-          <Text selectable style={sharedStyles.error}>
-            {error}
-          </Text>
-        ) : null}
-
-        <View style={styles.actions}>
-          <View style={styles.action}>
-            <PrimaryButton
-              label={t(locale, 'common.cancel')}
-              onPress={onBack}
-              variant="secondary"
-            />
-          </View>
-          <View style={styles.action}>
-            <PrimaryButton busy={busy} label={t(locale, 'common.save')} onPress={save} />
-          </View>
-        </View>
-      </KeyboardAwareScrollView>
-    </SafeAreaView>
+      </TactileSectionCard>
+    </TactileFormShell>
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
-  actions: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: 'auto',
-    paddingTop: spacing.md,
-  },
-  action: { flex: 1 },
-  chronicTherapyField: {
-    gap: spacing.xs,
-  },
-  chronicTherapyHelp: {
-    color: colors.mutedText,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  photoPreviewContainer: {
-    flexDirection: 'row',
+const styles = StyleSheet.create({
+  photoRow: {
     alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.xs,
+    flexDirection: 'row',
+    gap: 12,
   },
-  photoPreview: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: colors.surface,
+  photo: {
+    backgroundColor: '#f1ecf2',
+    borderRadius: 12,
+    height: 64,
+    width: 64,
   },
-  savedPhotos: {
-    gap: spacing.sm,
-  },
-  savedPhotosTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  savedPhotoList: {
+  savedPhotos: { gap: 10 },
+  photoList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: 10,
   },
-}));
+});

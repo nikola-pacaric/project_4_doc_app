@@ -62,6 +62,23 @@ export function loadCachedOpenedDayEntries(patientId: string): PatientEntry[] {
   return cachedOpenedDayEntries(loadOpenedDayEntryCache(patientId));
 }
 
+/**
+ * Load cached entries for one local calendar day (YYYY-MM-DD).
+ * Prefers the opened-day cache; falls back to filtering the recent-entries cache.
+ */
+export function loadCachedEntriesForDay(
+  patientId: string,
+  day: string,
+  getLocalDay: (entry: PatientEntry) => string,
+): PatientEntry[] {
+  const openedDayCache = loadOpenedDayEntryCache(patientId);
+  if (Object.prototype.hasOwnProperty.call(openedDayCache, day)) {
+    return openedDayCache[day] ?? [];
+  }
+
+  return loadCachedRecentEntries(patientId).filter((entry) => getLocalDay(entry) === day);
+}
+
 export function saveCachedOpenedDayEntries(
   patientId: string,
   entries: readonly PatientEntry[],

@@ -1,16 +1,17 @@
 import { noteDraftDefaults, validateNote, type NoteDraft } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
-import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
-import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { FormField } from '../components/FormField';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
+import { TactileSectionCard } from '../components/TactileSectionCard';
 import { TimePickerField } from '../components/TimePickerField';
 import { VoiceTextField } from '../components/VoiceTextField';
-import { colors, sharedStyles, createThemedStyles } from '../theme';
+import {
+  tactileFieldLabelStyle,
+  tactileMultilineInputStyle,
+  tactilePillInputStyle,
+} from '../theme/tactileForm';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
 interface NoteFormScreenProps {
@@ -18,6 +19,8 @@ interface NoteFormScreenProps {
   error?: string | null;
   initialDraft?: NoteDraft;
   onBack: () => void;
+  onCancelProfile?: () => void;
+  onCancelTimeline?: () => void;
   onSave: (draft: NoteDraft) => void | Promise<void>;
 }
 
@@ -34,11 +37,17 @@ export function NoteFormScreen({
   error,
   initialDraft,
   onBack,
+  onCancelProfile,
+  onCancelTimeline,
   onSave,
 }: NoteFormScreenProps) {
   const locale = getActiveLocale();
+  const palette = useTactileFormPalette();
   const [draft, setDraft] = useState<NoteDraft>(() => initialDraft ?? createInitialDraft());
   const [showErrors, setShowErrors] = useState(false);
+  const pill = tactilePillInputStyle(palette);
+  const multi = tactileMultilineInputStyle(palette);
+  const label = tactileFieldLabelStyle(palette);
 
   function update<K extends keyof NoteDraft>(field: K, value: NoteDraft[K]) {
     setShowErrors(false);
@@ -54,7 +63,6 @@ export function NoteFormScreen({
       setShowErrors(true);
       return;
     }
-
     void onSave(draft);
   }
 
@@ -62,73 +70,45 @@ export function NoteFormScreen({
   const time = draft.occurredAt?.slice(11, 16) ?? '';
 
   return (
-    <SafeAreaView style={sharedStyles.formScreen}>
-      <KeyboardAwareScrollView
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={sharedStyles.formScrollContent}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-      >
-        <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'note.title')} />
-        <Text style={sharedStyles.body}>{t(locale, 'note.subtitle')}</Text>
-
+    <TactileFormShell
+      error={showErrors ? t(locale, 'note.requiredError') : error}
+      onCancelProfile={onCancelProfile}
+      onCancelTimeline={onCancelTimeline}
+      onCancelToday={onBack}
+      onSave={save}
+      saveBusy={busy}
+      subtitle={t(locale, 'note.subtitle')}
+      title={t(locale, 'note.title')}
+    >
+      <TactileSectionCard icon="📝" palette={palette} title={t(locale, 'note.title')}>
         <VoiceTextField
           autoCapitalize="sentences"
           label={t(locale, 'note.text')}
+          labelStyle={label}
           multiline
           onChangeText={(value) => update('text', value)}
           placeholder={t(locale, 'note.textPlaceholder')}
+          style={multi}
           value={draft.text ?? ''}
         />
         <FormField
           autoCapitalize="none"
           editable={false}
           label={t(locale, 'note.date')}
+          labelStyle={label}
+          style={pill}
           value={date}
         />
         <TimePickerField
           label={t(locale, 'note.time')}
+          labelStyle={label}
           onChange={(value) => updateDateTime(date, value)}
           placeholder={t(locale, 'note.timePlaceholder')}
+          style={pill}
           value={time}
+          valueStyle={{ color: palette.onSurface }}
         />
-
-        {showErrors ? (
-          <Text selectable style={sharedStyles.error}>
-            {t(locale, 'note.requiredError')}
-          </Text>
-        ) : null}
-        {error ? (
-          <Text selectable style={sharedStyles.error}>
-            {error}
-          </Text>
-        ) : null}
-
-        <View style={styles.actions}>
-          <View style={styles.action}>
-            <PrimaryButton
-              label={t(locale, 'common.cancel')}
-              onPress={onBack}
-              variant="secondary"
-            />
-          </View>
-          <View style={styles.action}>
-            <PrimaryButton busy={busy} label={t(locale, 'common.save')} onPress={save} />
-          </View>
-        </View>
-      </KeyboardAwareScrollView>
-    </SafeAreaView>
+      </TactileSectionCard>
+    </TactileFormShell>
   );
 }
-
-const styles = createThemedStyles(() => StyleSheet.create({
-  actions: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: 'auto',
-    paddingTop: spacing.md,
-  },
-  action: { flex: 1 },
-}));

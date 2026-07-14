@@ -5,16 +5,18 @@ import {
   type MenstruationDraft,
 } from '@project4/forms';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
-import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
-import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { FormField } from '../components/FormField';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { TactileChoiceRow } from '../components/TactileChoiceRow';
+import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
+import { TactileSectionCard } from '../components/TactileSectionCard';
 import { TimePickerField } from '../components/TimePickerField';
-import { colors, sharedStyles, createThemedStyles } from '../theme';
+import {
+  tactileFieldLabelStyle,
+  tactileMultilineInputStyle,
+  tactilePillInputStyle,
+} from '../theme/tactileForm';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 
 interface MenstruationFormScreenProps {
@@ -22,6 +24,8 @@ interface MenstruationFormScreenProps {
   error?: string | null;
   initialDraft?: MenstruationDraft;
   onBack: () => void;
+  onCancelProfile?: () => void;
+  onCancelTimeline?: () => void;
   onSave: (draft: MenstruationDraft) => void | Promise<void>;
 }
 
@@ -40,13 +44,19 @@ export function MenstruationFormScreen({
   error,
   initialDraft,
   onBack,
+  onCancelProfile,
+  onCancelTimeline,
   onSave,
 }: MenstruationFormScreenProps) {
   const locale = getActiveLocale();
+  const palette = useTactileFormPalette();
   const [draft, setDraft] = useState<MenstruationDraft>(
     () => initialDraft ?? createInitialDraft(),
   );
   const [showErrors, setShowErrors] = useState(false);
+  const pill = tactilePillInputStyle(palette);
+  const multi = tactileMultilineInputStyle(palette);
+  const label = tactileFieldLabelStyle(palette);
 
   function update<K extends keyof MenstruationDraft>(field: K, value: MenstruationDraft[K]) {
     setShowErrors(false);
@@ -62,7 +72,6 @@ export function MenstruationFormScreen({
       setShowErrors(true);
       return;
     }
-
     void onSave(draft);
   }
 
@@ -70,151 +79,67 @@ export function MenstruationFormScreen({
   const time = draft.occurredAt?.slice(11, 16) ?? '';
 
   return (
-    <SafeAreaView style={sharedStyles.formScreen}>
-      <KeyboardAwareScrollView
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={sharedStyles.formScrollContent}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-      >
-        <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'menstruation.title')} />
-        <Text style={sharedStyles.body}>{t(locale, 'menstruation.subtitle')}</Text>
-
-        <View style={styles.section}>
-          <Text style={sharedStyles.fieldLabel}>{t(locale, 'menstruation.flow')}</Text>
-          <View accessibilityRole="radiogroup" style={styles.segmentedRow}>
-            {menstruationFlows.map((flow) => {
-              const selected = draft.flow === flow;
-              return (
-                <Pressable
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: selected }}
-                  key={flow}
-                  onPress={() => update('flow', flow)}
-                  style={[styles.segment, selected && styles.selectedOption]}
-                >
-                  <Text style={[styles.segmentText, selected && styles.selectedText]}>
-                    {t(locale, `menstruation.flow.${flow}` as TranslationKey)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={sharedStyles.fieldLabel}>{t(locale, 'menstruation.pain')}</Text>
-          <View accessibilityRole="radiogroup" style={styles.painOptions}>
-            {painLevels.map((painLevel) => {
-              const selected = draft.painLevel === painLevel;
-              return (
-                <Pressable
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: selected }}
-                  key={painLevel}
-                  onPress={() => update('painLevel', painLevel)}
-                  style={[styles.painOption, selected && styles.selectedOption]}
-                >
-                  <Text style={[styles.painNumber, selected && styles.selectedText]}>
-                    {painLevel}
-                  </Text>
-                  <Text style={[styles.painLabel, selected && styles.selectedText]}>
-                    {t(locale, `menstruation.pain.${painLevel}` as TranslationKey)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
+    <TactileFormShell
+      error={showErrors ? t(locale, 'menstruation.requiredError') : error}
+      onCancelProfile={onCancelProfile}
+      onCancelTimeline={onCancelTimeline}
+      onCancelToday={onBack}
+      onSave={save}
+      saveBusy={busy}
+      subtitle={t(locale, 'menstruation.subtitle')}
+      title={t(locale, 'menstruation.title')}
+    >
+      <TactileSectionCard icon="🩸" palette={palette} title={t(locale, 'menstruation.title')}>
+        <TactileChoiceRow
+          label={t(locale, 'menstruation.flow')}
+          mode="segmented"
+          onChange={(value) => update('flow', value as MenstruationDraft['flow'])}
+          options={menstruationFlows.map((flow) => ({
+            value: flow,
+            label: t(locale, `menstruation.flow.${flow}` as TranslationKey),
+          }))}
+          palette={palette}
+          value={draft.flow}
+        />
+        <TactileChoiceRow
+          label={t(locale, 'menstruation.pain')}
+          onChange={(value) => update('painLevel', Number(value) as MenstruationPainLevel)}
+          options={painLevels.map((painLevel) => ({
+            value: String(painLevel),
+            label: String(painLevel),
+            detail: t(locale, `menstruation.pain.${painLevel}` as TranslationKey),
+          }))}
+          palette={palette}
+          value={draft.painLevel === undefined ? undefined : String(draft.painLevel)}
+        />
         <FormField
           autoCapitalize="none"
           editable={false}
           label={t(locale, 'menstruation.date')}
+          labelStyle={label}
+          style={pill}
           value={date}
         />
         <TimePickerField
           label={t(locale, 'menstruation.time')}
+          labelStyle={label}
           onChange={(value) => updateDateTime(date, value)}
           placeholder={t(locale, 'menstruation.timePlaceholder')}
+          style={pill}
           value={time}
+          valueStyle={{ color: palette.onSurface }}
         />
         <FormField
           enableVoice
           label={t(locale, 'menstruation.notes')}
+          labelStyle={label}
           multiline
           onChangeText={(value) => update('notes', value)}
           placeholder={t(locale, 'menstruation.notesPlaceholder')}
+          style={multi}
           value={draft.notes ?? ''}
         />
-
-        {showErrors ? (
-          <Text selectable style={sharedStyles.error}>
-            {t(locale, 'menstruation.requiredError')}
-          </Text>
-        ) : null}
-        {error ? (
-          <Text selectable style={sharedStyles.error}>
-            {error}
-          </Text>
-        ) : null}
-
-        <View style={styles.actions}>
-          <View style={styles.action}>
-            <PrimaryButton
-              label={t(locale, 'common.cancel')}
-              onPress={onBack}
-              variant="secondary"
-            />
-          </View>
-          <View style={styles.action}>
-            <PrimaryButton busy={busy} label={t(locale, 'common.save')} onPress={save} />
-          </View>
-        </View>
-      </KeyboardAwareScrollView>
-    </SafeAreaView>
+      </TactileSectionCard>
+    </TactileFormShell>
   );
 }
-
-const styles = createThemedStyles(() => StyleSheet.create({
-  section: { gap: spacing.sm },
-  segmentedRow: { flexDirection: 'row', gap: spacing.sm },
-  segment: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flex: 1,
-    justifyContent: 'center',
-    minHeight: 48,
-    paddingHorizontal: spacing.xs,
-  },
-  segmentText: { color: colors.text, fontSize: 13, fontWeight: '700', textAlign: 'center' },
-  selectedOption: { backgroundColor: colors.accent, borderColor: colors.accent },
-  selectedText: { color: '#ffffff' },
-  painOptions: { flexDirection: 'row', gap: spacing.sm },
-  painOption: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flex: 1,
-    gap: 2,
-    justifyContent: 'center',
-    minHeight: 64,
-    paddingHorizontal: spacing.xs,
-  },
-  painNumber: { color: colors.text, fontSize: 17, fontWeight: '900' },
-  painLabel: { color: colors.mutedText, fontSize: 11, fontWeight: '700', textAlign: 'center' },
-  actions: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: 'auto',
-    paddingTop: spacing.md,
-  },
-  action: { flex: 1 },
-}));

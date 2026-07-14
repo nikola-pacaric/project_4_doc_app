@@ -13,9 +13,10 @@ import type { EntryKind, PatientEntry, UserProfile } from '@project4/contracts';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import { darkTheme } from '@project4/ui-tokens';
 
-import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { CircularProgress } from '../components/CircularProgress';
 import { FormField } from '../components/FormField';
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
+import { PatientBottomNav } from '../components/PatientBottomNav';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { colors } from '../theme';
 import { formatEntryTime, toLocalDateInput } from '../utils/dateTime';
@@ -804,88 +805,22 @@ export function DailyProgressHomeScreen({
         </View>
       </KeyboardAwareScrollView>
 
-      {/* Bottom nav — Stitch rounded glass bar */}
-      <View
-        style={[
-          styles.bottomNav,
-          {
-            backgroundColor: dark ? colors.surface : 'rgba(241, 236, 242, 0.92)',
-            shadowColor: palette.shadow,
-          },
-        ]}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ selected: true }}
-          style={({ pressed }) => [
-            styles.navItem,
-            styles.navItemActive,
-            {
-              backgroundColor: dark ? palette.primaryContainer : stitch.primaryContainer,
-            },
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text
-            style={[
-              styles.navIcon,
-              {
-                color: dark ? palette.onPrimaryContainer : stitch.onPrimaryContainer,
-              },
-            ]}
-          >
-            📅
-          </Text>
-          <Text
-            style={[
-              styles.navLabel,
-              styles.navLabelActive,
-              {
-                color: dark ? palette.onPrimaryContainer : stitch.onPrimaryContainer,
-              },
-            ]}
-          >
-            {t(locale, 'home.nav.today')}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onOpenTimeline}
-          style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}
-        >
-          <Text style={[styles.navIcon, { color: palette.onSurfaceVariant }]}>☰</Text>
-          <Text style={[styles.navLabel, { color: palette.onSurfaceVariant }]}>
-            {t(locale, 'home.nav.timeline')}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityHint={offlineMode ? t(locale, 'offline.actionsDisabled') : undefined}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: offlineMode }}
-          disabled={offlineMode}
-          onPress={onOpenBaseline}
-          style={({ pressed }) => [
-            styles.navItem,
-            offlineMode && styles.disabled,
-            pressed && !offlineMode && styles.pressed,
-          ]}
-        >
-          <Text style={[styles.navIcon, { color: palette.onSurfaceVariant }]}>👤</Text>
-          <Text style={[styles.navLabel, { color: palette.onSurfaceVariant }]}>
-            {t(locale, 'home.nav.profile')}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onOpenSettings}
-          style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}
-        >
-          <Text style={[styles.navIcon, { color: palette.onSurfaceVariant }]}>⚙</Text>
-          <Text style={[styles.navLabel, { color: palette.onSurfaceVariant }]}>
-            {t(locale, 'settings.title')}
-          </Text>
-        </Pressable>
-      </View>
+      <PatientBottomNav
+        active="today"
+        onProfile={onOpenBaseline}
+        onSettings={onOpenSettings}
+        onTimeline={onOpenTimeline}
+        onToday={() => undefined}
+        palette={{
+          background: dark ? colors.surface : 'rgba(241, 236, 242, 0.92)',
+          onPrimaryContainer: dark ? palette.onPrimaryContainer : stitch.onPrimaryContainer,
+          onSurfaceVariant: palette.onSurfaceVariant,
+          primaryContainer: dark ? palette.primaryContainer : stitch.primaryContainer,
+          shadow: palette.shadow,
+        }}
+        profileDisabled={offlineMode}
+        profileDisabledHint={t(locale, 'offline.actionsDisabled')}
+      />
     </SafeAreaView>
   );
 }
@@ -1197,49 +1132,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     textDecorationLine: 'underline',
-  },
-  bottomNav: {
-    alignItems: 'center',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    bottom: 0,
-    elevation: 12,
-    flexDirection: 'row',
-    gap: 4,
-    justifyContent: 'space-around',
-    left: 0,
-    paddingBottom: Platform.OS === 'android' ? 14 : 20,
-    paddingHorizontal: 12,
-    paddingTop: 14,
-    position: 'absolute',
-    right: 0,
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 1,
-    shadowRadius: 20,
-  },
-  navItem: {
-    alignItems: 'center',
-    borderRadius: 999,
-    flex: 1,
-    gap: 2,
-    justifyContent: 'center',
-    minHeight: 52,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-  },
-  navItemActive: {
-    flex: 1.15,
-    paddingHorizontal: 14,
-  },
-  navIcon: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  navLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  navLabelActive: {
-    fontWeight: '800',
   },
 });

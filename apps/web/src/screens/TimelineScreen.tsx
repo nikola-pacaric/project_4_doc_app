@@ -34,6 +34,7 @@ import {
   getPatientDailyForm,
   getPatientFoodForm,
   listEntryPhotos,
+  listPatientEntriesInRange,
   listRecentPatientEntries,
   redeemDoctorInviteCode,
   updateEntryTimestamp,
@@ -45,6 +46,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 
 import {
   appendPendingEntry,
+  loadCachedEntriesForDay,
   loadCachedOpenedDayEntries,
   loadCachedRecentEntries,
   loadPendingEntries,
@@ -218,6 +220,10 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
   const [dailyReadyToSubmit, setDailyReadyToSubmit] = useState(false);
   const [submittingDay, setSubmittingDay] = useState(false);
   const [showTimelineList, setShowTimelineList] = useState(false);
+  const [timelineDay, setTimelineDay] = useState(() => localDateValue(new Date()));
+  const [timelineDayEntries, setTimelineDayEntries] = useState<PatientEntry[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
   const [showMenstruationForm, setShowMenstruationForm] = useState(false);
   const [menstruationEntryToEdit, setMenstruationEntryToEdit] = useState<PatientEntry | null>(
     null,
@@ -236,6 +242,7 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
   const [doctorInviteRedeeming, setDoctorInviteRedeeming] = useState(false);
   const syncPendingPromiseRef = useRef<Promise<LocalPendingEntry[]> | null>(null);
   const loadEntriesPromiseRef = useRef<Promise<void> | null>(null);
+  const timelineDayRequestIdRef = useRef(0);
 
   const handleActivityAnswerChange = useCallback((answer: boolean | undefined) => {
     setExerciseRequired(answer === true);
@@ -297,6 +304,78 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
       syncPendingPromiseRef.current = null;
     }
   }, [client, profile.id]);
+
+  const entryLocalDay = useCallback(
+    (entry: PatientEntry) => localDateValue(new Date(entry.occurredAt)),
+    [],
+  );
+
+  const loadTimelineDay = useCallback(
+    async (day: string, options: LoadEntriesOptions = {}) => {
+      const requestId = timelineDayRequestIdRef.current + 1;
+      timelineDayRequestIdRef.current = requestId;
+
+      if (options.showLoading !== false) {
+        setTimelineLoading(true);
+      }
+      setTimelineError(null);
+
+      try {
+        await withTimeout(syncPendingQueue(), ONLINE_LOAD_TIMEOUT_MS);
+        const range = dayRange(day);
+        const nextEntries = await withTimeout(
+          listPatientEntriesInRange(client, profile.id, range.start, range.end),
+          ONLINE_LOAD_TIMEOUT_MS,
+        );
+        if (requestId !== timelineDayRequestIdRef.current) return;
+
+        const visible = filterPatientTimelineEntries(
+          nextEntries,
+          canTrackMenstruation ? 'female' : null,
+        );
+        setTimelineDayEntries(visible);
+        setOfflineMode(false);
+        saveCachedOpenedDayEntries(profile.id, visible, entryLocalDay, [day]);
+      } catch {
+        if (requestId !== timelineDayRequestIdRef.current) return;
+
+        const cached = loadCachedEntriesForDay(profile.id, day, entryLocalDay);
+        if (requestId !== timelineDayRequestIdRef.current) return;
+
+        setOfflineMode(true);
+        if (cached.length) {
+          setTimelineDayEntries(
+            filterPatientTimelineEntries(cached, canTrackMenstruation ? 'female' : null),
+          );
+          setTimelineError(null);
+        } else {
+          setTimelineDayEntries([]);
+          setTimelineError(t(locale, 'entry.loadError'));
+        }
+      } finally {
+        if (requestId === timelineDayRequestIdRef.current) {
+          setTimelineLoading(false);
+        }
+      }
+    },
+    [canTrackMenstruation, client, entryLocalDay, locale, profile.id, syncPendingQueue],
+  );
+
+  const openTimeline = useCallback(() => {
+    const today = localDateValue(new Date());
+    setTimelineDay(today);
+    setShowTimelineList(true);
+    void loadTimelineDay(today);
+  }, [loadTimelineDay]);
+
+  const handleTimelineDayChange = useCallback(
+    (day: string) => {
+      if (!day) return;
+      setTimelineDay(day);
+      void loadTimelineDay(day);
+    },
+    [loadTimelineDay],
+  );
 
   const loadEntries = useCallback(async (options: LoadEntriesOptions = {}) => {
     if (loadEntriesPromiseRef.current) return loadEntriesPromiseRef.current;
@@ -423,7 +502,8 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
 
   useEffect(() => {
     let active = true;
-    const photoEntries = entries.filter(
+    const photoSource = showTimelineList ? timelineDayEntries : entries;
+    const photoEntries = photoSource.filter(
       (entry) =>
         (entry.kind === 'meal' || entry.kind === 'fluid' || entry.kind === 'medication') &&
         !isPendingEntryId(entry.id),
@@ -468,7 +548,7 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
     return () => {
       active = false;
     };
-  }, [client, entries, locale, offlineMode]);
+  }, [client, entries, locale, offlineMode, showTimelineList, timelineDayEntries]);
 
   useEffect(() => {
     const retryTimer = window.setInterval(() => {
@@ -832,6 +912,16 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
         : t(locale, 'home.submitHelp');
 
   if (showTimelineList) {
+    const dayEntries = mergePendingTextEntries(timelineDayEntries, pendingEntries).filter(
+      (entry) => entryLocalDay(entry) === timelineDay,
+    );
+    const dayPendingIds = new Set(
+      pendingTimelineEntryIds(pendingEntries).filter((id) =>
+        dayEntries.some((entry) => entry.id === id),
+      ),
+    );
+    const todayForPicker = localDateValue(new Date());
+
     return (
       <main className="baseline-layout structured-entry-layout web-timeline-view">
         <div className="baseline-toolbar">
@@ -847,26 +937,40 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
             >
               {t(locale, 'common.back')}
             </button>
-            <button className="secondary-button" onClick={() => void loadEntries()} type="button">
+            <button
+              className="secondary-button"
+              onClick={() => void loadTimelineDay(timelineDay)}
+              type="button"
+            >
               {t(locale, 'timeline.refresh')}
             </button>
           </div>
         </div>
 
-        {error ? <p className="notice error">{error}</p> : null}
+        <label>
+          <span>{t(locale, 'timeline.selectDay')}</span>
+          <input
+            max={todayForPicker}
+            onChange={(event) => handleTimelineDayChange(event.target.value)}
+            type="date"
+            value={timelineDay}
+          />
+        </label>
+
+        {timelineError ? <p className="notice error">{timelineError}</p> : null}
         {message ? <p className="notice success">{message}</p> : null}
-        {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
-        {!loading && visibleEntries.length === 0 ? (
-          <p className="empty-state">{t(locale, 'entry.empty')}</p>
+        {timelineLoading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
+        {!timelineLoading && dayEntries.length === 0 ? (
+          <p className="empty-state">{t(locale, 'timeline.emptyDay')}</p>
         ) : null}
 
         <div className="web-recent-list web-timeline-list">
-          {visibleEntries.map((entry) => {
+          {dayEntries.map((entry) => {
             const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
             const title = isNoStoolTodayEntry(entry)
               ? t(locale, 'stool.noStoolToday')
               : entry.text?.trim() || kindLabel;
-            const pending = pendingIds.has(entry.id);
+            const pending = dayPendingIds.has(entry.id);
             const entryCompleted =
               entry.kind === 'daily'
                 ? dailyCompleted
@@ -1136,11 +1240,7 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
       <section className="web-home-section">
         <div className="web-section-heading">
           <h2>{t(locale, 'home.recentEntries')}</h2>
-          <button
-            className="text-button"
-            onClick={() => setShowTimelineList((current) => !current)}
-            type="button"
-          >
+          <button className="text-button" onClick={openTimeline} type="button">
             {t(locale, 'home.viewAll')}
           </button>
         </div>
@@ -1149,7 +1249,7 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
           <p className="empty-state">{t(locale, 'home.noEntriesToday')}</p>
         ) : null}
         <div className="web-recent-list">
-          {todayEntries.slice(0, showTimelineList ? undefined : 8).map((entry) => {
+          {todayEntries.slice(0, 8).map((entry) => {
             const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
             const pending = pendingIds.has(entry.id);
             const offlineDisabled =

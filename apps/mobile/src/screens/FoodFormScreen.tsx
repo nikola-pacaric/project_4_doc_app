@@ -25,24 +25,26 @@ import {
   uploadPreparedEntryPhoto,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
-import { spacing } from '@project4/ui-tokens';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
-import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { FormField } from '../components/FormField';
 import { MealFields, type ClientMealDraft } from '../components/MealFields';
-import { OptionButtons } from '../components/OptionButtons';
 import { OtherFluidFields, type ClientOtherFluidDraft } from '../components/OtherFluidFields';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { colors, sharedStyles, createThemedStyles } from '../theme';
+import { TactileChoiceRow } from '../components/TactileChoiceRow';
+import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
+import { TactileSectionCard } from '../components/TactileSectionCard';
+import {
+  tactileFieldLabelStyle,
+  tactilePillInputStyle,
+} from '../theme/tactileForm';
 import { localDayRange, toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 import { PhotoUploadScreen, type PreparedPhoto } from './PhotoUploadScreen';
 
 interface FoodFormScreenProps {
   client: AppSupabaseClient;
   onBack: () => void;
+  onCancelProfile?: () => void;
+  onCancelTimeline?: () => void;
   onSaved: () => void;
   profile: UserProfile;
 }
@@ -220,8 +222,18 @@ function normalizeWaterLitersText(value: string): string {
   return parsed === undefined || Number.isNaN(parsed) ? value : String(parsed);
 }
 
-export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScreenProps) {
+export function FoodFormScreen({
+  client,
+  onBack,
+  onCancelProfile,
+  onCancelTimeline,
+  onSaved,
+  profile,
+}: FoodFormScreenProps) {
   const locale = getActiveLocale();
+  const palette = useTactileFormPalette();
+  const pill = tactilePillInputStyle(palette);
+  const label = tactileFieldLabelStyle(palette);
   const today = toLocalDateInput(new Date());
   const day = today;
   const [hydration, setHydration] = useState<FoodHydrationDraft>({ ...foodHydrationDefaults });
@@ -465,132 +477,92 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
   }
 
   return (
-    <SafeAreaView style={sharedStyles.formScreen}>
-      <KeyboardAwareScrollView
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={sharedStyles.formScrollContent}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-      >
-        <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'food.title')} />
-        <Text style={sharedStyles.body}>{t(locale, 'food.subtitle')}</Text>
+    <TactileFormShell
+      error={error}
+      loading={loading}
+      message={message}
+      onCancelProfile={onCancelProfile}
+      onCancelTimeline={onCancelTimeline}
+      onCancelToday={onBack}
+      onSave={() => void save()}
+      saveBusy={saving}
+      subtitle={t(locale, 'food.subtitle')}
+      title={t(locale, 'food.title')}
+    >
+      <TactileSectionCard icon="🍽️" palette={palette} title={t(locale, 'food.title')}>
+        <MealFields
+          createMeal={createEmptyMealDraft}
+          meals={meals}
+          onAddPhoto={(meal, index) => {
+            setPhotoTarget({
+              contextType: 'meal',
+              contextLabel:
+                meal.name?.trim() ||
+                t(locale, 'photo.mealFallback').replace('{number}', String(index + 1)),
+              index,
+            });
+          }}
+          onChange={setMeals}
+        />
+      </TactileSectionCard>
 
-        {loading ? <ActivityIndicator color={colors.accent} size="large" /> : null}
-        {!loading ? (
-          <View style={styles.form}>
-            <MealFields
-              createMeal={createEmptyMealDraft}
-              meals={meals}
-              onAddPhoto={(meal, index) => {
-                setPhotoTarget({
-                  contextType: 'meal',
-                  contextLabel:
-                    meal.name?.trim() ||
-                    t(locale, 'photo.mealFallback').replace('{number}', String(index + 1)),
-                  index,
-                });
-              }}
-              onChange={setMeals}
-            />
-            <View style={styles.hydrationCard}>
-              <Text style={styles.sectionTitle}>{t(locale, 'food.waterTitle')}</Text>
-              <FormField
-                keyboardType="decimal-pad"
-                label={t(locale, 'food.waterAmountLiters')}
-                onBlur={() => setWaterText((current) => normalizeWaterLitersText(current))}
-                onChangeText={(value) => {
-                  setWaterText(value);
-                  setHydration((current) => ({
-                    ...current,
-                    waterLiters: parseWaterLitersInput(value),
-                  }));
-                }}
-                placeholder="2.0"
-                value={waterText}
-              />
-            </View>
-            <OptionButtons
-              label={t(locale, 'food.otherFluids')}
-              onChange={(value) =>
-                setHydration((current) => ({
-                  ...current,
-                  hasOtherFluids: value === 'yes',
-                  otherFluids: value === 'yes' ? current.otherFluids : '',
-                }))
-              }
-              options={[
-                { value: 'yes', label: t(locale, 'common.yes') },
-                { value: 'no', label: t(locale, 'common.no') },
-              ]}
-              value={
-                hydration.hasOtherFluids === undefined
-                  ? undefined
-                  : hydration.hasOtherFluids
-                    ? 'yes'
-                    : 'no'
-              }
-            />
-            {hydration.hasOtherFluids ? (
-              <OtherFluidFields
-                createFluid={createEmptyOtherFluidDraft}
-                fluids={otherFluids}
-                onAddPhoto={(fluid, index) => {
-                  setPhotoTarget({
-                    contextType: 'fluid',
-                    contextLabel:
-                      fluid.name?.trim() ||
-                      t(locale, 'photo.fluidFallback').replace('{number}', String(index + 1)),
-                    index,
-                  });
-                }}
-                onChange={setOtherFluids}
-              />
-            ) : null}
-
-            {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
-            {message ? <Text style={sharedStyles.success}>{message}</Text> : null}
-            <View style={styles.actions}>
-              <View style={styles.action}>
-                <PrimaryButton
-                  label={t(locale, 'common.cancel')}
-                  onPress={onBack}
-                  variant="secondary"
-                />
-              </View>
-              <View style={styles.action}>
-                <PrimaryButton
-                  accessibilityLabel={t(locale, 'common.save')}
-                  busy={saving}
-                  label={t(locale, 'common.save')}
-                  onPress={() => void save()}
-                />
-              </View>
-            </View>
-          </View>
+      <TactileSectionCard icon="💧" palette={palette} title={t(locale, 'food.waterTitle')}>
+        <FormField
+          keyboardType="decimal-pad"
+          label={t(locale, 'food.waterAmountLiters')}
+          labelStyle={label}
+          onBlur={() => setWaterText((current) => normalizeWaterLitersText(current))}
+          onChangeText={(value) => {
+            setWaterText(value);
+            setHydration((current) => ({
+              ...current,
+              waterLiters: parseWaterLitersInput(value),
+            }));
+          }}
+          placeholder="2.0"
+          style={pill}
+          value={waterText}
+        />
+        <TactileChoiceRow
+          label={t(locale, 'food.otherFluids')}
+          mode="segmented"
+          onChange={(value) =>
+            setHydration((current) => ({
+              ...current,
+              hasOtherFluids: value === 'yes',
+              otherFluids: value === 'yes' ? current.otherFluids : '',
+            }))
+          }
+          options={[
+            { value: 'yes', label: t(locale, 'common.yes') },
+            { value: 'no', label: t(locale, 'common.no') },
+          ]}
+          palette={palette}
+          value={
+            hydration.hasOtherFluids === undefined
+              ? undefined
+              : hydration.hasOtherFluids
+                ? 'yes'
+                : 'no'
+          }
+        />
+        {hydration.hasOtherFluids ? (
+          <OtherFluidFields
+            createFluid={createEmptyOtherFluidDraft}
+            fluids={otherFluids}
+            onAddPhoto={(fluid, index) => {
+              setPhotoTarget({
+                contextType: 'fluid',
+                contextLabel:
+                  fluid.name?.trim() ||
+                  t(locale, 'photo.fluidFallback').replace('{number}', String(index + 1)),
+                index,
+              });
+            }}
+            onChange={setOtherFluids}
+          />
         ) : null}
-      </KeyboardAwareScrollView>
-    </SafeAreaView>
+      </TactileSectionCard>
+    </TactileFormShell>
   );
 }
-
-const styles = createThemedStyles(() => StyleSheet.create({
-  form: { gap: spacing.lg },
-  hydrationCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 18,
-    borderWidth: 1,
-    gap: spacing.md,
-    padding: spacing.md,
-  },
-  sectionTitle: { color: colors.text, fontSize: 19, fontWeight: '800' },
-  actions: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: 'auto',
-    paddingTop: spacing.md,
-  },
-  action: { flex: 1 },
-}));

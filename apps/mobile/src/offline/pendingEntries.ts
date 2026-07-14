@@ -67,6 +67,24 @@ export async function loadCachedOpenedDayEntries(patientId: string): Promise<Pat
   return cachedOpenedDayEntries(cache);
 }
 
+/**
+ * Load cached entries for one local calendar day (YYYY-MM-DD).
+ * Prefers the opened-day cache; falls back to filtering the recent-entries cache.
+ */
+export async function loadCachedEntriesForDay(
+  patientId: string,
+  day: string,
+  getLocalDay: (entry: PatientEntry) => string,
+): Promise<PatientEntry[]> {
+  const openedDayCache = await loadOpenedDayEntryCache(patientId);
+  if (Object.prototype.hasOwnProperty.call(openedDayCache, day)) {
+    return openedDayCache[day] ?? [];
+  }
+
+  const recent = await loadCachedRecentEntries(patientId);
+  return recent.filter((entry) => getLocalDay(entry) === day);
+}
+
 export async function saveCachedOpenedDayEntries(
   patientId: string,
   entries: readonly PatientEntry[],

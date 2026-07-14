@@ -3,16 +3,27 @@ import {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import { spacing } from '@project4/ui-tokens';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native';
 
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { toLocalTimeInput } from '../utils/dateTime';
 
 interface TimePickerFieldProps {
   label: string;
+  labelStyle?: StyleProp<TextStyle>;
   onChange: (value: string) => void;
   placeholder?: string;
+  style?: StyleProp<ViewStyle>;
   value?: string;
+  valueStyle?: StyleProp<TextStyle>;
 }
 
 function toTimeDate(value: string | undefined): Date {
@@ -25,7 +36,15 @@ function toTimeDate(value: string | undefined): Date {
   return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
-export function TimePickerField({ label, onChange, placeholder, value }: TimePickerFieldProps) {
+export function TimePickerField({
+  label,
+  labelStyle,
+  onChange,
+  placeholder,
+  style,
+  value,
+  valueStyle,
+}: TimePickerFieldProps) {
   const displayValue = value?.trim() || placeholder || '';
 
   function selectTime(event: DateTimePickerEvent, selectedDate?: Date) {
@@ -46,14 +65,14 @@ export function TimePickerField({ label, onChange, placeholder, value }: TimePic
 
   return (
     <View style={styles.field}>
-      <Text style={sharedStyles.fieldLabel}>{label}</Text>
+      <Text style={[sharedStyles.fieldLabel, labelStyle]}>{label}</Text>
       <Pressable
         accessibilityLabel={`${label}: ${displayValue}`}
         accessibilityRole="button"
         onPress={openClock}
-        style={({ pressed }) => [styles.control, pressed && styles.pressed]}
+        style={({ pressed }) => [styles.control, style, pressed && styles.pressed]}
       >
-        <Text style={[styles.value, !value && styles.placeholder]}>{displayValue}</Text>
+        <Text style={[styles.value, !value && styles.placeholder, valueStyle]}>{displayValue}</Text>
         <Text accessible={false} style={styles.icon}>
           ◷
         </Text>
@@ -62,21 +81,23 @@ export function TimePickerField({ label, onChange, placeholder, value }: TimePic
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
-  field: { gap: spacing.xs },
-  control: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: 52,
-    paddingHorizontal: spacing.md,
-  },
-  pressed: { opacity: 0.72 },
-  value: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  placeholder: { color: colors.mutedText },
-  icon: { color: colors.accent, fontSize: 20, fontWeight: '900' },
-}));
+const styles = createThemedStyles(() =>
+  StyleSheet.create({
+    field: { gap: spacing.xs },
+    control: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      minHeight: 52,
+      paddingHorizontal: spacing.md,
+    },
+    pressed: { opacity: 0.72 },
+    value: { color: colors.text, fontSize: 16, fontWeight: '700' },
+    placeholder: { color: colors.mutedText },
+    icon: { color: colors.accent, fontSize: 20, fontWeight: '900' },
+  }),
+);

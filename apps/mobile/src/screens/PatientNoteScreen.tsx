@@ -15,6 +15,8 @@ interface PatientNoteScreenProps {
   client: AppSupabaseClient;
   entryToEdit?: PatientEntry | null;
   onBack: () => void;
+  onCancelProfile?: () => void;
+  onCancelTimeline?: () => void;
   onPendingSaved: (entry: LocalPendingEntry) => void | Promise<void>;
   onSaved: () => void;
   profile: UserProfile;
@@ -38,6 +40,8 @@ export function PatientNoteScreen({
   client,
   entryToEdit,
   onBack,
+  onCancelProfile,
+  onCancelTimeline,
   onPendingSaved,
   onSaved,
   profile,
@@ -89,6 +93,8 @@ export function PatientNoteScreen({
       error={error}
       initialDraft={entryToEdit ? toDraft(entryToEdit) : undefined}
       onBack={onBack}
+      onCancelProfile={onCancelProfile}
+      onCancelTimeline={onCancelTimeline}
       onSave={save}
     />
   );

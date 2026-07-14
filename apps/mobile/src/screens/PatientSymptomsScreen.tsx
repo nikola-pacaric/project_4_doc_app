@@ -17,6 +17,8 @@ import { SymptomFormScreen } from './SymptomFormScreen';
 interface PatientSymptomsScreenProps {
   client: AppSupabaseClient;
   onBack: () => void;
+  onCancelProfile?: () => void;
+  onCancelTimeline?: () => void;
   onSaved: () => void;
   profile: UserProfile;
 }
@@ -57,6 +59,8 @@ function toDraft(record: SymptomRecord): SymptomDraft {
 export function PatientSymptomsScreen({
   client,
   onBack,
+  onCancelProfile,
+  onCancelTimeline,
   onSaved,
   profile,
 }: PatientSymptomsScreenProps) {
@@ -140,6 +144,8 @@ export function PatientSymptomsScreen({
       key={formVersion}
       message={message}
       onBack={onBack}
+      onCancelProfile={onCancelProfile}
+      onCancelTimeline={onCancelTimeline}
       onSave={save}
     />
   );

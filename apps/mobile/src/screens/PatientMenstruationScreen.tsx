@@ -17,6 +17,8 @@ interface PatientMenstruationScreenProps {
   client: AppSupabaseClient;
   entryToEdit?: { id: string; occurredAt: string } | null;
   onBack: () => void;
+  onCancelProfile?: () => void;
+  onCancelTimeline?: () => void;
   onSaved: () => void;
   profile: UserProfile;
 }
@@ -36,6 +38,8 @@ export function PatientMenstruationScreen({
   client,
   entryToEdit,
   onBack,
+  onCancelProfile,
+  onCancelTimeline,
   onSaved,
   profile,
 }: PatientMenstruationScreenProps) {
@@ -103,6 +107,8 @@ export function PatientMenstruationScreen({
       error={error}
       initialDraft={initialDraft ?? undefined}
       onBack={onBack}
+      onCancelProfile={onCancelProfile}
+      onCancelTimeline={onCancelTimeline}
       onSave={save}
     />
   );
