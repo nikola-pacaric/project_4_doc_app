@@ -489,7 +489,7 @@ export function FoodFormScreen({
       subtitle={t(locale, 'food.subtitle')}
       title={t(locale, 'food.title')}
     >
-      <TactileSectionCard icon="🍽️" palette={palette} title={t(locale, 'food.title')}>
+      <TactileSectionCard icon="🍽" palette={palette} title={t(locale, 'food.title')}>
         <MealFields
           createMeal={createEmptyMealDraft}
           meals={meals}

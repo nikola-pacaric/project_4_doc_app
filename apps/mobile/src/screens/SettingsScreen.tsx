@@ -6,7 +6,13 @@ import {
   type ThemePreference,
   type VoiceLanguage,
 } from '@project4/i18n';
+import {
+  getPatientDoctorLink,
+  redeemDoctorInviteCode,
+  type AppSupabaseClient,
+} from '@project4/supabase-client';
 import { darkTheme } from '@project4/ui-tokens';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -17,8 +23,10 @@ import {
   View,
 } from 'react-native';
 
+import { FormField } from '../components/FormField';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PatientBottomNav } from '../components/PatientBottomNav';
+import { PrimaryButton } from '../components/PrimaryButton';
 import { colors } from '../theme';
 
 /**
@@ -50,8 +58,14 @@ const APP_VERSION = '0.1.0';
 
 interface SettingsScreenProps {
   preferences: AppPreferences;
-  displayName?: string;
+  /** When set, shows patient doctor-link controls under voice settings. */
+  client?: AppSupabaseClient;
+  patientId?: string;
   onBack: () => void;
+  /** Patient bottom-nav targets. Default to onBack when omitted (e.g. doctor settings). */
+  onToday?: () => void;
+  onTimeline?: () => void;
+  onProfile?: () => void;
   onChange: (changes: Partial<AppPreferences>) => void;
   onSignOut: () => void | Promise<void>;
 }
@@ -60,23 +74,27 @@ function isDarkThemeActive(): boolean {
   return colors.background === darkTheme.colors.background;
 }
 
-function initialsFromName(name: string | undefined): string {
-  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return 'P';
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
-}
-
 export function SettingsScreen({
   preferences,
-  displayName,
+  client,
+  patientId,
   onBack,
+  onToday,
+  onTimeline,
+  onProfile,
   onChange,
   onSignOut,
 }: SettingsScreenProps) {
   const locale = getActiveLocale();
+  const showDoctorLink = Boolean(client && patientId);
+  const goToday = onToday ?? onBack;
+  const goTimeline = onTimeline ?? onBack;
+  const goProfile = onProfile ?? onBack;
+  const [hasLinkedDoctor, setHasLinkedDoctor] = useState(false);
+  const [doctorInviteCode, setDoctorInviteCode] = useState('');
+  const [doctorInviteMessage, setDoctorInviteMessage] = useState<string | null>(null);
+  const [doctorInviteRedeeming, setDoctorInviteRedeeming] = useState(false);
+  const [doctorLinkOffline, setDoctorLinkOffline] = useState(false);
   const dark = isDarkThemeActive();
   const palette = dark
     ? {
@@ -101,7 +119,48 @@ export function SettingsScreen({
       }
     : stitch;
 
-  const initials = initialsFromName(displayName);
+  const loadDoctorLink = useCallback(async () => {
+    if (!client || !patientId) return;
+    try {
+      const link = await getPatientDoctorLink(client, patientId);
+      setHasLinkedDoctor(Boolean(link));
+      setDoctorLinkOffline(false);
+    } catch {
+      setDoctorLinkOffline(true);
+    }
+  }, [client, patientId]);
+
+  useEffect(() => {
+    void loadDoctorLink();
+  }, [loadDoctorLink]);
+
+  async function redeemDoctorInvite() {
+    if (
+      !client ||
+      !patientId ||
+      !doctorInviteCode.trim() ||
+      doctorInviteRedeeming ||
+      hasLinkedDoctor ||
+      doctorLinkOffline
+    ) {
+      return;
+    }
+
+    setDoctorInviteRedeeming(true);
+    setDoctorInviteMessage(null);
+    try {
+      await redeemDoctorInviteCode(client, doctorInviteCode);
+      setDoctorInviteCode('');
+      setHasLinkedDoctor(true);
+      setDoctorInviteMessage(t(locale, 'patientInvite.success'));
+      await loadDoctorLink();
+    } catch {
+      setDoctorInviteMessage(t(locale, 'patientInvite.error'));
+    } finally {
+      setDoctorInviteRedeeming(false);
+    }
+  }
+
   const themeModeLabel =
     preferences.theme === 'dark'
       ? t(locale, 'settings.themeDarkMode')
@@ -136,35 +195,6 @@ export function SettingsScreen({
         showsVerticalScrollIndicator={false}
         style={{ backgroundColor: palette.background }}
       >
-        {/* Top app bar */}
-        <View style={styles.topBar}>
-          <View style={styles.brandRow}>
-            <View
-              style={[
-                styles.avatar,
-                {
-                  backgroundColor: palette.secondaryContainer,
-                  borderColor: dark ? palette.outlineVariant : 'rgba(166, 53, 83, 0.1)',
-                },
-              ]}
-            >
-              <Text style={[styles.avatarText, { color: palette.primary }]}>{initials}</Text>
-            </View>
-            <Text style={[styles.brandTitle, { color: palette.primary }]}>
-              {t(locale, 'app.brand')}
-            </Text>
-          </View>
-          <Pressable
-            accessibilityLabel={t(locale, 'common.back')}
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={onBack}
-            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-          >
-            <Text style={[styles.topIcon, { color: palette.primary }]}>⚙</Text>
-          </Pressable>
-        </View>
-
         {/* Header */}
         <View style={styles.headerBlock}>
           <Text style={[styles.pageTitle, { color: palette.onSurface }]}>
@@ -405,6 +435,86 @@ export function SettingsScreen({
           </View>
         </View>
 
+        {showDoctorLink ? (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: palette.primary }]}>
+              {hasLinkedDoctor
+                ? t(locale, 'patientInvite.linkedTitle')
+                : t(locale, 'patientInvite.title')}
+            </Text>
+            <View
+              style={[
+                styles.inviteCard,
+                {
+                  backgroundColor: palette.surface,
+                  shadowColor: palette.shadow,
+                },
+              ]}
+            >
+              {hasLinkedDoctor ? (
+                <View style={styles.inviteCopy}>
+                  <Text style={[styles.cardTitle, { color: palette.onSurface }]}>
+                    {t(locale, 'patientInvite.linkedTitle')}
+                  </Text>
+                  <Text style={[styles.cardSubtitle, { color: palette.onSurfaceVariant }]}>
+                    {t(locale, 'patientInvite.linkedHelp')}
+                  </Text>
+                  <Text style={[styles.inviteNotice, { color: palette.primary }]}>
+                    {t(locale, 'patientInvite.linkedNotice')}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.inviteCopy}>
+                  <Text style={[styles.cardSubtitle, { color: palette.onSurfaceVariant }]}>
+                    {t(locale, 'patientInvite.help')}
+                  </Text>
+                  <FormField
+                    autoCapitalize="characters"
+                    editable={!doctorLinkOffline && !doctorInviteRedeeming}
+                    label={t(locale, 'patientInvite.code')}
+                    onChangeText={(value) => {
+                      setDoctorInviteCode(value.toUpperCase());
+                      setDoctorInviteMessage(null);
+                    }}
+                    placeholder={t(locale, 'patientInvite.placeholder')}
+                    value={doctorInviteCode}
+                  />
+                  {doctorLinkOffline ? (
+                    <Text style={[styles.inviteMessage, { color: palette.error }]}>
+                      {t(locale, 'patientInvite.offline')}
+                    </Text>
+                  ) : null}
+                  {doctorInviteMessage ? (
+                    <Text
+                      style={[
+                        styles.inviteMessage,
+                        { color: palette.error },
+                        doctorInviteMessage === t(locale, 'patientInvite.success') && {
+                          color: palette.primary,
+                          fontWeight: '700',
+                        },
+                      ]}
+                    >
+                      {doctorInviteMessage}
+                    </Text>
+                  ) : null}
+                  <PrimaryButton
+                    busy={doctorInviteRedeeming}
+                    disabled={
+                      doctorLinkOffline ||
+                      doctorInviteRedeeming ||
+                      !doctorInviteCode.trim()
+                    }
+                    label={t(locale, 'patientInvite.redeem')}
+                    onPress={() => void redeemDoctorInvite()}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+            </View>
+          </View>
+        ) : null}
+
         {/* Account */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: palette.primary }]}>
@@ -454,10 +564,10 @@ export function SettingsScreen({
 
       <PatientBottomNav
         active="settings"
-        onProfile={onBack}
+        onProfile={goProfile}
         onSettings={() => undefined}
-        onTimeline={onBack}
-        onToday={onBack}
+        onTimeline={goTimeline}
+        onToday={goToday}
         palette={{
           background: dark ? colors.surface : 'rgba(241, 236, 242, 0.92)',
           onPrimaryContainer: dark ? palette.onPrimaryContainer : stitch.onPrimaryContainer,
@@ -486,47 +596,6 @@ const styles = StyleSheet.create({
   cardPressed: {
     opacity: 0.92,
     transform: [{ scale: 0.98 }],
-  },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: 48,
-    paddingVertical: 8,
-  },
-  brandRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexShrink: 1,
-    gap: 12,
-  },
-  avatar: {
-    alignItems: 'center',
-    borderRadius: 20,
-    borderWidth: 2,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  avatarText: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  brandTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  iconButton: {
-    alignItems: 'center',
-    borderRadius: 20,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  topIcon: {
-    fontSize: 22,
-    fontWeight: '700',
   },
   headerBlock: {
     gap: 4,
@@ -568,6 +637,29 @@ const styles = StyleSheet.create({
   },
   signOutCard: {
     minHeight: 80,
+  },
+  inviteCard: {
+    borderRadius: 16,
+    elevation: 2,
+    gap: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 24,
+  },
+  inviteCopy: {
+    gap: 12,
+  },
+  inviteNotice: {
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  inviteMessage: {
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
   },
   cardLeft: {
     alignItems: 'center',

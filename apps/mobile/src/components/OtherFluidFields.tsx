@@ -1,12 +1,15 @@
 import { isOtherFluidDraftStarted, type OtherFluidDraft } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
-import { spacing } from '@project4/ui-tokens';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, createThemedStyles } from '../theme';
 import { toLocalDateInput } from '../utils/dateTime';
+import {
+  getTactilePalette,
+  tactileFieldLabelStyle,
+  tactileFormLayout as layout,
+  tactilePillInputStyle,
+} from '../theme/tactileForm';
 import { FormField } from './FormField';
-import { PrimaryButton } from './PrimaryButton';
 import { TimePickerField } from './TimePickerField';
 import { type PreparedPhoto } from '../screens/PhotoUploadScreen';
 
@@ -29,6 +32,15 @@ export function OtherFluidFields({
   onChange,
 }: OtherFluidFieldsProps) {
   const locale = getActiveLocale();
+  const palette = getTactilePalette();
+  // White controls on the soft fluid card so fields stay visible.
+  const pill = {
+    ...tactilePillInputStyle(palette),
+    backgroundColor: palette.surface,
+    borderColor: palette.outlineVariant,
+    borderWidth: 1,
+  };
+  const label = tactileFieldLabelStyle(palette);
 
   function updateFluid(index: number, update: Partial<ClientOtherFluidDraft>) {
     onChange(
@@ -49,94 +61,161 @@ export function OtherFluidFields({
 
   return (
     <View style={styles.section}>
-      <Text style={styles.title}>{t(locale, 'fluid.sectionTitle')}</Text>
-      <Text style={styles.help}>{t(locale, 'fluid.sectionHelp')}</Text>
+      <Text style={[styles.title, { color: palette.onSurface }]}>
+        {t(locale, 'fluid.sectionTitle')}
+      </Text>
+      <Text style={[styles.help, { color: palette.onSurfaceVariant }]}>
+        {t(locale, 'fluid.sectionHelp')}
+      </Text>
+
       {fluids.map((fluid, index) => (
-        <View style={styles.card} key={index}>
+        <View
+          key={fluid.entryId ?? `fluid-${index}`}
+          style={[
+            styles.fluidCard,
+            {
+              backgroundColor: palette.surfaceContainerLow,
+              borderColor: palette.outlineVariant,
+            },
+          ]}
+        >
           <TimePickerField
             label={t(locale, 'fluid.time')}
+            labelStyle={label}
             onChange={(value) => updateFluidTime(index, value)}
             placeholder={t(locale, 'fluid.timePlaceholder')}
+            style={pill}
             value={fluid.occurredAt?.slice(11, 16) ?? ''}
+            valueStyle={{ color: palette.onSurface }}
           />
           <FormField
             enableVoice
             label={t(locale, 'fluid.name')}
+            labelStyle={label}
             onChangeText={(value) => updateFluid(index, { name: value })}
+            style={pill}
             value={fluid.name ?? ''}
           />
+
           {fluid.localPhoto ? (
-            <View style={styles.photoPreviewContainer}>
-              <Image source={{ uri: fluid.localPhoto.photo.uri }} style={styles.photoPreview} />
-              <PrimaryButton
-                label={t(locale, 'common.remove')}
+            <View style={styles.photoRow}>
+              <Image source={{ uri: fluid.localPhoto.photo.uri }} style={styles.photo} />
+              <Pressable
+                accessibilityRole="button"
                 onPress={() => updateFluid(index, { localPhoto: null })}
-                variant="danger"
-              />
+                style={({ pressed }) => [
+                  layout.secondaryButton,
+                  { borderColor: palette.error, flex: 1 },
+                  pressed && layout.pressed,
+                ]}
+              >
+                <Text style={[layout.buttonLabel, { color: palette.error }]}>
+                  {t(locale, 'common.remove')}
+                </Text>
+              </Pressable>
             </View>
           ) : onAddPhoto ? (
-            <View style={styles.photoAction}>
-              <PrimaryButton
-                label={t(locale, 'photo.add')}
-                onPress={() => onAddPhoto(fluid, index)}
-                variant="secondary"
-              />
-            </View>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => onAddPhoto(fluid, index)}
+              style={({ pressed }) => [
+                layout.dashedAdd,
+                { borderColor: 'rgba(166, 53, 83, 0.25)' },
+                pressed && layout.pressed,
+              ]}
+            >
+              <Text style={{ color: palette.primary, fontSize: 14, fontWeight: '600' }}>
+                {t(locale, 'photo.add')}
+              </Text>
+            </Pressable>
           ) : null}
+
           {fluid.existingPhotoUris?.length ? (
-            <View style={styles.existingPhotos}>
-              {fluid.existingPhotoUris.map((uri) => (
-                <Image key={uri} source={{ uri }} style={styles.photoPreview} />
-              ))}
+            <View style={styles.savedPhotos}>
+              <Text style={[layout.helpText, { color: palette.onSurface, fontWeight: '700' }]}>
+                {t(locale, 'photo.savedPhotos')}
+              </Text>
+              <View style={styles.photoList}>
+                {fluid.existingPhotoUris.map((uri) => (
+                  <Image key={uri} source={{ uri }} style={styles.photo} />
+                ))}
+              </View>
             </View>
           ) : null}
+
           {fluids.length > 1 || isOtherFluidDraftStarted(fluid) ? (
-            <PrimaryButton
-              label={t(locale, 'fluid.remove')}
+            <Pressable
+              accessibilityRole="button"
               onPress={() => removeFluid(index)}
-              variant="danger"
-            />
+              style={({ pressed }) => [
+                layout.primaryButton,
+                {
+                  backgroundColor: palette.primary,
+                  shadowColor: palette.primary,
+                },
+                pressed && layout.pressed,
+              ]}
+            >
+              <Text style={[layout.buttonLabel, { color: palette.onPrimary }]}>
+                {t(locale, 'fluid.remove')}
+              </Text>
+            </Pressable>
           ) : null}
         </View>
       ))}
-      <PrimaryButton
-        label={`+ ${t(locale, 'fluid.add')}`}
+
+      <Pressable
+        accessibilityRole="button"
         onPress={() => onChange([...fluids, createFluid()])}
-        variant="secondary"
-      />
+        style={({ pressed }) => [
+          layout.secondaryButton,
+          { borderColor: palette.primary },
+          pressed && layout.pressed,
+        ]}
+      >
+        <Text style={[layout.buttonLabel, { color: palette.primary }]}>
+          ＋ {t(locale, 'fluid.add')}
+        </Text>
+      </Pressable>
     </View>
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
+const styles = StyleSheet.create({
   section: {
-    gap: spacing.md,
+    gap: 16,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  help: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: -8,
+  },
+  fluidCard: {
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
+    gap: 14,
+    padding: 16,
   },
-  title: { color: colors.text, fontSize: 19, fontWeight: '800' },
-  help: { color: colors.mutedText, fontSize: 15, lineHeight: 22 },
-  card: { gap: spacing.sm },
-  photoAction: { marginTop: spacing.xs },
-  photoPreviewContainer: {
-    flexDirection: 'row',
+  photoRow: {
     alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.xs,
+    flexDirection: 'row',
+    gap: 12,
   },
-  photoPreview: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: colors.surface,
+  photo: {
+    backgroundColor: '#f1ecf2',
+    borderRadius: 12,
+    height: 64,
+    width: 64,
   },
-  existingPhotos: {
+  savedPhotos: { gap: 10 },
+  photoList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
+    gap: 8,
   },
-}));
+});

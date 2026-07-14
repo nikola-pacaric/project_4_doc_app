@@ -35,7 +35,6 @@ import {
   listCompletePatientMedicationEntryIds,
   listPatientEntriesInRange,
   listRecentPatientEntries,
-  redeemDoctorInviteCode,
   updateEntryTimestamp,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
@@ -64,11 +63,14 @@ import { PatientSymptomsScreen } from './PatientSymptomsScreen';
 import { PatientStoolScreen } from './PatientStoolScreen';
 import { PatientTimelineScreen } from './PatientTimelineScreen';
 
+export type PatientHomeTab = 'today' | 'timeline' | 'profile';
+
 interface PatientHomeScreenProps {
   client: AppSupabaseClient;
   profile: UserProfile;
   onOpenSettings: () => void;
-  onSignOut: () => Promise<void>;
+  /** Open this surface after Settings (or other app-level) returns to patient home. */
+  initialTab?: PatientHomeTab;
 }
 
 interface LoadEntriesOptions {
@@ -81,7 +83,7 @@ const OFFLINE_MODE_CHECK_MS = 2_000;
 
 function formatMissingSubmitSections(template: string, sections: string[]): string {
   if (!sections.length) return '';
-  return template.replace('{sections}', sections.map((section) => `- ${section}`).join('\n'));
+  return template.replace('{sections}', sections.join(', '));
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
@@ -123,14 +125,14 @@ export function PatientHomeScreen({
   client,
   profile,
   onOpenSettings,
-  onSignOut,
+  initialTab = 'today',
 }: PatientHomeScreenProps) {
   const locale = getActiveLocale();
   const [entries, setEntries] = useState<PatientEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [offlineMode, setOfflineMode] = useState(false);
-  const [showBaseline, setShowBaseline] = useState(false);
+  const [showBaseline, setShowBaseline] = useState(initialTab === 'profile');
   const [showDailyForm, setShowDailyForm] = useState(false);
   const [dailyEntryId, setDailyEntryId] = useState<string | null>(null);
   const [dailyCompleted, setDailyCompleted] = useState(false);
@@ -159,7 +161,7 @@ export function PatientHomeScreen({
   );
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [noteEntryToEdit, setNoteEntryToEdit] = useState<PatientEntry | null>(null);
-  const [showTimeline, setShowTimeline] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(initialTab === 'timeline');
   const [timelineDay, setTimelineDay] = useState(() => toLocalDateInput(new Date()));
   const [timelineDayEntries, setTimelineDayEntries] = useState<PatientEntry[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
@@ -167,9 +169,6 @@ export function PatientHomeScreen({
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
   const [pendingEntries, setPendingEntries] = useState<LocalPendingEntry[]>([]);
   const [foodForm, setFoodForm] = useState<FoodFormRecord | null>(null);
-  const [doctorInviteCode, setDoctorInviteCode] = useState('');
-  const [doctorInviteMessage, setDoctorInviteMessage] = useState<string | null>(null);
-  const [doctorInviteRedeeming, setDoctorInviteRedeeming] = useState(false);
   const syncPendingPromiseRef = useRef<Promise<LocalPendingEntry[]> | null>(null);
   const loadEntriesPromiseRef = useRef<Promise<void> | null>(null);
   const timelineDayRequestIdRef = useRef(0);
@@ -200,6 +199,7 @@ export function PatientHomeScreen({
       return;
     }
     if (isNoStoolTodayEntry(entry)) {
+      setStoolEntryToEdit(entry);
       setShowStoolForm(true);
       return;
     }
@@ -341,6 +341,15 @@ export function PatientHomeScreen({
     setShowTimeline(true);
     void loadTimelineDay(today);
   }, [loadTimelineDay]);
+
+  const initialTabAppliedRef = useRef(false);
+  useEffect(() => {
+    if (initialTabAppliedRef.current) return;
+    initialTabAppliedRef.current = true;
+    if (initialTab === 'timeline') {
+      openTimeline();
+    }
+  }, [initialTab, openTimeline]);
 
   const handleTimelineDayChange = useCallback(
     (day: string) => {
@@ -698,14 +707,18 @@ export function PatientHomeScreen({
     );
     return (
       <PatientTimelineScreen
-        displayName={profile.displayName}
         entries={dayEntries}
         error={timelineError}
         loading={timelineLoading}
+        offlineMode={offlineMode}
         onBack={() => setShowTimeline(false)}
         onOpenBaseline={() => {
           setShowTimeline(false);
           setShowBaseline(true);
+        }}
+        onOpenEntry={(entry) => {
+          setShowTimeline(false);
+          openRecentEntry(entry);
         }}
         onOpenSettings={() => {
           setShowTimeline(false);
@@ -767,23 +780,6 @@ export function PatientHomeScreen({
       setError(t(locale, 'daily.saveError'));
     } finally {
       setSubmittingDay(false);
-    }
-  }
-
-  async function redeemDoctorInvite() {
-    if (!doctorInviteCode.trim() || offlineMode || doctorInviteRedeeming) return;
-
-    setDoctorInviteRedeeming(true);
-    setDoctorInviteMessage(null);
-    try {
-      await redeemDoctorInviteCode(client, doctorInviteCode);
-      setDoctorInviteCode('');
-      setDoctorInviteMessage(t(locale, 'patientInvite.success'));
-      await loadEntries({ showLoading: false });
-    } catch {
-      setDoctorInviteMessage(t(locale, 'patientInvite.error'));
-    } finally {
-      setDoctorInviteRedeeming(false);
     }
   }
 
@@ -856,23 +852,10 @@ export function PatientHomeScreen({
       onOpenSymptoms={() => setShowSymptomForm(true)}
       onOpenEntry={openRecentEntry}
       onOpenTimeline={openTimeline}
-      onRedeemDoctorInvite={redeemDoctorInvite}
       onOpenSettings={onOpenSettings}
       onSubmitDay={submitDay}
-      onSignOut={onSignOut}
       offlineMode={offlineMode}
       profile={profile}
-      doctorInviteCode={doctorInviteCode}
-      doctorInviteMessage={
-        offlineMode && doctorInviteCode.trim()
-          ? t(locale, 'patientInvite.offline')
-          : doctorInviteMessage
-      }
-      doctorInviteRedeeming={doctorInviteRedeeming}
-      onDoctorInviteCodeChange={(value) => {
-        setDoctorInviteCode(value.toUpperCase());
-        setDoctorInviteMessage(null);
-      }}
       pendingEntryIds={pendingIds}
       recentEntries={visibleEntries}
       submitBusy={submittingDay}

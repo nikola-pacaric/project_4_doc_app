@@ -90,7 +90,9 @@ export function StoolFormScreen({
       .then((record) => {
         if (!active) return;
         if (!record) {
-          setError(t(locale, 'stool.loadError'));
+          // Existing entry without stool details (e.g. "No stool today" note).
+          setDraft(initialDraft);
+          setOccurredAt(entryToEdit.occurredAt);
           return;
         }
         setDraft(toDraft(record));
@@ -136,8 +138,30 @@ export function StoolFormScreen({
     setSaving(true);
     setError(null);
     try {
-      await createPatientNoStoolMarker(client, profile.id, localDateTime(new Date()));
+      const daySource = entryToEdit?.occurredAt
+        ? new Date(entryToEdit.occurredAt)
+        : occurredAt
+          ? new Date(occurredAt)
+          : new Date();
+      const markerOccurredAt = Number.isNaN(daySource.getTime())
+        ? localDateTime(new Date())
+        : localDateTime(daySource);
+
+      if (entryToEdit?.id && draft.entryId) {
+        // Converting an existing stool entry → replace it with the no-stool marker.
+        await createPatientNoStoolMarker(client, profile.id, markerOccurredAt, {
+          replaceEntryId: entryToEdit.id,
+        });
+      } else if (entryToEdit?.id) {
+        // Updating an existing no-stool note marker.
+        await createPatientNoStoolMarker(client, profile.id, markerOccurredAt, {
+          entryId: entryToEdit.id,
+        });
+      } else {
+        await createPatientNoStoolMarker(client, profile.id, markerOccurredAt);
+      }
       setSavedNoStool(true);
+      onSaved();
     } catch {
       setError(t(locale, 'stool.noStoolSaveError'));
     } finally {

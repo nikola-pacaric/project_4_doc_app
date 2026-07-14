@@ -232,7 +232,7 @@ export function DailyFormScreen({
         </View>
       ) : null}
 
-      <TactileSectionCard icon="☀️" palette={palette} title={t(locale, 'daily.title')}>
+      <TactileSectionCard icon="☀" palette={palette} title={t(locale, 'daily.title')}>
         <TimePickerField
           label={t(locale, 'daily.wakeTime')}
           labelStyle={label}

@@ -9,15 +9,21 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import type { EntryKind, PatientEntry, UserProfile } from '@project4/contracts';
+import {
+  ENTRY_KIND_ICONS,
+  ENTRY_KIND_ICON_STYLES,
+  entryKindIcon,
+  entryKindIconStyle,
+  type EntryKind,
+  type PatientEntry,
+  type UserProfile,
+} from '@project4/contracts';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import { darkTheme } from '@project4/ui-tokens';
 
 import { CircularProgress } from '../components/CircularProgress';
-import { FormField } from '../components/FormField';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PatientBottomNav } from '../components/PatientBottomNav';
-import { PrimaryButton } from '../components/PrimaryButton';
 import { colors } from '../theme';
 import { formatEntryTime, toLocalDateInput } from '../utils/dateTime';
 
@@ -58,10 +64,8 @@ interface DailyProgressHomeScreenProps {
   onOpenSymptoms: () => void;
   onOpenEntry: (entry: PatientEntry) => void;
   onOpenTimeline: () => void;
-  onRedeemDoctorInvite: () => void | Promise<void>;
   onOpenSettings: () => void;
   onSubmitDay: () => void | Promise<void>;
-  onSignOut: () => void | Promise<void>;
   canTrackMenstruation: boolean;
   dailyCompleted: boolean;
   dailyReadyToSubmit: boolean;
@@ -83,10 +87,6 @@ interface DailyProgressHomeScreenProps {
   error: string | null;
   loading: boolean;
   offlineMode: boolean;
-  doctorInviteCode: string;
-  doctorInviteMessage: string | null;
-  doctorInviteRedeeming: boolean;
-  onDoctorInviteCodeChange: (value: string) => void;
   submitDisabled: boolean;
   submitBusy: boolean;
   submitHelp: string;
@@ -100,79 +100,6 @@ interface QuickAction {
   iconBg: string;
 }
 
-const quickActions: QuickAction[] = [
-  {
-    id: 'daily',
-    icon: '☀',
-    labelKey: 'home.action.daily',
-    iconColor: '#f97316',
-    iconBg: '#ffedd5',
-  },
-  {
-    id: 'food',
-    icon: '🍽',
-    labelKey: 'home.action.food',
-    iconColor: '#3b82f6',
-    iconBg: '#dbeafe',
-  },
-  {
-    id: 'symptoms',
-    icon: '✚',
-    labelKey: 'home.action.symptoms',
-    iconColor: '#ef4444',
-    iconBg: '#fee2e2',
-  },
-  {
-    id: 'stool',
-    icon: '≡',
-    labelKey: 'home.action.stool',
-    iconColor: '#f97316',
-    iconBg: '#ffedd5',
-  },
-  {
-    id: 'medication',
-    icon: '💊',
-    labelKey: 'home.action.medication',
-    iconColor: stitch.primary,
-    iconBg: 'rgba(244, 113, 143, 0.2)',
-  },
-  {
-    id: 'exercise',
-    icon: '🏃',
-    labelKey: 'home.action.exercise',
-    iconColor: '#22c55e',
-    iconBg: '#dcfce7',
-  },
-  {
-    id: 'period',
-    icon: '💧',
-    labelKey: 'home.action.period',
-    iconColor: '#ef4444',
-    iconBg: '#fee2e2',
-  },
-  {
-    id: 'notes',
-    icon: '✎',
-    labelKey: 'home.action.notes',
-    iconColor: '#ca8a04',
-    iconBg: '#fef9c3',
-  },
-];
-
-const entryIcons: Record<EntryKind, string> = {
-  text: '✎',
-  daily: '☀',
-  meal: '🍽',
-  fluid: '💧',
-  symptom: '✚',
-  stool: '≡',
-  medication: '💊',
-  exercise: '🏃',
-  menstruation: '💧',
-  note: '✎',
-  custom: '□',
-};
-
 const actionEntryKinds: Record<QuickAction['id'], EntryKind> = {
   daily: 'daily',
   food: 'meal',
@@ -183,6 +110,65 @@ const actionEntryKinds: Record<QuickAction['id'], EntryKind> = {
   period: 'menstruation',
   notes: 'note',
 };
+
+const quickActions: QuickAction[] = [
+  {
+    id: 'daily',
+    icon: ENTRY_KIND_ICONS.daily,
+    labelKey: 'home.action.daily',
+    iconColor: ENTRY_KIND_ICON_STYLES.daily.color,
+    iconBg: ENTRY_KIND_ICON_STYLES.daily.background,
+  },
+  {
+    id: 'food',
+    icon: ENTRY_KIND_ICONS.meal,
+    labelKey: 'home.action.food',
+    iconColor: ENTRY_KIND_ICON_STYLES.meal.color,
+    iconBg: ENTRY_KIND_ICON_STYLES.meal.background,
+  },
+  {
+    id: 'symptoms',
+    icon: ENTRY_KIND_ICONS.symptom,
+    labelKey: 'home.action.symptoms',
+    iconColor: ENTRY_KIND_ICON_STYLES.symptom.color,
+    iconBg: ENTRY_KIND_ICON_STYLES.symptom.background,
+  },
+  {
+    id: 'stool',
+    icon: ENTRY_KIND_ICONS.stool,
+    labelKey: 'home.action.stool',
+    iconColor: ENTRY_KIND_ICON_STYLES.stool.color,
+    iconBg: ENTRY_KIND_ICON_STYLES.stool.background,
+  },
+  {
+    id: 'medication',
+    icon: ENTRY_KIND_ICONS.medication,
+    labelKey: 'home.action.medication',
+    iconColor: ENTRY_KIND_ICON_STYLES.medication.color,
+    iconBg: ENTRY_KIND_ICON_STYLES.medication.background,
+  },
+  {
+    id: 'exercise',
+    icon: ENTRY_KIND_ICONS.exercise,
+    labelKey: 'home.action.exercise',
+    iconColor: ENTRY_KIND_ICON_STYLES.exercise.color,
+    iconBg: ENTRY_KIND_ICON_STYLES.exercise.background,
+  },
+  {
+    id: 'period',
+    icon: ENTRY_KIND_ICONS.menstruation,
+    labelKey: 'home.action.period',
+    iconColor: ENTRY_KIND_ICON_STYLES.menstruation.color,
+    iconBg: ENTRY_KIND_ICON_STYLES.menstruation.background,
+  },
+  {
+    id: 'notes',
+    icon: ENTRY_KIND_ICONS.note,
+    labelKey: 'home.action.notes',
+    iconColor: ENTRY_KIND_ICON_STYLES.note.color,
+    iconBg: ENTRY_KIND_ICON_STYLES.note.background,
+  },
+];
 
 function greetingKey(hour: number): TranslationKey {
   if (hour < 12) return 'home.greeting.morning';
@@ -206,10 +192,8 @@ export function DailyProgressHomeScreen({
   onOpenSymptoms,
   onOpenEntry,
   onOpenTimeline,
-  onRedeemDoctorInvite,
   onOpenSettings,
   onSubmitDay,
-  onSignOut,
   canTrackMenstruation,
   dailyCompleted,
   dailyReadyToSubmit,
@@ -231,10 +215,6 @@ export function DailyProgressHomeScreen({
   error,
   loading,
   offlineMode,
-  doctorInviteCode,
-  doctorInviteMessage,
-  doctorInviteRedeeming,
-  onDoctorInviteCodeChange,
   submitDisabled,
   submitBusy,
   submitHelp,
@@ -296,19 +276,11 @@ export function DailyProgressHomeScreen({
   const gridGap = 8;
   const actionCardWidth = (width - horizontalPadding * 2 - gridGap * 3) / 4;
   const displayName = profile.displayName?.trim() || t(locale, 'role.patient');
-  const initials = displayName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
   const dateLabel = new Intl.DateTimeFormat(locale, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
   }).format(now);
-  const submitHelpIsList = submitHelp.includes('\n- ');
-
   function actionIsCompleted(action: QuickAction): boolean {
     if (action.id === 'daily') return dailyCompleted || dailyReadyToSubmit;
     if (action.id === 'food') return foodCompleted;
@@ -351,48 +323,6 @@ export function DailyProgressHomeScreen({
         showsVerticalScrollIndicator={false}
         style={{ backgroundColor: palette.background }}
       >
-        {/* Top app bar — Stitch: avatar + VitalTrack + settings */}
-        <View style={styles.topBar}>
-          <View style={styles.brandRow}>
-            <Pressable
-              accessibilityLabel={t(locale, 'baseline.open')}
-              accessibilityHint={offlineMode ? t(locale, 'offline.actionsDisabled') : undefined}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: offlineMode }}
-              disabled={offlineMode}
-              onPress={onOpenBaseline}
-              style={({ pressed }) => [
-                styles.avatarButton,
-                {
-                  backgroundColor: palette.secondaryContainer,
-                  borderColor: dark ? palette.outlineVariant : 'rgba(166, 53, 83, 0.1)',
-                },
-                offlineMode && styles.disabled,
-                pressed && !offlineMode && styles.pressed,
-              ]}
-            >
-              <Text style={[styles.avatarText, { color: palette.primary }]}>
-                {initials || 'P'}
-              </Text>
-            </Pressable>
-            <Text style={[styles.brandTitle, { color: palette.primary }]}>
-              {t(locale, 'app.brand')}
-            </Text>
-          </View>
-          <Pressable
-            accessibilityLabel={t(locale, 'settings.title')}
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={onOpenSettings}
-            style={({ pressed }) => [
-              styles.iconButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={[styles.topIcon, { color: palette.primary }]}>⚙</Text>
-          </Pressable>
-        </View>
-
         {/* Welcome */}
         <View style={styles.greetingBlock}>
           <Text style={[styles.date, { color: palette.onSurfaceVariant }]}>{dateLabel}</Text>
@@ -586,6 +516,7 @@ export function DailyProgressHomeScreen({
             <View style={styles.entryList}>
               {todayEntries.map((entry) => {
                 const kindLabel = t(locale, ('entry.kind.' + entry.kind) as TranslationKey);
+                const kindIconStyle = entryKindIconStyle(entry.kind);
                 const dailyEntryReady = entry.kind === 'daily' && dailyReadyToSubmit;
                 const entryPending = pendingIds.has(entry.id);
                 const entryOfflineDisabled =
@@ -637,11 +568,9 @@ export function DailyProgressHomeScreen({
                       style={[
                         styles.entryIconContainer,
                         {
-                          backgroundColor: entryPending
-                            ? dark
-                              ? palette.surfaceContainer
-                              : 'rgba(244, 113, 143, 0.2)'
-                            : palette.surfaceContainer,
+                          backgroundColor: dark
+                            ? palette.surfaceContainer
+                            : kindIconStyle.background,
                         },
                       ]}
                     >
@@ -649,11 +578,11 @@ export function DailyProgressHomeScreen({
                         style={[
                           styles.entryIcon,
                           {
-                            color: entryPending ? palette.primary : palette.onSurfaceVariant,
+                            color: dark ? palette.primary : kindIconStyle.color,
                           },
                         ]}
                       >
-                        {entryIcons[entry.kind]}
+                        {entryKindIcon(entry.kind)}
                       </Text>
                     </View>
                     <View style={styles.entryCopy}>
@@ -737,7 +666,6 @@ export function DailyProgressHomeScreen({
             style={[
               styles.submitHelp,
               { color: palette.onSurfaceVariant },
-              submitHelpIsList && styles.submitHelpList,
               dailyCompleted && { color: palette.primary, fontWeight: '700' },
             ]}
           >
@@ -745,64 +673,6 @@ export function DailyProgressHomeScreen({
           </Text>
         </View>
 
-        {/* Doctor invite — product requirement, styled to match Tactile Bloom cards */}
-        <View
-          style={[
-            styles.inviteCard,
-            {
-              backgroundColor: palette.surface,
-              borderColor: palette.outlineVariant,
-              shadowColor: palette.shadow,
-            },
-          ]}
-        >
-          <View style={styles.inviteCopy}>
-            <Text style={[styles.inviteTitle, { color: palette.onSurface }]}>
-              {t(locale, 'patientInvite.title')}
-            </Text>
-            <Text style={[styles.inviteHelp, { color: palette.onSurfaceVariant }]}>
-              {t(locale, 'patientInvite.help')}
-            </Text>
-          </View>
-          <FormField
-            autoCapitalize="characters"
-            editable={!offlineMode && !doctorInviteRedeeming}
-            label={t(locale, 'patientInvite.code')}
-            onChangeText={onDoctorInviteCodeChange}
-            placeholder={t(locale, 'patientInvite.placeholder')}
-            value={doctorInviteCode}
-          />
-          {doctorInviteMessage ? (
-            <Text
-              style={[
-                styles.inviteMessage,
-                { color: palette.error },
-                doctorInviteMessage === t(locale, 'patientInvite.success') && {
-                  color: palette.primary,
-                  fontWeight: '700',
-                },
-              ]}
-            >
-              {doctorInviteMessage}
-            </Text>
-          ) : null}
-          <PrimaryButton
-            busy={doctorInviteRedeeming}
-            disabled={offlineMode || doctorInviteRedeeming || !doctorInviteCode.trim()}
-            label={t(locale, 'patientInvite.redeem')}
-            onPress={() => void onRedeemDoctorInvite()}
-            variant="secondary"
-          />
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => void onSignOut()}
-            style={({ pressed }) => [styles.signOutLink, pressed && styles.pressed]}
-          >
-            <Text style={[styles.signOutText, { color: palette.onSurfaceVariant }]}>
-              {t(locale, 'auth.signOut')}
-            </Text>
-          </Pressable>
-        </View>
       </KeyboardAwareScrollView>
 
       <PatientBottomNav
@@ -837,47 +707,6 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.72 },
   disabled: { opacity: 0.5 },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: 48,
-    paddingVertical: 8,
-  },
-  brandRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 12,
-    flexShrink: 1,
-  },
-  avatarButton: {
-    alignItems: 'center',
-    borderRadius: 20,
-    borderWidth: 2,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  avatarText: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  brandTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  iconButton: {
-    alignItems: 'center',
-    borderRadius: 20,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  topIcon: {
-    fontSize: 22,
-    fontWeight: '700',
-  },
   greetingBlock: { gap: 4 },
   date: {
     fontSize: 14,
@@ -1090,47 +919,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   submitHelp: {
+    alignSelf: 'center',
     fontSize: 12,
     fontStyle: 'italic',
-    lineHeight: 16,
+    lineHeight: 18,
+    maxWidth: '100%',
     paddingHorizontal: 24,
     textAlign: 'center',
-  },
-  submitHelpList: {
-    alignSelf: 'stretch',
-    textAlign: 'left',
-  },
-  inviteCard: {
-    borderRadius: 24,
-    borderWidth: 1,
-    elevation: 2,
-    gap: 12,
-    padding: 16,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 14,
-  },
-  inviteCopy: { gap: 4 },
-  inviteTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  inviteHelp: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  inviteMessage: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  signOutLink: {
-    alignItems: 'center',
-    minHeight: 40,
-    justifyContent: 'center',
-  },
-  signOutText: {
-    fontSize: 13,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
   },
 });

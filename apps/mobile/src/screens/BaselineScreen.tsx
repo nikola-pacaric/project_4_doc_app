@@ -146,15 +146,6 @@ function isDarkThemeActive(): boolean {
   return colors.background === darkTheme.colors.background;
 }
 
-function initialsFromName(name: string | null | undefined): string {
-  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return 'P';
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
-}
-
 type Palette = {
   background: string;
   surface: string;
@@ -267,7 +258,6 @@ export function BaselineScreen({
     { name: '', dose: '' },
   ]);
 
-  const initials = initialsFromName(profile.displayName);
   const pillInputStyle = {
     backgroundColor: palette.surfaceContainerLow,
     borderColor: 'transparent',
@@ -361,35 +351,6 @@ export function BaselineScreen({
         showsVerticalScrollIndicator={false}
         style={{ backgroundColor: palette.background }}
       >
-        {/* Top app bar */}
-        <View style={styles.topBar}>
-          <View style={styles.brandRow}>
-            <View
-              style={[
-                styles.avatar,
-                {
-                  backgroundColor: palette.secondaryContainer,
-                  borderColor: dark ? palette.outlineVariant : 'rgba(166, 53, 83, 0.2)',
-                },
-              ]}
-            >
-              <Text style={[styles.avatarText, { color: palette.primary }]}>{initials}</Text>
-            </View>
-            <Text style={[styles.brandTitle, { color: palette.primary }]}>
-              {t(locale, 'app.brand')}
-            </Text>
-          </View>
-          <Pressable
-            accessibilityLabel={t(locale, onOpenSettings ? 'settings.title' : 'common.back')}
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={onOpenSettings ?? onBack}
-            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-          >
-            <Text style={[styles.topIcon, { color: palette.primary }]}>⚙</Text>
-          </Pressable>
-        </View>
-
         {/* Header */}
         <View style={styles.headerBlock}>
           <Text style={[styles.pageTitle, { color: palette.onSurface }]}>
@@ -938,47 +899,6 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.5 },
   loader: { marginTop: 40 },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: 48,
-    paddingVertical: 8,
-  },
-  brandRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexShrink: 1,
-    gap: 12,
-  },
-  avatar: {
-    alignItems: 'center',
-    borderRadius: 20,
-    borderWidth: 2,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  avatarText: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  brandTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  iconButton: {
-    alignItems: 'center',
-    borderRadius: 20,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  topIcon: {
-    fontSize: 22,
-    fontWeight: '700',
-  },
   headerBlock: {
     gap: 8,
   },

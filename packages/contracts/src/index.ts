@@ -2,6 +2,7 @@ export const APP_NAME = 'Patient Research Tracking';
 
 export * from './dailyForms';
 export * from './entries';
+export * from './entryIcons';
 export * from './entryVisibility';
 export * from './exercises';
 export * from './exports';

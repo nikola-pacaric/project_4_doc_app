@@ -19,7 +19,10 @@ import { SymptomPreview } from './src/preview/SymptomPreview';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { ConsentScreen } from './src/screens/ConsentScreen';
 import { DoctorPendingScreen } from './src/screens/DoctorPendingScreen';
-import { PatientHomeScreen } from './src/screens/PatientHomeScreen';
+import {
+  PatientHomeScreen,
+  type PatientHomeTab,
+} from './src/screens/PatientHomeScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { loadMobilePreferences, saveMobilePreferences } from './src/lib/preferences';
 import { colors, setAppTheme, sharedStyles, createThemedStyles } from './src/theme';
@@ -31,8 +34,14 @@ function MainApp() {
   const [preferences, setPreferences] = useState<AppPreferences>(defaultAppPreferences);
   const [preferencesLoading, setPreferencesLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [patientLandingTab, setPatientLandingTab] = useState<PatientHomeTab>('today');
   const [profileError, setProfileError] = useState(false);
   const [profileReloadToken, setProfileReloadToken] = useState(0);
+
+  function closeSettingsTo(tab: PatientHomeTab = 'today') {
+    setPatientLandingTab(tab);
+    setSettingsOpen(false);
+  }
 
   useEffect(() => {
     void loadMobilePreferences()
@@ -62,6 +71,9 @@ function MainApp() {
       setSession(nextSession);
       setProfile(null);
       setProfileError(false);
+      // Sign-in / sign-out should always land on the default surface, not a prior Settings view.
+      setSettingsOpen(false);
+      setPatientLandingTab('today');
     });
 
     const appStateListener = AppState.addEventListener('change', (state) => {
@@ -104,6 +116,8 @@ function MainApp() {
   }, [profileReloadToken, session?.user.id]);
 
   async function signOut() {
+    setSettingsOpen(false);
+    setPatientLandingTab('today');
     if (supabase) {
       await supabase.auth.signOut();
     }
@@ -178,10 +192,18 @@ function MainApp() {
   } else if (settingsOpen) {
     content = (
       <SettingsScreen
-        displayName={profile.displayName ?? undefined}
-        onBack={() => setSettingsOpen(false)}
+        client={profile.role === 'patient' ? supabase : undefined}
+        onBack={() => closeSettingsTo('today')}
         onChange={updatePreferences}
+        onProfile={
+          profile.role === 'patient' ? () => closeSettingsTo('profile') : undefined
+        }
         onSignOut={signOut}
+        onTimeline={
+          profile.role === 'patient' ? () => closeSettingsTo('timeline') : undefined
+        }
+        onToday={profile.role === 'patient' ? () => closeSettingsTo('today') : undefined}
+        patientId={profile.role === 'patient' ? profile.id : undefined}
         preferences={preferences}
       />
     );
@@ -206,8 +228,8 @@ function MainApp() {
     content = (
       <PatientHomeScreen
         client={supabase}
+        initialTab={patientLandingTab}
         onOpenSettings={() => setSettingsOpen(true)}
-        onSignOut={signOut}
         profile={profile}
       />
     );

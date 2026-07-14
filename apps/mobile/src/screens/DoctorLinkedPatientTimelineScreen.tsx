@@ -1,6 +1,7 @@
 import {
+  entryKindIcon,
+  entryKindIconStyle,
   isNoStoolTodayEntry,
-  type EntryKind,
   type ExportMode,
   type PatientEntry,
 } from '@project4/contracts';
@@ -52,20 +53,6 @@ interface TimelineEntryPhoto {
   photoUrl: string;
   thumbnailUrl: string;
 }
-
-const entryIcons: Record<EntryKind, string> = {
-  text: '📝',
-  daily: '☀️',
-  meal: '🍽️',
-  fluid: '🥤',
-  symptom: '⚠️',
-  stool: '💩',
-  medication: '💊',
-  exercise: '🏃',
-  menstruation: '🩸',
-  note: '📝',
-  custom: '📋',
-};
 
 const exportModeOptions: { labelKey: TranslationKey; value: ExportMode }[] = [
   { labelKey: 'doctor.exportAllData', value: 'all_data' },
@@ -323,8 +310,20 @@ export function DoctorLinkedPatientTimelineScreen({
             return (
               <View key={entry.id} style={styles.card}>
                 <View style={styles.entryRow}>
-                  <View style={styles.iconContainer}>
-                    <Text style={styles.icon}>{entryIcons[entry.kind]}</Text>
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      { backgroundColor: entryKindIconStyle(entry.kind).background },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.icon,
+                        { color: entryKindIconStyle(entry.kind).color },
+                      ]}
+                    >
+                      {entryKindIcon(entry.kind)}
+                    </Text>
                   </View>
                   <View style={styles.copy}>
                     <Text style={styles.title}>{title}</Text>

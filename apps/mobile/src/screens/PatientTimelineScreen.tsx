@@ -2,7 +2,12 @@ import {
   DateTimePickerAndroid,
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
-import { isNoStoolTodayEntry, type PatientEntry } from '@project4/contracts';
+import {
+  entryKindIcon,
+  entryKindIconStyle,
+  isNoStoolTodayEntry,
+  type PatientEntry,
+} from '@project4/contracts';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import { darkTheme } from '@project4/ui-tokens';
 import {
@@ -55,12 +60,14 @@ const stitch = {
 } as const;
 
 interface PatientTimelineScreenProps {
-  displayName?: string | null;
   entries: PatientEntry[];
   error: string | null;
   loading: boolean;
+  offlineMode?: boolean;
   onBack: () => void;
   onOpenBaseline?: () => void;
+  /** When set, current-day entries open for edit (same as home recent entries). */
+  onOpenEntry?: (entry: PatientEntry) => void;
   onOpenSettings?: () => void;
   onRefresh: () => void | Promise<void>;
   onSelectedDayChange: (day: string) => void;
@@ -68,31 +75,8 @@ interface PatientTimelineScreenProps {
   selectedDay: string;
 }
 
-const entryIcons: Record<PatientEntry['kind'], string> = {
-  text: '📝',
-  daily: '☀️',
-  meal: '🍽️',
-  fluid: '🥤',
-  symptom: '⚠️',
-  stool: '💩',
-  medication: '💊',
-  exercise: '🏃',
-  menstruation: '🩸',
-  note: '📝',
-  custom: '📋',
-};
-
 function isDarkThemeActive(): boolean {
   return colors.background === darkTheme.colors.background;
-}
-
-function initialsFromName(name: string | null | undefined): string {
-  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return 'P';
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
 }
 
 function localeTag(locale: 'en' | 'sr'): string {
@@ -112,12 +96,13 @@ function daySectionLabel(day: string, locale: 'en' | 'sr'): string {
 }
 
 export function PatientTimelineScreen({
-  displayName,
   entries,
   error,
   loading,
+  offlineMode = false,
   onBack,
   onOpenBaseline,
+  onOpenEntry,
   onOpenSettings,
   onRefresh,
   onSelectedDayChange,
@@ -153,7 +138,7 @@ export function PatientTimelineScreen({
 
   const pendingIds = new Set(pendingEntryIds);
   const today = toLocalDateInput(new Date());
-  const initials = initialsFromName(displayName);
+  const canEditSelectedDay = selectedDay === today && Boolean(onOpenEntry);
   const sectionLabel = daySectionLabel(selectedDay, locale);
 
   function openCalendar() {
@@ -180,35 +165,6 @@ export function PatientTimelineScreen({
         showsVerticalScrollIndicator={false}
         style={{ backgroundColor: palette.background }}
       >
-        {/* Top app bar */}
-        <View style={styles.topBar}>
-          <View style={styles.brandRow}>
-            <View
-              style={[
-                styles.avatar,
-                {
-                  backgroundColor: palette.secondaryContainer,
-                  borderColor: dark ? palette.outlineVariant : 'rgba(166, 53, 83, 0.25)',
-                },
-              ]}
-            >
-              <Text style={[styles.avatarText, { color: palette.primary }]}>{initials}</Text>
-            </View>
-            <Text style={[styles.brandTitle, { color: palette.primary }]}>
-              {t(locale, 'app.brand')}
-            </Text>
-          </View>
-          <Pressable
-            accessibilityLabel={t(locale, onOpenSettings ? 'settings.title' : 'common.back')}
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={onOpenSettings ?? onBack}
-            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-          >
-            <Text style={[styles.topIcon, { color: palette.primary }]}>⚙</Text>
-          </Pressable>
-        </View>
-
         {/* Title + calendar */}
         <View style={styles.titleRow}>
           <Text style={[styles.pageTitle, { color: palette.onSurface }]}>
@@ -274,24 +230,18 @@ export function PatientTimelineScreen({
         <View style={styles.list}>
           {entries.map((entry) => {
             const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
+            const kindIconStyle = entryKindIconStyle(entry.kind);
             const title = isNoStoolTodayEntry(entry)
               ? t(locale, 'stool.noStoolToday')
               : entry.text?.trim() || kindLabel;
             const pending = pendingIds.has(entry.id);
+            const offlineDisabled =
+              offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
+            const canOpen =
+              canEditSelectedDay && !pending && !offlineDisabled && Boolean(onOpenEntry);
             const timeLabel = formatEntryTime(entry.occurredAt, locale);
-
-            return (
-              <View
-                key={entry.id}
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: palette.surface,
-                    shadowColor: palette.shadow,
-                  },
-                  pending && styles.pendingCard,
-                ]}
-              >
+            const cardBody = (
+              <>
                 {pending ? (
                   <View style={[styles.pendingStripe, { backgroundColor: palette.error }]} />
                 ) : null}
@@ -301,11 +251,26 @@ export function PatientTimelineScreen({
                     {
                       backgroundColor: pending
                         ? palette.errorContainer
-                        : palette.secondaryContainer,
+                        : dark
+                          ? palette.secondaryContainer
+                          : kindIconStyle.background,
                     },
                   ]}
                 >
-                  <Text style={styles.icon}>{entryIcons[entry.kind]}</Text>
+                  <Text
+                    style={[
+                      styles.icon,
+                      {
+                        color: pending
+                          ? palette.onErrorContainer
+                          : dark
+                            ? palette.primary
+                            : kindIconStyle.color,
+                      },
+                    ]}
+                  >
+                    {entryKindIcon(entry.kind)}
+                  </Text>
                 </View>
                 <View style={styles.copy}>
                   <View style={styles.cardTopRow}>
@@ -353,6 +318,50 @@ export function PatientTimelineScreen({
                     </Text>
                   ) : null}
                 </View>
+              </>
+            );
+
+            if (canOpen) {
+              return (
+                <Pressable
+                  accessibilityHint={t(locale, 'home.entryOpenHint')}
+                  accessibilityRole="button"
+                  key={entry.id}
+                  onPress={() => onOpenEntry?.(entry)}
+                  style={({ pressed }) => [
+                    styles.card,
+                    {
+                      backgroundColor: palette.surface,
+                      shadowColor: palette.shadow,
+                    },
+                    pending && styles.pendingCard,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  {cardBody}
+                </Pressable>
+              );
+            }
+
+            return (
+              <View
+                accessibilityHint={
+                  canEditSelectedDay
+                    ? undefined
+                    : t(locale, 'timeline.editTodayOnly')
+                }
+                key={entry.id}
+                style={[
+                  styles.card,
+                  {
+                    backgroundColor: palette.surface,
+                    shadowColor: palette.shadow,
+                  },
+                  pending && styles.pendingCard,
+                  offlineDisabled && styles.disabled,
+                ]}
+              >
+                {cardBody}
               </View>
             );
           })}
@@ -390,48 +399,8 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   pressed: { opacity: 0.72 },
+  disabled: { opacity: 0.55 },
   loader: { marginTop: 16 },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: 48,
-    paddingVertical: 8,
-  },
-  brandRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexShrink: 1,
-    gap: 12,
-  },
-  avatar: {
-    alignItems: 'center',
-    borderRadius: 20,
-    borderWidth: 2,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  avatarText: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  brandTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  iconButton: {
-    alignItems: 'center',
-    borderRadius: 20,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  topIcon: {
-    fontSize: 22,
-    fontWeight: '700',
-  },
   titleRow: {
     alignItems: 'center',
     flexDirection: 'row',

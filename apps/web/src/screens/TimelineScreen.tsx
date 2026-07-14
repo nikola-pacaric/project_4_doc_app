@@ -1,4 +1,7 @@
 import {
+  ENTRY_KIND_ICONS,
+  entryKindIcon,
+  entryKindIconStyle,
   filterPatientTimelineEntries,
   isNoStoolTodayEntry,
   type EntryKind,
@@ -36,7 +39,6 @@ import {
   listEntryPhotos,
   listPatientEntriesInRange,
   listRecentPatientEntries,
-  redeemDoctorInviteCode,
   updateEntryTimestamp,
   listCompletePatientMealEntryIds,
   listCompletePatientMedicationEntryIds,
@@ -168,29 +170,35 @@ function greetingKey(hour: number): TranslationKey {
 }
 
 const quickActions = [
-  { id: 'daily', icon: '☀️', labelKey: 'home.action.daily', kind: 'daily' },
-  { id: 'food', icon: '🍽️', labelKey: 'home.action.food', kind: 'meal' },
-  { id: 'symptoms', icon: '⚠️', labelKey: 'home.action.symptoms', kind: 'symptom' },
-  { id: 'exercise', icon: '🏃', labelKey: 'home.action.exercise', kind: 'exercise' },
-  { id: 'stool', icon: '💩', labelKey: 'home.action.stool', kind: 'stool' },
-  { id: 'medication', icon: '💊', labelKey: 'home.action.medication', kind: 'medication' },
-  { id: 'period', icon: '🩸', labelKey: 'home.action.period', kind: 'menstruation' },
-  { id: 'notes', icon: '📝', labelKey: 'home.action.notes', kind: 'note' },
+  { id: 'daily', icon: ENTRY_KIND_ICONS.daily, labelKey: 'home.action.daily', kind: 'daily' },
+  { id: 'food', icon: ENTRY_KIND_ICONS.meal, labelKey: 'home.action.food', kind: 'meal' },
+  {
+    id: 'symptoms',
+    icon: ENTRY_KIND_ICONS.symptom,
+    labelKey: 'home.action.symptoms',
+    kind: 'symptom',
+  },
+  {
+    id: 'exercise',
+    icon: ENTRY_KIND_ICONS.exercise,
+    labelKey: 'home.action.exercise',
+    kind: 'exercise',
+  },
+  { id: 'stool', icon: ENTRY_KIND_ICONS.stool, labelKey: 'home.action.stool', kind: 'stool' },
+  {
+    id: 'medication',
+    icon: ENTRY_KIND_ICONS.medication,
+    labelKey: 'home.action.medication',
+    kind: 'medication',
+  },
+  {
+    id: 'period',
+    icon: ENTRY_KIND_ICONS.menstruation,
+    labelKey: 'home.action.period',
+    kind: 'menstruation',
+  },
+  { id: 'notes', icon: ENTRY_KIND_ICONS.note, labelKey: 'home.action.notes', kind: 'note' },
 ] as const;
-
-const entryIcons: Record<EntryKind, string> = {
-  text: '📝',
-  daily: '☀️',
-  meal: '🍽️',
-  fluid: '🥤',
-  symptom: '⚠️',
-  stool: '💩',
-  medication: '💊',
-  exercise: '🏃',
-  menstruation: '🩸',
-  note: '📝',
-  custom: '📋',
-};
 
 export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: TimelineScreenProps) {
   const locale = getActiveLocale();
@@ -237,9 +245,7 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
   const [lightboxPhoto, setLightboxPhoto] = useState<{ url: string; label: string } | null>(null);
   const [completeMealEntryIds, setCompleteMealEntryIds] = useState<string[]>([]);
   const [completeMedicationEntryIds, setCompleteMedicationEntryIds] = useState<string[]>([]);
-  const [doctorInviteCode, setDoctorInviteCode] = useState('');
-  const [doctorInviteMessage, setDoctorInviteMessage] = useState<string | null>(null);
-  const [doctorInviteRedeeming, setDoctorInviteRedeeming] = useState(false);
+
   const syncPendingPromiseRef = useRef<Promise<LocalPendingEntry[]> | null>(null);
   const loadEntriesPromiseRef = useRef<Promise<void> | null>(null);
   const timelineDayRequestIdRef = useRef(0);
@@ -580,7 +586,7 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
       return;
     }
     if (isNoStoolTodayEntry(entry)) {
-      setStoolEntryToEdit(null);
+      setStoolEntryToEdit(entry);
       setShowStoolForm(true);
       return;
     }
@@ -622,23 +628,6 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
       setError(t(locale, 'daily.saveError'));
     } finally {
       setSubmittingDay(false);
-    }
-  }
-
-  async function redeemInviteCode() {
-    if (!doctorInviteCode.trim() || offlineMode || doctorInviteRedeeming) return;
-
-    setDoctorInviteRedeeming(true);
-    setDoctorInviteMessage(null);
-    try {
-      await redeemDoctorInviteCode(client, doctorInviteCode);
-      setDoctorInviteCode('');
-      setDoctorInviteMessage(t(locale, 'patientInvite.success'));
-      await loadEntries({ showLoading: false });
-    } catch {
-      setDoctorInviteMessage(t(locale, 'patientInvite.error'));
-    } finally {
-      setDoctorInviteRedeeming(false);
     }
   }
 
@@ -908,7 +897,10 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
       : !dailyEntryId
         ? t(locale, 'home.submitDailyFirst')
         : missingSubmitSections.length
-        ? t(locale, 'home.submitMissing').replace('\n', ' ').replace('{sections}', missingSubmitSections.join(', '))
+        ? t(locale, 'home.submitMissing').replace(
+            '{sections}',
+            missingSubmitSections.join(', '),
+          )
         : t(locale, 'home.submitHelp');
 
   if (showTimelineList) {
@@ -971,6 +963,10 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
               ? t(locale, 'stool.noStoolToday')
               : entry.text?.trim() || kindLabel;
             const pending = dayPendingIds.has(entry.id);
+            const isTodayDay = timelineDay === todayForPicker;
+            const offlineDisabled =
+              offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
+            const canOpen = isTodayDay && !pending && !offlineDisabled;
             const entryCompleted =
               entry.kind === 'daily'
                 ? dailyCompleted
@@ -980,40 +976,73 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
                   ? completeMedicationEntryIds.includes(entry.id)
                 : true;
             const entryStatusClass = entryCompleted || (entry.kind === 'daily' && dailyReadyToSubmit) ? 'complete' : 'draft';
+            const icon = (
+              <span
+                className="web-entry-icon"
+                style={{
+                  background: entryKindIconStyle(entry.kind).background,
+                  color: entryKindIconStyle(entry.kind).color,
+                }}
+              >
+                {entryKindIcon(entry.kind)}
+              </span>
+            );
+            const copy = (
+              <span>
+                <strong>{title}</strong>
+                <small>
+                  {new Intl.DateTimeFormat(locale, {
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    month: 'short',
+                  }).format(new Date(entry.occurredAt))}
+                </small>
+              </span>
+            );
+            const trailing = (
+              <span className="web-entry-trailing">
+                {pending ? <small className="web-entry-pending">{t(locale, 'sync.pending')}</small> : null}
+                {!pending ? (
+                  <small className={`web-entry-status ${entryStatusClass}`}>
+                    {t(
+                      locale,
+                      entryCompleted || (entry.kind === 'daily' && dailyReadyToSubmit)
+                        ? 'home.action.completed'
+                        : 'daily.statusDraft'
+                    )}
+                  </small>
+                ) : null}
+              </span>
+            );
             return (
               <article
                 className={`web-recent-entry ${pending ? 'pending' : ''} ${
                   !entryCompleted && !(entry.kind === 'daily' && dailyReadyToSubmit) ? 'draft' : ''
-                }`}
+                } ${!canOpen && isTodayDay ? 'offline-disabled' : ''}`}
                 key={entry.id}
+                title={!isTodayDay ? t(locale, 'timeline.editTodayOnly') : undefined}
               >
-                <div className="web-recent-entry-content">
-                  <span className="web-entry-icon">{entryIcons[entry.kind]}</span>
-                  <span>
-                    <strong>{title}</strong>
-                    <small>
-                      {new Intl.DateTimeFormat(locale, {
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        month: 'short',
-                      }).format(new Date(entry.occurredAt))}
-                    </small>
-                  </span>
-                  <span className="web-entry-trailing">
-                    {pending ? <small className="web-entry-pending">{t(locale, 'sync.pending')}</small> : null}
-                    {!pending ? (
-                      <small className={`web-entry-status ${entryStatusClass}`}>
-                        {t(
-                          locale,
-                          entryCompleted || (entry.kind === 'daily' && dailyReadyToSubmit)
-                            ? 'home.action.completed'
-                            : 'daily.statusDraft'
-                        )}
-                      </small>
-                    ) : null}
-                  </span>
-                </div>
+                {canOpen ? (
+                  <button
+                    disabled={pending || offlineDisabled}
+                    onClick={() => {
+                      setShowTimelineList(false);
+                      openEntry(entry);
+                    }}
+                    type="button"
+                  >
+                    {icon}
+                    {copy}
+                    {trailing}
+                  </button>
+                ) : (
+                  <div className="web-recent-entry-content">
+                    {icon}
+                    {copy}
+                    {trailing}
+                  </div>
+                )}
                 {renderEntryPhotos(entry, title)}
               </article>
             );
@@ -1100,55 +1129,6 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
           </button>
           <p>{submitHelp}</p>
         </div>
-      </section>
-
-      <section className="web-home-section web-invite-section">
-        <div className="web-section-heading">
-          <div>
-            <h2>{t(locale, 'patientInvite.title')}</h2>
-            <p>{t(locale, 'patientInvite.help')}</p>
-          </div>
-        </div>
-        <form
-          className="web-invite-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void redeemInviteCode();
-          }}
-        >
-          <label>
-            {t(locale, 'patientInvite.code')}
-            <input
-              autoCapitalize="characters"
-              disabled={offlineMode || doctorInviteRedeeming}
-              onChange={(event) => {
-                setDoctorInviteCode(event.target.value.toUpperCase());
-                setDoctorInviteMessage(null);
-              }}
-              placeholder={t(locale, 'patientInvite.placeholder')}
-              value={doctorInviteCode}
-            />
-          </label>
-          <button
-            className="secondary-button"
-            disabled={offlineMode || doctorInviteRedeeming || !doctorInviteCode.trim()}
-            type="submit"
-          >
-            {doctorInviteRedeeming ? t(locale, 'app.loading') : t(locale, 'patientInvite.redeem')}
-          </button>
-        </form>
-        {offlineMode && doctorInviteCode.trim() ? (
-          <p className="notice error">{t(locale, 'patientInvite.offline')}</p>
-        ) : null}
-        {doctorInviteMessage ? (
-          <p
-            className={`notice ${
-              doctorInviteMessage === t(locale, 'patientInvite.success') ? 'success' : 'error'
-            }`}
-          >
-            {doctorInviteMessage}
-          </p>
-        ) : null}
       </section>
 
       <section className="web-home-section">
@@ -1276,7 +1256,15 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
                   title={offlineDisabled ? t(locale, 'offline.actionsDisabled') : undefined}
                   type="button"
                 >
-                  <span className="web-entry-icon">{entryIcons[entry.kind]}</span>
+                  <span
+                    className="web-entry-icon"
+                    style={{
+                      background: entryKindIconStyle(entry.kind).background,
+                      color: entryKindIconStyle(entry.kind).color,
+                    }}
+                  >
+                    {entryKindIcon(entry.kind)}
+                  </span>
                   <span>
                     <strong>{entry.text?.trim() || kindLabel}</strong>
                     <small>

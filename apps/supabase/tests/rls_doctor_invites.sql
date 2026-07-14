@@ -174,6 +174,47 @@ begin
   if linked_rows <> 1 then
     raise exception 'redeeming a valid invite should create one active doctor-patient access row';
   end if;
+
+  select count(*) into linked_rows
+  from public.doctor_patient_access
+  where patient_id = '00000000-0000-4000-8000-000000000071'
+    and active = true
+    and revoked_at is null;
+
+  if linked_rows <> 1 then
+    raise exception 'patient should see exactly one active doctor link after redeem, saw %', linked_rows;
+  end if;
+end $$;
+
+reset role;
+
+set local role authenticated;
+set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000074';
+
+do $$
+declare
+  created record;
+begin
+  select * into created from public.create_doctor_invite_code();
+
+  insert into invite_test_state (key, invite_id, invite_code)
+  values ('second_doctor', created.id, created.code);
+end $$;
+
+reset role;
+
+set local role authenticated;
+set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000071';
+
+do $$
+begin
+  begin
+    perform public.redeem_doctor_invite_code(invite_code)
+    from invite_test_state
+    where key = 'second_doctor';
+    raise exception 'already-linked patients should not redeem a second doctor invite';
+  exception when invalid_parameter_value then null;
+  end;
 end $$;
 
 reset role;

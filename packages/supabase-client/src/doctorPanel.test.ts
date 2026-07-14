@@ -6,6 +6,7 @@ import {
   createDoctorPatientExport,
   createDoctorInviteCode,
   getDoctorLinkedPatientTimeline,
+  getPatientDoctorLink,
   listDoctorInviteCodes,
   listLinkedPatients,
   redeemDoctorInviteCode,
@@ -104,6 +105,45 @@ describe('doctor invite panel client helpers', () => {
     expect(rpc).toHaveBeenCalledWith('redeem_doctor_invite_code', {
       invite_code: 'ABC123DEF0',
     });
+  });
+
+  it('loads the patient active doctor link without doctor identity fields', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        id: 'access-9',
+        created_at: '2026-07-08T10:00:00.000Z',
+      },
+      error: null,
+    });
+    const is = vi.fn(() => ({ maybeSingle }));
+    const eqActive = vi.fn(() => ({ is }));
+    const eqPatient = vi.fn(() => ({ eq: eqActive }));
+    const select = vi.fn(() => ({ eq: eqPatient }));
+    const from = vi.fn(() => ({ select }));
+    const client = { from } as unknown as AppSupabaseClient;
+
+    await expect(getPatientDoctorLink(client, 'patient-1')).resolves.toEqual({
+      accessId: 'access-9',
+      linkedAt: '2026-07-08T10:00:00.000Z',
+    });
+
+    expect(from).toHaveBeenCalledWith('doctor_patient_access');
+    expect(select).toHaveBeenCalledWith('id, created_at');
+    expect(eqPatient).toHaveBeenCalledWith('patient_id', 'patient-1');
+    expect(eqActive).toHaveBeenCalledWith('active', true);
+    expect(is).toHaveBeenCalledWith('revoked_at', null);
+  });
+
+  it('returns null when the patient has no active doctor link', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const is = vi.fn(() => ({ maybeSingle }));
+    const eqActive = vi.fn(() => ({ is }));
+    const eqPatient = vi.fn(() => ({ eq: eqActive }));
+    const select = vi.fn(() => ({ eq: eqPatient }));
+    const from = vi.fn(() => ({ select }));
+    const client = { from } as unknown as AppSupabaseClient;
+
+    await expect(getPatientDoctorLink(client, 'patient-1')).resolves.toBeNull();
   });
 
   it('lists active linked patients with profile display names', async () => {

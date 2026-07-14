@@ -134,6 +134,33 @@ export async function redeemDoctorInviteCode(
   return data as string;
 }
 
+/** Active doctor link for a patient. Does not expose doctor identity fields. */
+export interface PatientDoctorLink {
+  accessId: string;
+  linkedAt: string;
+}
+
+export async function getPatientDoctorLink(
+  client: AppSupabaseClient,
+  patientId: string,
+): Promise<PatientDoctorLink | null> {
+  const { data, error } = await client
+    .from('doctor_patient_access')
+    .select('id, created_at')
+    .eq('patient_id', patientId)
+    .eq('active', true)
+    .is('revoked_at', null)
+    .maybeSingle<Pick<DoctorPatientAccessRow, 'id' | 'created_at'>>();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  return {
+    accessId: data.id,
+    linkedAt: data.created_at,
+  };
+}
+
 export async function listLinkedPatients(
   client: AppSupabaseClient,
 ): Promise<LinkedPatientSummary[]> {

@@ -80,7 +80,7 @@ export function NoteFormScreen({
       subtitle={t(locale, 'note.subtitle')}
       title={t(locale, 'note.title')}
     >
-      <TactileSectionCard icon="📝" palette={palette} title={t(locale, 'note.title')}>
+      <TactileSectionCard icon="✎" palette={palette} title={t(locale, 'note.title')}>
         <VoiceTextField
           autoCapitalize="sentences"
           label={t(locale, 'note.text')}

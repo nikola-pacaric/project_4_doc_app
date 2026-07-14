@@ -44,6 +44,8 @@ export function App() {
       setSession(nextSession);
       setProfile(null);
       setProfileError(false);
+      // Sign-in / sign-out should always land on the default surface, not a prior Settings view.
+      setSettingsOpen(false);
     });
 
     return () => listener.subscription.unsubscribe();
@@ -70,6 +72,7 @@ export function App() {
   }, [profileReloadToken, session?.user.id]);
 
   async function signOut() {
+    setSettingsOpen(false);
     if (supabase) await supabase.auth.signOut();
   }
 
@@ -119,8 +122,11 @@ export function App() {
   } else if (settingsOpen) {
     content = (
       <SettingsScreen
+        client={profile.role === 'patient' ? supabase : undefined}
         onBack={() => setSettingsOpen(false)}
         onChange={updatePreferences}
+        onSignOut={signOut}
+        patientId={profile.role === 'patient' ? profile.id : undefined}
         preferences={preferences}
       />
     );

@@ -1,6 +1,7 @@
 import {
+  entryKindIcon,
+  entryKindIconStyle,
   isNoStoolTodayEntry,
-  type EntryKind,
   type ExportMode,
   type PatientEntry,
 } from '@project4/contracts';
@@ -29,20 +30,6 @@ interface TimelineEntryPhoto {
   photoUrl: string;
   thumbnailUrl: string;
 }
-
-const entryIcons: Record<EntryKind, string> = {
-  text: '📝',
-  daily: '☀️',
-  meal: '🍽️',
-  fluid: '🥤',
-  symptom: '⚠️',
-  stool: '💩',
-  medication: '💊',
-  exercise: '🏃',
-  menstruation: '🩸',
-  note: '📝',
-  custom: '📋',
-};
 
 function canHaveTimelinePhotos(entry: PatientEntry): boolean {
   return entry.kind === 'meal' || entry.kind === 'fluid' || entry.kind === 'medication';
@@ -308,7 +295,15 @@ export function DoctorLinkedPatientTimelineScreen({
           return (
             <article className="web-recent-entry doctor-readonly-entry" key={entry.id}>
               <div className="web-recent-entry-content">
-                <span className="web-entry-icon">{entryIcons[entry.kind]}</span>
+                <span
+                  className="web-entry-icon"
+                  style={{
+                    background: entryKindIconStyle(entry.kind).background,
+                    color: entryKindIconStyle(entry.kind).color,
+                  }}
+                >
+                  {entryKindIcon(entry.kind)}
+                </span>
                 <span>
                   <strong>{title}</strong>
                   <small>{formatEntryDate(entry.occurredAt, locale)}</small>

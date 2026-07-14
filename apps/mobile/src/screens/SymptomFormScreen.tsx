@@ -109,7 +109,7 @@ export function SymptomFormScreen({
       subtitle={t(locale, 'symptom.subtitle')}
       title={t(locale, 'symptom.title')}
     >
-      <TactileSectionCard icon="⚠️" palette={palette} title={t(locale, 'symptom.selectTitle')}>
+      <TactileSectionCard icon="✚" palette={palette} title={t(locale, 'symptom.selectTitle')}>
         <Text style={[layout.helpText, { color: palette.onSurfaceVariant }]}>
           {t(locale, 'symptom.selectHelp')}
         </Text>

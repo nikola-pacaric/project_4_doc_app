@@ -1917,6 +1917,7 @@ button:focus-visible {
   font-size: 15px;
   line-height: 1.45;
   text-align: center;
+  white-space: pre-line;
 }
 
 .web-progress-ring {
@@ -2333,6 +2334,28 @@ button:focus-visible {
   min-height: 20px;
   padding: 0;
   width: 20px;
+}
+
+.settings-doctor-link {
+  display: grid;
+  gap: 12px;
+}
+
+.settings-doctor-title {
+  color: var(--app-text);
+  font-size: 1rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.settings-doctor-link .web-invite-form {
+  margin-top: 4px;
 }
 
 .web-topbar {
