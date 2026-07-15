@@ -121,6 +121,51 @@ begin
     raise exception 'patient A should see exactly 1 own baseline, saw %', visible_baselines;
   end if;
 
+  begin
+    update public.patient_baseline_profiles
+    set occupation = '   '
+    where patient_id = '00000000-0000-4000-8000-000000000001';
+    raise exception 'blank baseline occupation should be rejected';
+  exception when check_violation then null;
+  end;
+
+  begin
+    update public.patient_baseline_profiles
+    set birth_year = extract(year from current_date)::integer + 1
+    where patient_id = '00000000-0000-4000-8000-000000000001';
+    raise exception 'future baseline birth year should be rejected';
+  exception when check_violation then null;
+  end;
+
+  begin
+    update public.patient_baseline_profiles
+    set height_cm = 251
+    where patient_id = '00000000-0000-4000-8000-000000000001';
+    raise exception 'excessive baseline height should be rejected';
+  exception when check_violation then null;
+  end;
+
+  begin
+    update public.patient_baseline_profiles
+    set weight_kg = 501
+    where patient_id = '00000000-0000-4000-8000-000000000001';
+    raise exception 'excessive baseline weight should be rejected';
+  exception when check_violation then null;
+  end;
+
+  begin
+    insert into public.audit_events (actor_id, actor_role, patient_id, event_type, metadata)
+    values (
+      '00000000-0000-4000-8000-000000000001',
+      'patient',
+      '00000000-0000-4000-8000-000000000001',
+      'forged_patient_event',
+      '{"forged":true}'::jsonb
+    );
+    raise exception 'authenticated clients should not insert audit events directly';
+  exception when insufficient_privilege then null;
+  end;
+
   select count(*) into visible_daily_forms from public.daily_form_details;
   if visible_daily_forms <> 1 then
     raise exception 'patient A should see exactly 1 own daily form, saw %', visible_daily_forms;

@@ -1,9 +1,10 @@
-import type { ExportMode, ExportPayload, ExportRange, UserProfile } from '@project4/contracts';
+import type { ExportMode, ExportPayload, ExportRange } from '@project4/contracts';
 import type { PatientEntry } from '@project4/contracts';
 import { validateExportPayload } from '@project4/contracts';
 import { PHOTO_BUCKET } from '@project4/photo';
 
 import type { AppSupabaseClient } from './index';
+import type { Database } from './database.types';
 import { listRecentPatientEntries } from './patientEntries';
 import { createStoredZipBytes, type ZipFileInput } from './zipBundle';
 
@@ -17,15 +18,16 @@ export interface DoctorInviteCode {
   createdAt: string;
 }
 
-interface DoctorInviteCodeRow {
-  id: string;
-  code: string;
-  expires_at: string;
-  revoked_at: string | null;
-  redeemed_by_patient_id: string | null;
-  redeemed_at: string | null;
-  created_at: string;
-}
+type DoctorInviteCodeRow = Pick<
+  Database['public']['Tables']['doctor_invite_codes']['Row'],
+  | 'id'
+  | 'code'
+  | 'expires_at'
+  | 'revoked_at'
+  | 'redeemed_by_patient_id'
+  | 'redeemed_at'
+  | 'created_at'
+>;
 
 export interface LinkedPatientSummary {
   accessId: string;
@@ -53,18 +55,15 @@ export interface DoctorPatientExportBundle {
   imageFileCount: number;
 }
 
-interface DoctorPatientAccessRow {
-  id: string;
-  patient_id: string;
-  created_at: string;
-}
+type DoctorPatientAccessRow = Pick<
+  Database['public']['Tables']['doctor_patient_access']['Row'],
+  'id' | 'patient_id' | 'created_at'
+>;
 
-interface UserProfileRow {
-  id: string;
-  role: UserProfile['role'];
-  display_name: string | null;
-  consent_accepted_at: string | null;
-}
+type UserProfileRow = Pick<
+  Database['public']['Tables']['user_profiles']['Row'],
+  'id' | 'role' | 'display_name' | 'consent_accepted_at'
+>;
 
 const inviteColumns =
   'id, code, expires_at, revoked_at, redeemed_by_patient_id, redeemed_at, created_at';
@@ -237,8 +236,8 @@ export async function createDoctorPatientExport(
     target_patient_id: input.patientId,
     export_mode: input.mode,
     export_range_type: input.range.type,
-    selected_date: input.range.type === 'selected_day' ? input.range.date : null,
-    selected_month: input.range.type === 'partial_month' ? input.range.month : null,
+    selected_date: input.range.type === 'selected_day' ? input.range.date : undefined,
+    selected_month: input.range.type === 'partial_month' ? input.range.month : undefined,
   });
 
   if (error) throw error;

@@ -4,21 +4,26 @@ import {
   cachedOpenedDayEntries,
   dedupePendingEntries,
   mergeOpenedDayEntryCache,
+  patientOfflineStorageKeys,
   replaceOpenedDayEntryCache,
   type LocalPendingEntry,
   type OpenedDayEntryCache,
 } from '@project4/sync';
 
 function keyForPatient(patientId: string): string {
-  return `project4:pending-entries:${patientId}`;
+  return patientOfflineStorageKeys(patientId)[0];
 }
 
 function cacheKeyForPatient(patientId: string): string {
-  return `project4:recent-entries:${patientId}`;
+  return patientOfflineStorageKeys(patientId)[1];
 }
 
 function openedDaysCacheKeyForPatient(patientId: string): string {
-  return `project4:opened-day-entries:${patientId}`;
+  return patientOfflineStorageKeys(patientId)[2];
+}
+
+export async function clearPatientOfflineData(patientId: string): Promise<void> {
+  await AsyncStorage.multiRemove([...patientOfflineStorageKeys(patientId)]);
 }
 
 export async function loadPendingEntries(patientId: string): Promise<LocalPendingEntry[]> {

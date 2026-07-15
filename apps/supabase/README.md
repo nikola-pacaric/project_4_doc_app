@@ -19,7 +19,12 @@ npm run db:push:dry
 npm run rls:core
 npm run rls:invites
 npm run rls:photos
+npm run types:generate
 ```
+
+Regenerate the checked-in Supabase `Database` definitions after applying schema migrations. The
+client adds only the nullable RPC-argument refinements that PostgreSQL accepts but the generator
+does not encode.
 
 Security notes:
 

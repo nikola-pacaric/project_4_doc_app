@@ -2,13 +2,12 @@ import type { MealRecord } from '@project4/contracts';
 import { normalizeMealDateTime, type MealDraft, type MealType } from '@project4/forms';
 
 import type { AppSupabaseClient } from './index';
+import type { Database } from './database.types';
 
-interface MealRow {
-  entry_id: string;
-  meal_type: MealType | null;
-  name: string | null;
-  description: string | null;
-}
+type MealRow = Pick<
+  Database['public']['Tables']['meal_details']['Row'],
+  'entry_id' | 'meal_type' | 'name' | 'description'
+> & { meal_type: MealType | null };
 
 const mealColumns = 'entry_id, meal_type, name, description';
 
@@ -26,7 +25,9 @@ export async function listPatientMeals(
     .gte('occurred_at', dayStart)
     .lt('occurred_at', dayEnd)
     .order('occurred_at', { ascending: true })
-    .returns<Array<{ id: string; occurred_at: string }>>();
+    .returns<
+      Array<Pick<Database['public']['Tables']['patient_entries']['Row'], 'id' | 'occurred_at'>>
+    >();
   if (entriesError) throw entriesError;
   if (entries.length === 0) return [];
 
@@ -69,7 +70,7 @@ export async function listCompletePatientMealEntryIds(
     .in('entry_id', entryIds)
     .not('meal_type', 'is', null)
     .not('name', 'is', null)
-    .returns<Array<{ entry_id: string }>>();
+    .returns<Array<Pick<Database['public']['Tables']['meal_details']['Row'], 'entry_id'>>>();
 
   if (error) throw error;
   return data.map((row) => row.entry_id);
@@ -119,7 +120,7 @@ export async function savePatientMeals(
       .from('patient_entries')
       .insert({ patient_id: patientId, kind: 'meal', occurred_at: entryTime, text: null })
       .select('id')
-      .single<{ id: string }>();
+      .single();
     if (entryError) throw entryError;
 
     const { error: detailError } = await client

@@ -2,7 +2,11 @@ import { PHOTO_BUCKET, PHOTO_MIME_TYPE } from '@project4/photo';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AppSupabaseClient } from './index';
-import { createEntryPhotoSignedUrl, deleteEntryPhotos, uploadPreparedEntryPhoto } from './patientPhotos';
+import {
+  createEntryPhotoSignedUrl,
+  deleteEntryPhotos,
+  uploadPreparedEntryPhoto,
+} from './patientPhotos';
 
 function createUploadClientMock() {
   const single = vi.fn().mockResolvedValue({
@@ -28,13 +32,17 @@ function createUploadClientMock() {
   });
   const select = vi.fn(() => ({ single }));
   const insert = vi.fn(() => ({ select }));
-  const from = vi.fn(() => ({ insert }));
+  const eq = vi.fn().mockResolvedValue({ error: null });
+  const deleteRows = vi.fn(() => ({ eq }));
+  const from = vi.fn(() => ({ delete: deleteRows, insert }));
   const upload = vi.fn().mockResolvedValue({ data: { path: 'ok' }, error: null });
   const remove = vi.fn().mockResolvedValue({ data: [], error: null });
   const storageFrom = vi.fn(() => ({ remove, upload }));
 
   return {
     client: { from, storage: { from: storageFrom } } as unknown as AppSupabaseClient,
+    deleteRows,
+    eq,
     from,
     insert,
     remove,
@@ -52,7 +60,7 @@ function jpegBytes(size: number): Uint8Array {
 }
 
 describe('uploadPreparedEntryPhoto', () => {
-  it('uploads compressed JPEG and thumbnail before inserting metadata', async () => {
+  it('validates metadata before uploading the compressed JPEG and thumbnail', async () => {
     const { client, from, insert, storageFrom, upload } = createUploadClientMock();
     const photoBody = jpegBytes(320 * 1024);
     const thumbnailBody = jpegBytes(32 * 1024);
@@ -105,6 +113,7 @@ describe('uploadPreparedEntryPhoto', () => {
       }),
     );
     expect(result.photoPath).toContain('/photos/photo-1.jpg');
+    expect(insert.mock.invocationCallOrder[0]!).toBeLessThan(upload.mock.invocationCallOrder[0]!);
   });
 
   it('rejects invalid original-width metadata before upload', async () => {
@@ -128,6 +137,7 @@ describe('uploadPreparedEntryPhoto', () => {
             sizeBytes: 32 * 1024,
           },
         },
+        contextType: 'meal',
       }),
     ).rejects.toThrow('PHOTO_WIDTH_TOO_LARGE');
 
@@ -156,6 +166,7 @@ describe('uploadPreparedEntryPhoto', () => {
             sizeBytes: 14,
           },
         },
+        contextType: 'meal',
       }),
     ).rejects.toThrow('PHOTO_SIZE_TOO_SMALL');
 
@@ -184,6 +195,7 @@ describe('uploadPreparedEntryPhoto', () => {
             sizeBytes: 32 * 1024,
           },
         },
+        contextType: 'meal',
       }),
     ).rejects.toThrow('PHOTO_BODY_SIZE_MISMATCH');
 
@@ -191,9 +203,11 @@ describe('uploadPreparedEntryPhoto', () => {
     expect(insert).not.toHaveBeenCalled();
   });
 
-  it('removes uploaded objects when metadata insert fails', async () => {
-    const { client, remove } = createUploadClientMock();
-    const failingSingle = vi.fn().mockResolvedValue({ data: null, error: new Error('insert failed') });
+  it('does not create storage objects when metadata validation fails', async () => {
+    const { client, remove, upload } = createUploadClientMock();
+    const failingSingle = vi
+      .fn()
+      .mockResolvedValue({ data: null, error: new Error('insert failed') });
     const failingSelect = vi.fn(() => ({ single: failingSingle }));
     const failingInsert = vi.fn(() => ({ select: failingSelect }));
     vi.mocked(client.from).mockReturnValue({ insert: failingInsert } as never);
@@ -216,13 +230,43 @@ describe('uploadPreparedEntryPhoto', () => {
             sizeBytes: 32 * 1024,
           },
         },
+        contextType: 'meal',
       }),
     ).rejects.toThrow('insert failed');
 
+    expect(upload).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('removes partial uploads and metadata when the thumbnail upload fails', async () => {
+    const { client, deleteRows, eq, remove, upload } = createUploadClientMock();
+    upload
+      .mockResolvedValueOnce({ data: { path: 'photo' }, error: null })
+      .mockResolvedValueOnce({ data: null, error: new Error('thumbnail failed') });
+
+    await expect(
+      uploadPreparedEntryPhoto(client, {
+        patientId: '00000000-0000-4000-8000-000000000001',
+        entryId: '10000000-0000-4000-8000-000000000001',
+        photoId: 'photo-1',
+        photoBody: jpegBytes(320 * 1024),
+        thumbnailBody: jpegBytes(32 * 1024),
+        metadata: {
+          mimeType: PHOTO_MIME_TYPE,
+          widthPx: 1280,
+          heightPx: 960,
+          sizeBytes: 320 * 1024,
+          thumbnail: { widthPx: 320, heightPx: 240, sizeBytes: 32 * 1024 },
+        },
+        contextType: 'meal',
+      }),
+    ).rejects.toThrow('thumbnail failed');
+
     expect(remove).toHaveBeenCalledWith([
       'patients/00000000-0000-4000-8000-000000000001/entries/10000000-0000-4000-8000-000000000001/photos/photo-1.jpg',
-      'patients/00000000-0000-4000-8000-000000000001/entries/10000000-0000-4000-8000-000000000001/thumbs/photo-1.jpg',
     ]);
+    expect(deleteRows).toHaveBeenCalled();
+    expect(eq).toHaveBeenCalledWith('id', '30000000-0000-4000-8000-000000000001');
   });
 });
 

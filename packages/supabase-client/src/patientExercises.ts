@@ -6,14 +6,16 @@ import {
 } from '@project4/forms';
 
 import type { AppSupabaseClient } from './index';
+import type { Database } from './database.types';
 
-export interface ExerciseRow {
-  entry_id: string;
+export type ExerciseRow = Pick<
+  Database['public']['Tables']['exercise_details']['Row'],
+  'entry_id' | 'activity' | 'duration_minutes' | 'intensity' | 'notes'
+> & {
   activity: string;
   duration_minutes: number;
   intensity: ExerciseIntensity;
-  notes: string | null;
-}
+};
 
 export function toExerciseRecord(row: ExerciseRow, occurredAt: string): ExerciseRecord {
   return {

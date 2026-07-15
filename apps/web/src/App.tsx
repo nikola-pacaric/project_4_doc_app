@@ -1,15 +1,11 @@
 import type { UserProfile } from '@project4/contracts';
-import {
-  setActiveLocale,
-  setActiveVoiceLanguage,
-  t,
-  type AppPreferences,
-} from '@project4/i18n';
+import { setActiveLocale, setActiveVoiceLanguage, t, type AppPreferences } from '@project4/i18n';
 import { acceptCurrentConsent, getCurrentProfile, type Session } from '@project4/supabase-client';
 import { useEffect, useState } from 'react';
 
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { loadWebPreferences, saveWebPreferences } from './lib/preferences';
+import { clearPatientOfflineData } from './offline/pendingEntries';
 import { AuthScreen } from './screens/AuthScreen';
 import { ConsentScreen } from './screens/ConsentScreen';
 import { DoctorPendingScreen } from './screens/DoctorPendingScreen';
@@ -72,8 +68,13 @@ export function App() {
   }, [profileReloadToken, session?.user.id]);
 
   async function signOut() {
+    const patientId = profile?.role === 'patient' ? profile.id : session?.user.id;
     setSettingsOpen(false);
-    if (supabase) await supabase.auth.signOut();
+    try {
+      if (supabase) await supabase.auth.signOut();
+    } finally {
+      if (patientId) clearPatientOfflineData(patientId);
+    }
   }
 
   async function acceptConsent() {

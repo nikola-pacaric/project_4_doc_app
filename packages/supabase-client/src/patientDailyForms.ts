@@ -2,25 +2,31 @@ import type { DailyFormRecord } from '@project4/contracts';
 import type { DailyFormDraft } from '@project4/forms';
 
 import type { AppSupabaseClient } from './index';
+import type { Database } from './database.types';
 
-interface DailyFormRow {
-  entry_id: string;
-  wake_time: string | null;
+type DailyFormRow = Pick<
+  Database['public']['Tables']['daily_form_details']['Row'],
+  | 'entry_id'
+  | 'wake_time'
+  | 'appetite'
+  | 'had_physical_activity'
+  | 'sleep_notes'
+  | 'stress_level'
+  | 'day_description'
+  | 'took_chronic_therapy'
+  | 'took_medication_outside_chronic_therapy'
+  | 'medication_outside_chronic_therapy'
+  | 'had_menstruation'
+  | 'menstruation_notes'
+  | 'energy_level'
+  | 'had_naps'
+  | 'naps'
+  | 'completed_at'
+> & {
   appetite: 'low' | 'usual' | 'high' | null;
-  had_physical_activity: boolean | null;
-  sleep_notes: string | null;
-  stress_level: 1 | 2 | 3 | null;
-  day_description: string | null;
-  took_chronic_therapy: boolean | null;
-  took_medication_outside_chronic_therapy: boolean | null;
-  medication_outside_chronic_therapy: string | null;
-  had_menstruation: boolean | null;
-  menstruation_notes: string | null;
   energy_level: 1 | 2 | 3 | null;
-  had_naps: boolean | null;
-  naps: string | null;
-  completed_at: string | null;
-}
+  stress_level: 1 | 2 | 3 | null;
+};
 
 const detailColumns =
   'entry_id, wake_time, appetite, had_physical_activity, sleep_notes, stress_level, day_description, took_chronic_therapy, took_medication_outside_chronic_therapy, medication_outside_chronic_therapy, had_menstruation, menstruation_notes, energy_level, had_naps, naps, completed_at';
@@ -96,7 +102,7 @@ export async function getPatientDailyForm(
     .lt('occurred_at', dayEnd)
     .order('occurred_at', { ascending: false })
     .limit(1)
-    .maybeSingle<{ id: string; occurred_at: string }>();
+    .maybeSingle();
 
   if (entryError) throw entryError;
   if (!entry) return null;
@@ -134,7 +140,7 @@ export async function savePatientDailyForm(
     .from('patient_entries')
     .insert({ patient_id: patientId, kind: 'daily', occurred_at: occurredAt, text: null })
     .select('id')
-    .single<{ id: string }>();
+    .single();
   if (entryError) throw entryError;
 
   const { error: detailsError } = await client

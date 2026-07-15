@@ -1,18 +1,13 @@
 import type { MedicationRecord } from '@project4/contracts';
-import {
-  normalizeMedicationDateTime,
-  type MedicationDraft,
-} from '@project4/forms';
+import { normalizeMedicationDateTime, type MedicationDraft } from '@project4/forms';
 
 import type { AppSupabaseClient } from './index';
+import type { Database } from './database.types';
 
-export interface MedicationRow {
-  entry_id: string;
-  name: string | null;
-  dose: string | null;
-  notes: string | null;
-  is_chronic_therapy: boolean | null;
-}
+export type MedicationRow = Pick<
+  Database['public']['Tables']['medication_details']['Row'],
+  'entry_id' | 'name' | 'dose' | 'notes' | 'is_chronic_therapy'
+>;
 
 export function toMedicationRecord(row: MedicationRow, occurredAt: string): MedicationRecord {
   return {
@@ -70,7 +65,7 @@ export async function listCompletePatientMedicationEntryIds(
     .not('name', 'is', null)
     .not('dose', 'is', null)
     .not('is_chronic_therapy', 'is', null)
-    .returns<Array<{ entry_id: string }>>();
+    .returns<Array<Pick<Database['public']['Tables']['medication_details']['Row'], 'entry_id'>>>();
 
   if (error) throw error;
   return data.map((row) => row.entry_id);

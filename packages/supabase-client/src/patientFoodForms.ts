@@ -10,22 +10,19 @@ import {
 } from '@project4/forms';
 
 import type { AppSupabaseClient } from './index';
+import type { Database } from './database.types';
 
-export interface FoodFormRow {
-  entry_id: string;
-  water_liters: number | null;
-  has_other_fluids: boolean | null;
-  other_fluids: string | null;
-}
+export type FoodFormRow = Pick<
+  Database['public']['Tables']['food_form_details']['Row'],
+  'entry_id' | 'water_liters' | 'has_other_fluids' | 'other_fluids'
+>;
 
 const foodFormColumns = 'entry_id, water_liters, has_other_fluids, other_fluids';
 
-export interface OtherFluidRow {
-  entry_id: string | null;
-  daily_entry_id: string;
-  occurred_at: string;
-  name: string | null;
-}
+export type OtherFluidRow = Pick<
+  Database['public']['Tables']['other_fluid_details']['Row'],
+  'entry_id' | 'daily_entry_id' | 'occurred_at' | 'name'
+>;
 
 export interface OtherFluidRecord {
   entryId: string | null;
@@ -61,7 +58,7 @@ export async function getPatientFoodForm(
     .lt('occurred_at', dayEnd)
     .order('occurred_at', { ascending: false })
     .limit(1)
-    .maybeSingle<{ id: string; occurred_at: string }>();
+    .maybeSingle();
 
   if (entryError) throw entryError;
   if (!entry) return null;
@@ -137,7 +134,9 @@ function toFoodFormSaveParams(
   if (normalizedDraft.hasOtherFluids === true) {
     const otherFluids = normalizedDraft.otherFluids?.trim();
     if (otherFluids?.startsWith('project4:other-fluids:v1:')) {
-      const parsed = JSON.parse(otherFluids.slice('project4:other-fluids:v1:'.length)) as OtherFluidDraft[];
+      const parsed = JSON.parse(
+        otherFluids.slice('project4:other-fluids:v1:'.length),
+      ) as OtherFluidDraft[];
       if (!parsed.every((fluid) => normalizeOtherFluidDateTime(fluid.occurredAt))) {
         throw new Error('Cannot persist fluid data without a valid time.');
       }
@@ -151,9 +150,7 @@ function toFoodFormSaveParams(
     p_water_liters: normalizedDraft.waterLiters ?? null,
     p_has_other_fluids: normalizedDraft.hasOtherFluids ?? null,
     p_other_fluids:
-      normalizedDraft.hasOtherFluids === true
-        ? normalizedDraft.otherFluids?.trim() || null
-        : null,
+      normalizedDraft.hasOtherFluids === true ? normalizedDraft.otherFluids?.trim() || null : null,
     p_meals: meals.map((meal) => ({
       entry_id: meal.entryId ?? null,
       occurred_at: normalizeMealDateTime(meal.occurredAt) ?? null,

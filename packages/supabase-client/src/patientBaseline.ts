@@ -2,22 +2,24 @@ import type { PatientBaselineProfile } from '@project4/contracts';
 import { formatRecentMajorWeightChange, type CompleteBaselineProfileDraft } from '@project4/forms';
 
 import type { AppSupabaseClient } from './index';
+import type { Database } from './database.types';
 
-export interface PatientBaselineRow {
-  patient_id: string;
-  sex: PatientBaselineProfile['sex'];
-  birth_year: number | null;
-  occupation: string | null;
-  chronic_diseases: string | null;
-  chronic_therapy: string | null;
-  menstrual_history: string | null;
-  weight_kg: number | null;
-  height_cm: number | null;
-  recent_major_weight_change: string | null;
-  weight_reminder_due_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
+export type PatientBaselineRow = Pick<
+  Database['public']['Tables']['patient_baseline_profiles']['Row'],
+  | 'patient_id'
+  | 'sex'
+  | 'birth_year'
+  | 'occupation'
+  | 'chronic_diseases'
+  | 'chronic_therapy'
+  | 'menstrual_history'
+  | 'weight_kg'
+  | 'height_cm'
+  | 'recent_major_weight_change'
+  | 'weight_reminder_due_at'
+  | 'created_at'
+  | 'updated_at'
+> & { sex: PatientBaselineProfile['sex'] };
 
 const baselineColumns =
   'patient_id, sex, birth_year, occupation, chronic_diseases, chronic_therapy, menstrual_history, weight_kg, height_cm, recent_major_weight_change, weight_reminder_due_at, created_at, updated_at';

@@ -1,6 +1,10 @@
 import { createClient, type SupabaseClientOptions } from '@supabase/supabase-js';
 
+import type { Database } from './database';
+
 export type { Session } from '@supabase/supabase-js';
+export type { Database } from './database';
+export type { Database as GeneratedDatabase } from './database.types';
 
 export interface SupabaseClientConfig {
   url: string;
@@ -9,7 +13,7 @@ export interface SupabaseClientConfig {
 }
 
 export function createAppSupabaseClient(config: SupabaseClientConfig) {
-  return createClient(config.url, config.publishableKey, {
+  return createClient<Database>(config.url, config.publishableKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,

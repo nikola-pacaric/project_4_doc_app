@@ -1,13 +1,12 @@
 import type { UserProfile } from '@project4/contracts';
 
 import type { AppSupabaseClient } from './index';
+import type { Database } from './database.types';
 
-interface UserProfileRow {
-  id: string;
-  role: UserProfile['role'];
-  display_name: string | null;
-  consent_accepted_at: string | null;
-}
+type UserProfileRow = Pick<
+  Database['public']['Tables']['user_profiles']['Row'],
+  'id' | 'role' | 'display_name' | 'consent_accepted_at'
+>;
 
 export function toUserProfile(row: UserProfileRow): UserProfile {
   return {

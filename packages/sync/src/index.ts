@@ -3,6 +3,14 @@ import type { PatientEntry } from '@project4/contracts';
 export type PendingEntryOperation = 'create_text_entry' | 'update_entry_timestamp' | 'update_note';
 export type OpenedDayEntryCache = Record<string, PatientEntry[]>;
 
+export function patientOfflineStorageKeys(patientId: string): readonly [string, string, string] {
+  return [
+    `project4:pending-entries:${patientId}`,
+    `project4:recent-entries:${patientId}`,
+    `project4:opened-day-entries:${patientId}`,
+  ];
+}
+
 export interface PendingTextEntryPayload {
   patientId: string;
   text: string;
@@ -145,9 +153,7 @@ export function removePendingEntry(
   return entries.filter((entry) => entry.id !== entryId);
 }
 
-export function dedupePendingEntries(
-  entries: readonly LocalPendingEntry[],
-): LocalPendingEntry[] {
+export function dedupePendingEntries(entries: readonly LocalPendingEntry[]): LocalPendingEntry[] {
   const seen = new Set<string>();
   const uniqueEntries: LocalPendingEntry[] = [];
 

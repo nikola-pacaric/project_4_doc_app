@@ -310,7 +310,7 @@ describe('doctor invite panel client helpers', () => {
       export_mode: 'all_data',
       export_range_type: 'selected_day',
       selected_date: '2026-07-08',
-      selected_month: null,
+      selected_month: undefined,
     });
   });
 
@@ -351,7 +351,7 @@ describe('doctor invite panel client helpers', () => {
       target_patient_id: 'patient-1',
       export_mode: 'images_only_with_labels',
       export_range_type: 'partial_month',
-      selected_date: null,
+      selected_date: undefined,
       selected_month: '2026-07-01',
     });
   });
@@ -392,8 +392,8 @@ describe('doctor invite panel client helpers', () => {
       target_patient_id: 'patient-1',
       export_mode: 'all_data',
       export_range_type: 'all_time',
-      selected_date: null,
-      selected_month: null,
+      selected_date: undefined,
+      selected_month: undefined,
     });
   });
 

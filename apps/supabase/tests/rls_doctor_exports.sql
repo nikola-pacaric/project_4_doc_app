@@ -47,7 +47,9 @@ insert into public.patient_baseline_profiles (
   birth_year,
   occupation,
   weight_kg,
-  height_cm
+  height_cm,
+  recent_major_weight_change,
+  weight_reminder_due_at
 )
 values (
   '00000000-0000-4000-8000-000000000081',
@@ -55,7 +57,9 @@ values (
   1985,
   'Teacher',
   70.50,
-  168.00
+  168.00,
+  'No',
+  now() + interval '3 months'
 );
 
 insert into public.patient_entries (
@@ -70,7 +74,10 @@ values
   ('20000000-0000-4000-8000-000000000081', '00000000-0000-4000-8000-000000000081', 'note', '2026-07-08 10:00:00+00', 'Doctor export note', 'export-note-a'),
   ('20000000-0000-4000-8000-000000000082', '00000000-0000-4000-8000-000000000081', 'medication', '2026-07-08 12:00:00+00', null, 'export-med-a'),
   ('20000000-0000-4000-8000-000000000083', '00000000-0000-4000-8000-000000000081', 'note', '2026-07-01 09:00:00+00', 'Earlier month note', 'export-note-month-a'),
-  ('20000000-0000-4000-8000-000000000084', '00000000-0000-4000-8000-000000000082', 'note', '2026-07-08 11:00:00+00', 'Other patient note', 'export-note-b');
+  ('20000000-0000-4000-8000-000000000084', '00000000-0000-4000-8000-000000000082', 'note', '2026-07-08 11:00:00+00', 'Other patient note', 'export-note-b'),
+  ('20000000-0000-4000-8000-000000000085', '00000000-0000-4000-8000-000000000081', 'note', '2026-07-07 21:59:59+00', 'Before Serbia-local day', 'export-before-day'),
+  ('20000000-0000-4000-8000-000000000086', '00000000-0000-4000-8000-000000000081', 'note', '2026-07-07 22:00:00+00', 'Start of Serbia-local day', 'export-day-start'),
+  ('20000000-0000-4000-8000-000000000087', '00000000-0000-4000-8000-000000000081', 'note', '2026-07-08 22:00:00+00', 'After Serbia-local day', 'export-day-end');
 
 insert into public.medication_details (
   entry_id,
@@ -159,9 +166,16 @@ begin
     raise exception 'selected-day export should preserve export mode';
   end if;
 
-  if jsonb_array_length(selected_day_payload -> 'entries') <> 2 then
-    raise exception 'selected-day export should include two patient A entries, got %',
+  if jsonb_array_length(selected_day_payload -> 'entries') <> 3 then
+    raise exception 'selected-day export should include three Serbia-local patient A entries, got %',
       jsonb_array_length(selected_day_payload -> 'entries');
+  end if;
+
+  if (selected_day_payload #>> '{range,start}')::timestamptz
+      <> '2026-07-07 22:00:00+00'::timestamptz
+    or (selected_day_payload #>> '{range,end}')::timestamptz
+      <> '2026-07-08 22:00:00+00'::timestamptz then
+    raise exception 'selected-day export should use Europe/Belgrade calendar boundaries';
   end if;
 
   if selected_day_payload::text like '%data:image/%'
@@ -186,6 +200,11 @@ begin
     raise exception 'images-only export should include storage photo paths';
   end if;
 
+  if (image_payload #>> '{range,start}')::timestamptz
+      <> '2026-06-30 22:00:00+00'::timestamptz then
+    raise exception 'partial-month export should start at Europe/Belgrade month midnight';
+  end if;
+
   if image_payload::text like '%data:image/%'
     or image_payload::text like '%;base64,%' then
     raise exception 'images-only export must not contain base64 images';
@@ -208,7 +227,7 @@ begin
     raise exception 'all-time export should not retain a selected date or month';
   end if;
 
-  if jsonb_array_length(all_time_payload -> 'entries') <> 3 then
+  if jsonb_array_length(all_time_payload -> 'entries') <> 6 then
     raise exception 'all-time export should include every patient A entry, got %',
       jsonb_array_length(all_time_payload -> 'entries');
   end if;

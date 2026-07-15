@@ -15,14 +15,12 @@ import { ActivityIndicator, AppState, SafeAreaView, StyleSheet, Text, View } fro
 
 import { PrimaryButton } from './src/components/PrimaryButton';
 import { isSupabaseConfigured, supabase } from './src/lib/supabase';
+import { clearPatientOfflineData } from './src/offline/pendingEntries';
 import { SymptomPreview } from './src/preview/SymptomPreview';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { ConsentScreen } from './src/screens/ConsentScreen';
 import { DoctorPendingScreen } from './src/screens/DoctorPendingScreen';
-import {
-  PatientHomeScreen,
-  type PatientHomeTab,
-} from './src/screens/PatientHomeScreen';
+import { PatientHomeScreen, type PatientHomeTab } from './src/screens/PatientHomeScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { loadMobilePreferences, saveMobilePreferences } from './src/lib/preferences';
 import { colors, setAppTheme, sharedStyles, createThemedStyles } from './src/theme';
@@ -116,10 +114,17 @@ function MainApp() {
   }, [profileReloadToken, session?.user.id]);
 
   async function signOut() {
+    const patientId = profile?.role === 'patient' ? profile.id : session?.user.id;
     setSettingsOpen(false);
     setPatientLandingTab('today');
-    if (supabase) {
-      await supabase.auth.signOut();
+    try {
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+    } finally {
+      if (patientId) {
+        await clearPatientOfflineData(patientId);
+      }
     }
   }
 
@@ -195,13 +200,9 @@ function MainApp() {
         client={profile.role === 'patient' ? supabase : undefined}
         onBack={() => closeSettingsTo('today')}
         onChange={updatePreferences}
-        onProfile={
-          profile.role === 'patient' ? () => closeSettingsTo('profile') : undefined
-        }
+        onProfile={profile.role === 'patient' ? () => closeSettingsTo('profile') : undefined}
         onSignOut={signOut}
-        onTimeline={
-          profile.role === 'patient' ? () => closeSettingsTo('timeline') : undefined
-        }
+        onTimeline={profile.role === 'patient' ? () => closeSettingsTo('timeline') : undefined}
         onToday={profile.role === 'patient' ? () => closeSettingsTo('today') : undefined}
         patientId={profile.role === 'patient' ? profile.id : undefined}
         preferences={preferences}
@@ -251,13 +252,15 @@ export default function App() {
   return <MainApp />;
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: spacing.lg,
-    padding: spacing.lg,
-  },
-}));
+const styles = createThemedStyles(() =>
+  StyleSheet.create({
+    centered: {
+      flex: 1,
+      justifyContent: 'center',
+      gap: spacing.lg,
+      padding: spacing.lg,
+    },
+  }),
+);
 
 registerRootComponent(App);

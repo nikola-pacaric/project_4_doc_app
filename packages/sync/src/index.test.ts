@@ -10,11 +10,22 @@ import {
   isPendingEntryId,
   mergeOpenedDayEntryCache,
   mergePendingTextEntries,
+  patientOfflineStorageKeys,
   pendingTimelineEntryIds,
   pendingTextEntryToPatientEntry,
   replaceOpenedDayEntryCache,
   removePendingEntry,
 } from './index';
+
+describe('patientOfflineStorageKeys', () => {
+  it('returns every patient-scoped medical cache key', () => {
+    expect(patientOfflineStorageKeys('patient-1')).toEqual([
+      'project4:pending-entries:patient-1',
+      'project4:recent-entries:patient-1',
+      'project4:opened-day-entries:patient-1',
+    ]);
+  });
+});
 
 describe('offline-lite pending text entries', () => {
   it('converts a pending text entry into a timeline note', () => {

@@ -377,6 +377,21 @@ begin
   begin
     insert into storage.objects (id, bucket_id, name, owner, owner_id, metadata)
     values (
+      '40000000-0000-4000-8000-000000000044',
+      'patient-entry-photos',
+      'patients/00000000-0000-4000-8000-000000000041/entries/10000000-0000-4000-8000-000000000041/photos/orphan.jpg',
+      '00000000-0000-4000-8000-000000000041',
+      '00000000-0000-4000-8000-000000000041',
+      '{"mimetype":"image/jpeg","size":320000}'::jsonb
+    );
+    raise exception 'photo objects without prevalidated metadata should be rejected';
+  exception
+    when insufficient_privilege or check_violation or with_check_option_violation then null;
+  end;
+
+  begin
+    insert into storage.objects (id, bucket_id, name, owner, owner_id, metadata)
+    values (
       '40000000-0000-4000-8000-000000000042',
       'patient-entry-photos',
       'patients/00000000-0000-4000-8000-000000000042/entries/10000000-0000-4000-8000-000000000042/photos/photo-b.jpg',
@@ -476,27 +491,33 @@ set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000041';
 do $$
 declare
   changed_rows integer;
-  visible_objects integer;
 begin
   delete from public.patient_entries
   where id = '10000000-0000-4000-8000-000000000041';
   get diagnostics changed_rows = row_count;
-  if changed_rows <> 1 then
-    raise exception 'patient A should delete the own current-day photo entry';
-  end if;
-
-  select count(*) into visible_objects
-  from storage.objects
-  where id = '40000000-0000-4000-8000-000000000041';
-  if visible_objects <> 1 then
-    raise exception 'patient A should see the own orphaned object for cleanup';
+  if changed_rows <> 0 then
+    raise exception 'entry deletion should wait until photo objects and metadata are removed';
   end if;
 
   delete from storage.objects
   where id = '40000000-0000-4000-8000-000000000041';
   get diagnostics changed_rows = row_count;
   if changed_rows <> 1 then
-    raise exception 'patient A should clean own photo objects after entry metadata cascades';
+    raise exception 'patient A should delete the own photo object before metadata';
+  end if;
+
+  delete from public.entry_photos
+  where id = '30000000-0000-4000-8000-000000000041';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 1 then
+    raise exception 'patient A should delete metadata after photo objects are gone';
+  end if;
+
+  delete from public.patient_entries
+  where id = '10000000-0000-4000-8000-000000000041';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 1 then
+    raise exception 'patient A should delete the own current-day entry after photo cleanup';
   end if;
 end $$;
 

@@ -2,9 +2,20 @@ import type { BristolStoolType, StoolRecord, StoolUrgencyLevel } from '@project4
 import { isCompleteStoolDraft, type StoolDraft } from '@project4/forms';
 
 import type { AppSupabaseClient } from './index';
+import type { Database } from './database.types';
 
-export interface StoolRow {
-  entry_id: string;
+export type StoolRow = Pick<
+  Database['public']['Tables']['stool_details']['Row'],
+  | 'entry_id'
+  | 'bristol_type'
+  | 'urgency_level'
+  | 'pain'
+  | 'mucus'
+  | 'blood'
+  | 'fatty_stool'
+  | 'black_stool'
+  | 'notes'
+> & {
   bristol_type: BristolStoolType;
   urgency_level: StoolUrgencyLevel;
   pain: boolean;
@@ -12,8 +23,7 @@ export interface StoolRow {
   blood: boolean;
   fatty_stool: boolean;
   black_stool: boolean;
-  notes: string | null;
-}
+};
 
 export function toStoolRecord(row: StoolRow, occurredAt: string): StoolRecord {
   return {

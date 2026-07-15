@@ -8,23 +8,32 @@ import type {
 import { normalizeSymptomDateTime, validateSymptoms, type SymptomDraft } from '@project4/forms';
 
 import type { AppSupabaseClient } from './index';
+import type { Database } from './database.types';
 
-export interface SymptomRow {
-  entry_id: string;
+export type SymptomRow = Pick<
+  Database['public']['Tables']['symptom_details']['Row'],
+  | 'entry_id'
+  | 'symptom_type'
+  | 'custom_type'
+  | 'started_at'
+  | 'ended_at'
+  | 'intensity'
+  | 'modifying_factors'
+  | 'woke_from_sleep'
+  | 'pain_location'
+  | 'pain_location_custom'
+  | 'pain_radiates'
+  | 'pain_radiation'
+  | 'pain_description'
+  | 'pain_description_custom'
+> & {
   symptom_type: SymptomType;
-  custom_type: string | null;
   started_at: string;
-  ended_at: string | null;
   intensity: SymptomIntensity;
-  modifying_factors: string | null;
   woke_from_sleep: boolean;
   pain_location: PainLocation | null;
-  pain_location_custom: string | null;
-  pain_radiates: boolean | null;
-  pain_radiation: string | null;
   pain_description: PainDescription | null;
-  pain_description_custom: string | null;
-}
+};
 
 const symptomColumns =
   'entry_id, symptom_type, custom_type, started_at, ended_at, intensity, modifying_factors, woke_from_sleep, pain_location, pain_location_custom, pain_radiates, pain_radiation, pain_description, pain_description_custom';
@@ -63,7 +72,9 @@ export async function listPatientSymptoms(
     .gte('occurred_at', dayStart)
     .lt('occurred_at', dayEnd)
     .order('occurred_at', { ascending: true })
-    .returns<Array<{ id: string; occurred_at: string }>>();
+    .returns<
+      Array<Pick<Database['public']['Tables']['patient_entries']['Row'], 'id' | 'occurred_at'>>
+    >();
   if (entriesError) throw entriesError;
   if (entries.length === 0) return [];
 

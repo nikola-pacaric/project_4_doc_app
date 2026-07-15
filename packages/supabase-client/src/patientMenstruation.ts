@@ -10,13 +10,15 @@ import {
 } from '@project4/forms';
 
 import type { AppSupabaseClient } from './index';
+import type { Database } from './database.types';
 
-export interface MenstruationRow {
-  entry_id: string;
+export type MenstruationRow = Pick<
+  Database['public']['Tables']['menstruation_events']['Row'],
+  'entry_id' | 'flow' | 'pain_level' | 'notes'
+> & {
   flow: MenstruationFlow;
   pain_level: MenstruationPainLevel;
-  notes: string | null;
-}
+};
 
 export function toMenstruationRecord(row: MenstruationRow, occurredAt: string): MenstruationRecord {
   return {

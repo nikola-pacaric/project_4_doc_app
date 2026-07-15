@@ -3,21 +3,28 @@ import {
   cachedOpenedDayEntries,
   dedupePendingEntries,
   mergeOpenedDayEntryCache,
+  patientOfflineStorageKeys,
   replaceOpenedDayEntryCache,
   type LocalPendingEntry,
   type OpenedDayEntryCache,
 } from '@project4/sync';
 
 function keyForPatient(patientId: string): string {
-  return `project4:pending-entries:${patientId}`;
+  return patientOfflineStorageKeys(patientId)[0];
 }
 
 function cacheKeyForPatient(patientId: string): string {
-  return `project4:recent-entries:${patientId}`;
+  return patientOfflineStorageKeys(patientId)[1];
 }
 
 function openedDaysCacheKeyForPatient(patientId: string): string {
-  return `project4:opened-day-entries:${patientId}`;
+  return patientOfflineStorageKeys(patientId)[2];
+}
+
+export function clearPatientOfflineData(patientId: string): void {
+  for (const key of patientOfflineStorageKeys(patientId)) {
+    window.localStorage.removeItem(key);
+  }
 }
 
 export function loadPendingEntries(patientId: string): LocalPendingEntry[] {
@@ -29,14 +36,14 @@ export function loadPendingEntries(patientId: string): LocalPendingEntry[] {
   return dedupePendingEntries(parsed.filter(isLocalPendingEntry));
 }
 
-export function savePendingEntries(
-  patientId: string,
-  entries: readonly LocalPendingEntry[],
-): void {
+export function savePendingEntries(patientId: string, entries: readonly LocalPendingEntry[]): void {
   window.localStorage.setItem(keyForPatient(patientId), JSON.stringify(entries));
 }
 
-export function appendPendingEntry(patientId: string, entry: LocalPendingEntry): LocalPendingEntry[] {
+export function appendPendingEntry(
+  patientId: string,
+  entry: LocalPendingEntry,
+): LocalPendingEntry[] {
   const nextEntries = dedupePendingEntries([...loadPendingEntries(patientId), entry]);
   savePendingEntries(patientId, nextEntries);
   return nextEntries;
@@ -51,10 +58,7 @@ export function loadCachedRecentEntries(patientId: string): PatientEntry[] {
   return parsed.filter(isPatientEntry);
 }
 
-export function saveCachedRecentEntries(
-  patientId: string,
-  entries: readonly PatientEntry[],
-): void {
+export function saveCachedRecentEntries(patientId: string, entries: readonly PatientEntry[]): void {
   window.localStorage.setItem(cacheKeyForPatient(patientId), JSON.stringify(entries));
 }
 

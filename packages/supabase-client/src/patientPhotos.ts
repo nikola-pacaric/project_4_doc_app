@@ -8,6 +8,7 @@ import {
 } from '@project4/photo';
 
 import type { AppSupabaseClient } from './index';
+import type { Database } from './database.types';
 
 export interface EntryPhoto {
   id: string;
@@ -26,22 +27,23 @@ export interface EntryPhoto {
   createdAt: string;
 }
 
-export interface EntryPhotoRow {
-  id: string;
-  entry_id: string;
-  patient_id: string;
-  photo_path: string;
-  thumbnail_path: string;
-  original_filename: string | null;
-  mime_type: typeof PHOTO_MIME_TYPE;
-  width_px: number | null;
-  height_px: number | null;
-  size_bytes: number | null;
-  thumbnail_size_bytes: number | null;
-  context_type: string | null;
-  context_label: string | null;
-  created_at: string;
-}
+export type EntryPhotoRow = Pick<
+  Database['public']['Tables']['entry_photos']['Row'],
+  | 'id'
+  | 'entry_id'
+  | 'patient_id'
+  | 'photo_path'
+  | 'thumbnail_path'
+  | 'original_filename'
+  | 'mime_type'
+  | 'width_px'
+  | 'height_px'
+  | 'size_bytes'
+  | 'thumbnail_size_bytes'
+  | 'context_type'
+  | 'context_label'
+  | 'created_at'
+> & { mime_type: typeof PHOTO_MIME_TYPE };
 
 export type PhotoUploadBody = Blob | ArrayBuffer | Uint8Array;
 
@@ -52,7 +54,7 @@ export interface UploadPreparedEntryPhotoInput {
   photoBody: PhotoUploadBody;
   thumbnailBody: PhotoUploadBody;
   metadata: PreparedPhotoMetadata;
-  contextType?: 'meal' | 'fluid' | 'medication';
+  contextType: 'meal' | 'fluid' | 'medication';
   contextLabel?: string;
 }
 
@@ -161,6 +163,28 @@ export async function uploadPreparedEntryPhoto(
   const uploadOptions = { contentType: PHOTO_MIME_TYPE, upsert: false };
   const uploadedPaths: string[] = [];
 
+  const { data: createdRow, error: metadataError } = await client
+    .from('entry_photos')
+    .insert({
+      entry_id: input.entryId,
+      patient_id: input.patientId,
+      photo_path: paths.photoPath,
+      thumbnail_path: paths.thumbnailPath,
+      original_filename: input.metadata.originalFilename ?? null,
+      mime_type: PHOTO_MIME_TYPE,
+      width_px: input.metadata.widthPx,
+      height_px: input.metadata.heightPx,
+      size_bytes: input.metadata.sizeBytes,
+      thumbnail_size_bytes: input.metadata.thumbnail.sizeBytes,
+      context_type: input.contextType,
+      context_label: input.contextLabel?.trim() || null,
+    })
+    .select(entryPhotoColumns)
+    .single<EntryPhotoRow>();
+
+  if (metadataError) throw metadataError;
+  const createdPhoto = toEntryPhoto(createdRow);
+
   try {
     const photoUpload = await bucket.upload(paths.photoPath, input.photoBody, uploadOptions);
     if (photoUpload.error) throw photoUpload.error;
@@ -174,30 +198,15 @@ export async function uploadPreparedEntryPhoto(
     if (thumbnailUpload.error) throw thumbnailUpload.error;
     uploadedPaths.push(paths.thumbnailPath);
 
-    const { data, error } = await client
-      .from('entry_photos')
-      .insert({
-        entry_id: input.entryId,
-        patient_id: input.patientId,
-        photo_path: paths.photoPath,
-        thumbnail_path: paths.thumbnailPath,
-        original_filename: input.metadata.originalFilename ?? null,
-        mime_type: PHOTO_MIME_TYPE,
-        width_px: input.metadata.widthPx,
-        height_px: input.metadata.heightPx,
-        size_bytes: input.metadata.sizeBytes,
-        thumbnail_size_bytes: input.metadata.thumbnail.sizeBytes,
-        context_type: input.contextType ?? null,
-        context_label: input.contextLabel?.trim() || null,
-      })
-      .select(entryPhotoColumns)
-      .single<EntryPhotoRow>();
-
-    if (error) throw error;
-    return toEntryPhoto(data);
+    return createdPhoto;
   } catch (error) {
+    let objectsRemoved = true;
     if (uploadedPaths.length) {
-      await bucket.remove(uploadedPaths);
+      const cleanup = await bucket.remove(uploadedPaths);
+      objectsRemoved = !cleanup.error;
+    }
+    if (objectsRemoved) {
+      await client.from('entry_photos').delete().eq('id', createdPhoto.id);
     }
     throw error;
   }

@@ -1,17 +1,13 @@
 import type { PatientEntry } from '@project4/contracts';
 
 import type { AppSupabaseClient } from './index';
-import { deleteEntryPhotoObjects, listEntryPhotos } from './patientPhotos';
+import type { Database } from './database.types';
+import { deleteEntryPhotos, listEntryPhotos } from './patientPhotos';
 
-export interface PatientEntryRow {
-  id: string;
-  patient_id: string;
-  kind: PatientEntry['kind'];
-  occurred_at: string;
-  text: string | null;
-  created_at: string;
-  updated_at: string;
-}
+export type PatientEntryRow = Pick<
+  Database['public']['Tables']['patient_entries']['Row'],
+  'id' | 'patient_id' | 'kind' | 'occurred_at' | 'text' | 'created_at' | 'updated_at'
+>;
 
 export function toPatientEntry(row: PatientEntryRow): PatientEntry {
   return {
@@ -130,12 +126,14 @@ export async function deletePatientEntry(
   entryId: string,
 ): Promise<{ photoCleanupPending: boolean }> {
   const photos = await listEntryPhotos(client, entryId);
+  await deleteEntryPhotos(client, photos);
+
   const { data, error } = await client
     .from('patient_entries')
     .delete()
     .eq('id', entryId)
     .select('id')
-    .maybeSingle<{ id: string }>();
+    .maybeSingle();
 
   if (error) {
     throw error;
@@ -145,14 +143,5 @@ export async function deletePatientEntry(
     throw new Error('ENTRY_DELETE_NOT_ALLOWED');
   }
 
-  if (!photos.length) {
-    return { photoCleanupPending: false };
-  }
-
-  try {
-    await deleteEntryPhotoObjects(client, photos);
-    return { photoCleanupPending: false };
-  } catch {
-    return { photoCleanupPending: true };
-  }
+  return { photoCleanupPending: false };
 }

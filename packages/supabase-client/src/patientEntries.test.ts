@@ -118,9 +118,13 @@ describe('deletePatientEntry', () => {
     });
     const deleteSelect = vi.fn(() => ({ maybeSingle }));
     const deleteEq = vi.fn(() => ({ select: deleteSelect }));
-    const deleteRows = vi.fn(() => ({ eq: deleteEq }));
+    const entryDeleteRows = vi.fn(() => ({ eq: deleteEq }));
+    const metadataIn = vi.fn().mockResolvedValue({ error: null });
+    const metadataDeleteRows = vi.fn(() => ({ in: metadataIn }));
     const from = vi.fn((table: string) =>
-      table === 'entry_photos' ? { select: photoSelect } : { delete: deleteRows },
+      table === 'entry_photos'
+        ? { delete: metadataDeleteRows, select: photoSelect }
+        : { delete: entryDeleteRows },
     );
 
     const remove = vi.fn().mockResolvedValue({
@@ -131,40 +135,47 @@ describe('deletePatientEntry', () => {
 
     return {
       client: { from, storage: { from: storageFrom } } as unknown as AppSupabaseClient,
-      deleteRows,
+      entryDeleteRows,
+      metadataDeleteRows,
       remove,
     };
   }
 
-  it('deletes the authorized database row before cleaning orphaned photo objects', async () => {
-    const { client, deleteRows, remove } = createDeleteClientMock();
+  it('removes photo objects and metadata before deleting the authorized entry', async () => {
+    const { client, entryDeleteRows, metadataDeleteRows, remove } = createDeleteClientMock();
 
     await expect(deletePatientEntry(client, 'entry-1')).resolves.toEqual({
       photoCleanupPending: false,
     });
 
-    expect(deleteRows).toHaveBeenCalled();
+    expect(entryDeleteRows).toHaveBeenCalled();
+    expect(metadataDeleteRows).toHaveBeenCalled();
     expect(remove).toHaveBeenCalledWith([
       'patients/patient-1/entries/entry-1/photos/photo-1.jpg',
       'patients/patient-1/entries/entry-1/thumbs/photo-1.jpg',
     ]);
-    expect(deleteRows.mock.invocationCallOrder[0]!).toBeLessThan(
-      remove.mock.invocationCallOrder[0]!,
+    expect(remove.mock.invocationCallOrder[0]!).toBeLessThan(
+      metadataDeleteRows.mock.invocationCallOrder[0]!,
+    );
+    expect(metadataDeleteRows.mock.invocationCallOrder[0]!).toBeLessThan(
+      entryDeleteRows.mock.invocationCallOrder[0]!,
     );
   });
 
-  it('does not touch storage when RLS rejects the database deletion', async () => {
+  it('reports a rejected database deletion after photo cleanup', async () => {
     const { client, remove } = createDeleteClientMock({ deleted: false });
 
     await expect(deletePatientEntry(client, 'entry-1')).rejects.toThrow('ENTRY_DELETE_NOT_ALLOWED');
-    expect(remove).not.toHaveBeenCalled();
+    expect(remove).toHaveBeenCalled();
   });
 
-  it('reports deferred cleanup when storage removal fails after deletion', async () => {
-    const { client } = createDeleteClientMock({ storageError: new Error('storage unavailable') });
-
-    await expect(deletePatientEntry(client, 'entry-1')).resolves.toEqual({
-      photoCleanupPending: true,
+  it('keeps the entry and metadata when storage removal fails', async () => {
+    const { client, entryDeleteRows, metadataDeleteRows } = createDeleteClientMock({
+      storageError: new Error('storage unavailable'),
     });
+
+    await expect(deletePatientEntry(client, 'entry-1')).rejects.toThrow('storage unavailable');
+    expect(metadataDeleteRows).not.toHaveBeenCalled();
+    expect(entryDeleteRows).not.toHaveBeenCalled();
   });
 });
