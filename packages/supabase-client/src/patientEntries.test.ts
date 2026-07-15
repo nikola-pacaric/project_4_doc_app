@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AppSupabaseClient } from './index';
-import { listPatientEntriesInRange, listRecentPatientEntries } from './patientEntries';
+import {
+  deletePatientEntry,
+  listPatientEntriesInRange,
+  listRecentPatientEntries,
+} from './patientEntries';
 
 function createRangeClientMock(rows: unknown[]) {
   const returns = vi.fn().mockResolvedValue({ data: rows, error: null });
@@ -80,5 +84,87 @@ describe('listRecentPatientEntries', () => {
     expect(eq).toHaveBeenCalledWith('patient_id', 'patient-1');
     expect(gte).toHaveBeenCalledWith('occurred_at', expect.any(String));
     expect(order).toHaveBeenCalledWith('occurred_at', { ascending: false });
+  });
+});
+
+describe('deletePatientEntry', () => {
+  function createDeleteClientMock(options?: { deleted?: boolean; storageError?: Error | null }) {
+    const photoRows = [
+      {
+        id: 'photo-1',
+        entry_id: 'entry-1',
+        patient_id: 'patient-1',
+        photo_path: 'patients/patient-1/entries/entry-1/photos/photo-1.jpg',
+        thumbnail_path: 'patients/patient-1/entries/entry-1/thumbs/photo-1.jpg',
+        original_filename: null,
+        mime_type: 'image/jpeg',
+        width_px: 1200,
+        height_px: 900,
+        size_bytes: 100,
+        thumbnail_size_bytes: 20,
+        context_type: 'meal',
+        context_label: null,
+        created_at: '2026-07-15T10:00:00.000Z',
+      },
+    ];
+    const photoReturns = vi.fn().mockResolvedValue({ data: photoRows, error: null });
+    const photoOrder = vi.fn(() => ({ returns: photoReturns }));
+    const photoEq = vi.fn(() => ({ order: photoOrder }));
+    const photoSelect = vi.fn(() => ({ eq: photoEq }));
+
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: options?.deleted === false ? null : { id: 'entry-1' },
+      error: null,
+    });
+    const deleteSelect = vi.fn(() => ({ maybeSingle }));
+    const deleteEq = vi.fn(() => ({ select: deleteSelect }));
+    const deleteRows = vi.fn(() => ({ eq: deleteEq }));
+    const from = vi.fn((table: string) =>
+      table === 'entry_photos' ? { select: photoSelect } : { delete: deleteRows },
+    );
+
+    const remove = vi.fn().mockResolvedValue({
+      data: [],
+      error: options?.storageError ?? null,
+    });
+    const storageFrom = vi.fn(() => ({ remove }));
+
+    return {
+      client: { from, storage: { from: storageFrom } } as unknown as AppSupabaseClient,
+      deleteRows,
+      remove,
+    };
+  }
+
+  it('deletes the authorized database row before cleaning orphaned photo objects', async () => {
+    const { client, deleteRows, remove } = createDeleteClientMock();
+
+    await expect(deletePatientEntry(client, 'entry-1')).resolves.toEqual({
+      photoCleanupPending: false,
+    });
+
+    expect(deleteRows).toHaveBeenCalled();
+    expect(remove).toHaveBeenCalledWith([
+      'patients/patient-1/entries/entry-1/photos/photo-1.jpg',
+      'patients/patient-1/entries/entry-1/thumbs/photo-1.jpg',
+    ]);
+    expect(deleteRows.mock.invocationCallOrder[0]!).toBeLessThan(
+      remove.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it('does not touch storage when RLS rejects the database deletion', async () => {
+    const { client, remove } = createDeleteClientMock({ deleted: false });
+
+    await expect(deletePatientEntry(client, 'entry-1')).rejects.toThrow('ENTRY_DELETE_NOT_ALLOWED');
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('reports deferred cleanup when storage removal fails after deletion', async () => {
+    const { client } = createDeleteClientMock({ storageError: new Error('storage unavailable') });
+
+    await expect(deletePatientEntry(client, 'entry-1')).resolves.toEqual({
+      photoCleanupPending: true,
+    });
   });
 });

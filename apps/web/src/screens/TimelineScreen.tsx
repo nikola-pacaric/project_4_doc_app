@@ -33,6 +33,7 @@ import {
   completePatientDailyForm,
   createPatientNote,
   createEntryPhotoSignedUrl,
+  deletePatientEntry,
   getPatientBaseline,
   getPatientDailyForm,
   getPatientFoodForm,
@@ -232,6 +233,7 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
   const [timelineDayEntries, setTimelineDayEntries] = useState<PatientEntry[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState<string | null>(null);
+  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
   const [showMenstruationForm, setShowMenstruationForm] = useState(false);
   const [menstruationEntryToEdit, setMenstruationEntryToEdit] = useState<PatientEntry | null>(
     null,
@@ -277,10 +279,15 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
         try {
           if (pendingEntry.operation === 'create_text_entry') {
             const payload = pendingEntry.payload as PendingTextEntryPayload;
-            await createPatientNote(client, profile.id, {
-              occurredAt: payload.occurredAt,
-              text: payload.text,
-            });
+            await createPatientNote(
+              client,
+              profile.id,
+              {
+                occurredAt: payload.occurredAt,
+                text: payload.text,
+              },
+              { clientEntryId: pendingEntry.id },
+            );
           } else if (pendingEntry.operation === 'update_note') {
             const payload = pendingEntry.payload as PendingNoteUpdatePayload;
             await createPatientNote(client, profile.id, {
@@ -370,6 +377,7 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
   const openTimeline = useCallback(() => {
     const today = localDateValue(new Date());
     setTimelineDay(today);
+    setMessage(null);
     setShowTimelineList(true);
     void loadTimelineDay(today);
   }, [loadTimelineDay]);
@@ -378,6 +386,7 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
     (day: string) => {
       if (!day) return;
       setTimelineDay(day);
+      setMessage(null);
       void loadTimelineDay(day);
     },
     [loadTimelineDay],
@@ -482,6 +491,47 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
       loadEntriesPromiseRef.current = null;
     }
   }, [client, locale, profile.id, syncPendingQueue]);
+
+  async function deleteTimelineEntry(entry: PatientEntry) {
+    const today = localDateValue(new Date());
+    if (
+      timelineDay !== today ||
+      entryLocalDay(entry) !== today ||
+      offlineMode ||
+      isPendingEntryId(entry.id) ||
+      !window.confirm(t(locale, 'entry.deleteConfirm'))
+    ) {
+      return;
+    }
+
+    setDeletingEntryId(entry.id);
+    setTimelineError(null);
+    setMessage(null);
+    try {
+      const result = await deletePatientEntry(client, entry.id);
+      setEntryPhotos((current) => {
+        const next = { ...current };
+        delete next[entry.id];
+        return next;
+      });
+      await Promise.all([
+        loadTimelineDay(timelineDay, { showLoading: false }),
+        loadEntries({ showLoading: false }),
+      ]);
+      setMessage(
+        t(
+          locale,
+          result.photoCleanupPending
+            ? 'entry.deletePhotoCleanupWarning'
+            : 'entry.deleted',
+        ),
+      );
+    } catch {
+      setTimelineError(t(locale, 'entry.deleteError'));
+    } finally {
+      setDeletingEntryId(null);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -967,6 +1017,8 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
             const offlineDisabled =
               offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
             const canOpen = isTodayDay && !pending && !offlineDisabled;
+            const canShowDelete = isTodayDay && !pending;
+            const deleting = deletingEntryId === entry.id;
             const entryCompleted =
               entry.kind === 'daily'
                 ? dailyCompleted
@@ -1044,6 +1096,18 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
                   </div>
                 )}
                 {renderEntryPhotos(entry, title)}
+                {canShowDelete ? (
+                  <div className="web-entry-actions">
+                    <button
+                      aria-label={t(locale, 'entry.deleteTitle')}
+                      disabled={offlineMode || deleting}
+                      onClick={() => void deleteTimelineEntry(entry)}
+                      type="button"
+                    >
+                      {t(locale, deleting ? 'entry.deleting' : 'common.delete')}
+                    </button>
+                  </div>
+                ) : null}
               </article>
             );
           })}

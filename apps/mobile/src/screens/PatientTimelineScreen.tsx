@@ -12,6 +12,7 @@ import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import { darkTheme } from '@project4/ui-tokens';
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   Pressable,
   SafeAreaView,
@@ -63,15 +64,18 @@ interface PatientTimelineScreenProps {
   entries: PatientEntry[];
   error: string | null;
   loading: boolean;
+  message?: string | null;
   offlineMode?: boolean;
   onBack: () => void;
   onOpenBaseline?: () => void;
   /** When set, current-day entries open for edit (same as home recent entries). */
   onOpenEntry?: (entry: PatientEntry) => void;
+  onDeleteEntry?: (entry: PatientEntry) => void | Promise<void>;
   onOpenSettings?: () => void;
   onRefresh: () => void | Promise<void>;
   onSelectedDayChange: (day: string) => void;
   pendingEntryIds?: string[];
+  deletingEntryId?: string | null;
   selectedDay: string;
 }
 
@@ -99,14 +103,17 @@ export function PatientTimelineScreen({
   entries,
   error,
   loading,
+  message = null,
   offlineMode = false,
   onBack,
   onOpenBaseline,
+  onDeleteEntry,
   onOpenEntry,
   onOpenSettings,
   onRefresh,
   onSelectedDayChange,
   pendingEntryIds = [],
+  deletingEntryId = null,
   selectedDay,
 }: PatientTimelineScreenProps) {
   const locale = getActiveLocale();
@@ -140,6 +147,19 @@ export function PatientTimelineScreen({
   const today = toLocalDateInput(new Date());
   const canEditSelectedDay = selectedDay === today && Boolean(onOpenEntry);
   const sectionLabel = daySectionLabel(selectedDay, locale);
+
+  function confirmDelete(entry: PatientEntry) {
+    if (!onDeleteEntry) return;
+
+    Alert.alert(t(locale, 'entry.deleteTitle'), t(locale, 'entry.deleteConfirm'), [
+      { text: t(locale, 'common.cancel'), style: 'cancel' },
+      {
+        onPress: () => void onDeleteEntry(entry),
+        style: 'destructive',
+        text: t(locale, 'common.delete'),
+      },
+    ]);
+  }
 
   function openCalendar() {
     DateTimePickerAndroid.open({
@@ -218,6 +238,9 @@ export function PatientTimelineScreen({
         {error ? (
           <Text style={[styles.statusError, { color: palette.error }]}>{error}</Text>
         ) : null}
+        {message ? (
+          <Text style={[styles.statusMessage, { color: palette.primary }]}>{message}</Text>
+        ) : null}
         {loading ? (
           <ActivityIndicator color={palette.primary} size="large" style={styles.loader} />
         ) : null}
@@ -239,6 +262,8 @@ export function PatientTimelineScreen({
               offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
             const canOpen =
               canEditSelectedDay && !pending && !offlineDisabled && Boolean(onOpenEntry);
+            const canShowDelete = selectedDay === today && !pending && Boolean(onDeleteEntry);
+            const deleting = deletingEntryId === entry.id;
             const timeLabel = formatEntryTime(entry.occurredAt, locale);
             const cardBody = (
               <>
@@ -321,28 +346,6 @@ export function PatientTimelineScreen({
               </>
             );
 
-            if (canOpen) {
-              return (
-                <Pressable
-                  accessibilityHint={t(locale, 'home.entryOpenHint')}
-                  accessibilityRole="button"
-                  key={entry.id}
-                  onPress={() => onOpenEntry?.(entry)}
-                  style={({ pressed }) => [
-                    styles.card,
-                    {
-                      backgroundColor: palette.surface,
-                      shadowColor: palette.shadow,
-                    },
-                    pending && styles.pendingCard,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  {cardBody}
-                </Pressable>
-              );
-            }
-
             return (
               <View
                 accessibilityHint={
@@ -357,11 +360,39 @@ export function PatientTimelineScreen({
                     backgroundColor: palette.surface,
                     shadowColor: palette.shadow,
                   },
-                  pending && styles.pendingCard,
                   offlineDisabled && styles.disabled,
                 ]}
               >
-                {cardBody}
+                {canOpen ? (
+                  <Pressable
+                    accessibilityHint={t(locale, 'home.entryOpenHint')}
+                    accessibilityRole="button"
+                    onPress={() => onOpenEntry?.(entry)}
+                    style={({ pressed }) => [styles.cardMain, pressed && styles.pressed]}
+                  >
+                    {cardBody}
+                  </Pressable>
+                ) : (
+                  <View style={styles.cardMain}>{cardBody}</View>
+                )}
+                {canShowDelete ? (
+                  <Pressable
+                    accessibilityLabel={t(locale, 'entry.deleteTitle')}
+                    accessibilityRole="button"
+                    disabled={offlineMode || deleting}
+                    onPress={() => confirmDelete(entry)}
+                    style={({ pressed }) => [
+                      styles.deleteButton,
+                      { borderLeftColor: palette.outlineVariant },
+                      (offlineMode || deleting) && styles.disabled,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.deleteButtonText, { color: palette.error }]}>
+                      {t(locale, deleting ? 'entry.deleting' : 'common.delete')}
+                    </Text>
+                  </Pressable>
+                ) : null}
               </View>
             );
           })}
@@ -446,6 +477,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
+  statusMessage: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
   empty: {
     fontSize: 15,
     lineHeight: 22,
@@ -455,20 +490,34 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   card: {
-    alignItems: 'center',
     borderRadius: 16,
     elevation: 2,
     flexDirection: 'row',
-    gap: 14,
     minHeight: 88,
     overflow: 'hidden',
-    padding: 18,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.06,
     shadowRadius: 18,
   },
-  pendingCard: {
-    paddingLeft: 18,
+  cardMain: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: 14,
+    minHeight: 88,
+    padding: 18,
+  },
+  deleteButton: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    borderLeftWidth: 1,
+    justifyContent: 'center',
+    minWidth: 78,
+    paddingHorizontal: 12,
+  },
+  deleteButtonText: {
+    fontSize: 12,
+    fontWeight: '800',
   },
   pendingStripe: {
     bottom: 0,

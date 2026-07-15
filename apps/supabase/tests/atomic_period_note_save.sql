@@ -57,10 +57,17 @@ begin
   end if;
   if has_function_privilege(
     'anon',
-    'public.save_patient_note(uuid,timestamptz,text)',
+    'public.save_patient_note(uuid,timestamptz,text,text)',
     'EXECUTE'
   ) then
     raise exception 'anon must not execute note saves';
+  end if;
+  if not has_function_privilege(
+    'authenticated',
+    'public.save_patient_note(uuid,timestamptz,text,text)',
+    'EXECUTE'
+  ) then
+    raise exception 'authenticated patients must be able to execute note saves';
   end if;
 end $$;
 
@@ -72,6 +79,7 @@ declare
   first_period_id uuid;
   second_period_id uuid;
   note_row record;
+  replayed_note_row record;
   period_count integer;
   note_count integer;
   saved_flow text;
@@ -152,22 +160,61 @@ begin
 
   select *
   into note_row
-  from public.save_patient_note(null, '2026-06-23 13:00:00+02', ' First note ');
+  from public.save_patient_note(
+    null,
+    '2026-06-23 13:00:00+02',
+    ' First note ',
+    'pending-1782208800000-note01'
+  );
 
   if note_row.kind <> 'note' or note_row.text <> 'First note' then
     raise exception 'note save should return a trimmed note row';
   end if;
 
-  perform public.save_patient_note(note_row.id, '2026-06-23 13:15:00+02', 'Updated note');
+  select *
+  into replayed_note_row
+  from public.save_patient_note(
+    null,
+    '2026-06-23 13:00:00+02',
+    ' First note ',
+    'pending-1782208800000-note01'
+  );
+
+  if replayed_note_row.id is distinct from note_row.id then
+    raise exception 'an exact note retry must return the original entry';
+  end if;
 
   begin
-    perform public.save_patient_note('10000000-0000-4000-8000-000000000269', '2026-06-23 13:15:00+02', 'Forbidden note');
+    perform public.save_patient_note(
+      null,
+      '2026-06-23 13:00:00+02',
+      'Different content',
+      'pending-1782208800000-note01'
+    );
+    raise exception 'reusing a note idempotency key with different content should fail';
+  exception when invalid_parameter_value then null;
+  end;
+
+  perform public.save_patient_note(
+    note_row.id,
+    '2026-06-23 13:15:00+02',
+    'Updated note',
+    null
+  );
+
+  begin
+    perform public.save_patient_note(
+      '10000000-0000-4000-8000-000000000269',
+      '2026-06-23 13:15:00+02',
+      'Forbidden note',
+      null
+    );
     raise exception 'patient A must not update patient B note';
   exception when insufficient_privilege then null;
   end;
 
   begin
-    perform public.save_patient_note(null, '2026-06-23 14:00:00+02', '   ');
+    perform public.save_patient_note(null, '2026-06-23 14:00:00+02', '   ', null);
     raise exception 'blank note text should fail';
   exception when invalid_parameter_value then null;
   end;
@@ -182,6 +229,21 @@ begin
 end $$;
 
 reset role;
+
+do $$
+declare
+  note_created_audit_count integer;
+begin
+  select count(*) into note_created_audit_count
+  from public.audit_events
+  where patient_id = '00000000-0000-4000-8000-000000000261'
+    and event_type = 'patient_note_created'
+    and metadata ->> 'client_entry_id' = 'pending-1782208800000-note01';
+
+  if note_created_audit_count <> 1 then
+    raise exception 'an exact note retry must create one audit event, found %', note_created_audit_count;
+  end if;
+end $$;
 
 set local role authenticated;
 set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000262';
@@ -221,7 +283,12 @@ begin
   end;
 
   begin
-    perform public.save_patient_note(null, '2026-06-23 12:00:00+02', 'Doctor note');
+    perform public.save_patient_note(
+      null,
+      '2026-06-23 12:00:00+02',
+      'Doctor note',
+      'pending-1782208800000-doctor'
+    );
     raise exception 'doctors must not save notes';
   exception when insufficient_privilege then null;
   end;

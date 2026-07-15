@@ -76,10 +76,22 @@ on conflict (entry_id) do nothing;
 set local role anon;
 
 do $$
+declare
+  changed_rows integer;
 begin
   begin
     perform count(*) from public.stool_details;
     raise exception 'anon should not have table access to stool records';
+  exception when insufficient_privilege then null;
+  end;
+
+  begin
+    delete from public.patient_entries
+    where id = '10000000-0000-4000-8000-000000000001';
+    get diagnostics changed_rows = row_count;
+    if changed_rows <> 0 then
+      raise exception 'anon should not be able to delete patient entries';
+    end if;
   exception when insufficient_privilege then null;
   end;
 end $$;
@@ -143,6 +155,32 @@ begin
   get diagnostics changed_rows = row_count;
   if changed_rows <> 0 then
     raise exception 'patient A should not update patient B entries';
+  end if;
+
+  delete from public.patient_entries
+  where id = '10000000-0000-4000-8000-000000000002';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then
+    raise exception 'patient A should not delete a current-day entry owned by patient B';
+  end if;
+
+  insert into public.patient_entries (id, patient_id, kind, occurred_at, text)
+  values (
+    '10000000-0000-4000-8000-000000000010',
+    '00000000-0000-4000-8000-000000000001',
+    'note',
+    (
+      date_trunc('day', now() at time zone 'Europe/Belgrade')
+      - interval '12 hours'
+    ) at time zone 'Europe/Belgrade',
+    'historical entry must remain immutable to delete'
+  );
+
+  delete from public.patient_entries
+  where id = '10000000-0000-4000-8000-000000000010';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then
+    raise exception 'patient A should not delete an own entry from a previous Belgrade day';
   end if;
 
   update public.daily_form_details set wake_time = '09:00'
@@ -212,9 +250,16 @@ begin
 
   delete from public.patient_entries
   where id = '10000000-0000-4000-8000-000000000009';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 1 then
+    raise exception 'patient A should delete an own current-day entry';
+  end if;
 end $$;
 
 reset role;
+
+delete from public.patient_entries
+where id = '10000000-0000-4000-8000-000000000010';
 
 set local role authenticated;
 set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000003';

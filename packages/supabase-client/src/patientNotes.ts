@@ -11,10 +11,16 @@ import {
 
 const noteEntryColumns = 'id, patient_id, kind, occurred_at, text, created_at, updated_at';
 
+export interface CreatePatientNoteOptions {
+  /** Stable client operation ID used to make new-note retries idempotent. */
+  clientEntryId?: string;
+}
+
 export async function createPatientNote(
   client: AppSupabaseClient,
   _patientId: string,
   draft: NoteDraft,
+  options: CreatePatientNoteOptions = {},
 ): Promise<PatientEntry> {
   if (!isCompleteNoteDraft(draft)) {
     throw new Error('Cannot persist an incomplete note draft.');
@@ -23,8 +29,14 @@ export async function createPatientNote(
   const occurredAt = normalizeNoteDateTime(draft.occurredAt);
   if (!occurredAt) throw new Error('Cannot persist a note without a valid time.');
 
+  const clientEntryId = options.clientEntryId?.trim() || null;
+  if (draft.entryId && clientEntryId) {
+    throw new Error('An idempotency key can only be used when creating a note.');
+  }
+
   const { data, error } = await client
     .rpc('save_patient_note', {
+      p_client_entry_id: clientEntryId,
       p_entry_id: draft.entryId ?? null,
       p_occurred_at: occurredAt,
       p_text: draft.text.trim(),

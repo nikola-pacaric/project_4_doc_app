@@ -136,7 +136,7 @@ describe('offline-lite pending text entries', () => {
     expect(pendingTimelineEntryIds([pending])).toEqual(['server-1']);
   });
 
-  it('deduplicates pending entries with the same operation payload', () => {
+  it('deduplicates retries by operation ID without collapsing distinct identical notes', () => {
     const first = createPendingTextEntry(
       { patientId: 'patient-1', text: 'Same note', occurredAt: '2026-07-03T08:00:00.000Z' },
       new Date('2026-07-03T08:01:00.000Z'),
@@ -150,8 +150,9 @@ describe('offline-lite pending text entries', () => {
       new Date('2026-07-03T08:03:00.000Z'),
     );
 
-    expect(dedupePendingEntries([first, second, timestampUpdate])).toEqual([
+    expect(dedupePendingEntries([first, { ...first }, second, timestampUpdate])).toEqual([
       first,
+      second,
       timestampUpdate,
     ]);
   });

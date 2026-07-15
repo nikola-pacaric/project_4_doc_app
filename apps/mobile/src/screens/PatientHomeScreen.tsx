@@ -28,6 +28,7 @@ import {
 import {
   completePatientDailyForm,
   createPatientNote,
+  deletePatientEntry,
   getPatientBaseline,
   getPatientDailyForm,
   getPatientFoodForm,
@@ -166,6 +167,8 @@ export function PatientHomeScreen({
   const [timelineDayEntries, setTimelineDayEntries] = useState<PatientEntry[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState<string | null>(null);
+  const [timelineMessage, setTimelineMessage] = useState<string | null>(null);
+  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
   const [pendingEntries, setPendingEntries] = useState<LocalPendingEntry[]>([]);
   const [foodForm, setFoodForm] = useState<FoodFormRecord | null>(null);
@@ -245,10 +248,15 @@ export function PatientHomeScreen({
         try {
           if (pendingEntry.operation === 'create_text_entry') {
             const payload = pendingEntry.payload as PendingTextEntryPayload;
-            await createPatientNote(client, profile.id, {
-              occurredAt: payload.occurredAt,
-              text: payload.text,
-            });
+            await createPatientNote(
+              client,
+              profile.id,
+              {
+                occurredAt: payload.occurredAt,
+                text: payload.text,
+              },
+              { clientEntryId: pendingEntry.id },
+            );
           } else if (pendingEntry.operation === 'update_note') {
             const payload = pendingEntry.payload as PendingNoteUpdatePayload;
             await createPatientNote(client, profile.id, {
@@ -338,6 +346,7 @@ export function PatientHomeScreen({
   const openTimeline = useCallback(() => {
     const today = toLocalDateInput(new Date());
     setTimelineDay(today);
+    setTimelineMessage(null);
     setShowTimeline(true);
     void loadTimelineDay(today);
   }, [loadTimelineDay]);
@@ -354,6 +363,7 @@ export function PatientHomeScreen({
   const handleTimelineDayChange = useCallback(
     (day: string) => {
       setTimelineDay(day);
+      setTimelineMessage(null);
       void loadTimelineDay(day);
     },
     [loadTimelineDay],
@@ -463,6 +473,53 @@ export function PatientHomeScreen({
       loadEntriesPromiseRef.current = null;
     }
   }, [client, locale, profile.id, syncPendingQueue]);
+
+  const deleteTimelineEntry = useCallback(
+    async (entry: PatientEntry) => {
+      const today = toLocalDateInput(new Date());
+      if (
+        timelineDay !== today ||
+        entryLocalDay(entry) !== today ||
+        offlineMode ||
+        isPendingEntryId(entry.id)
+      ) {
+        setTimelineError(t(locale, 'entry.deleteError'));
+        return;
+      }
+
+      setDeletingEntryId(entry.id);
+      setTimelineError(null);
+      setTimelineMessage(null);
+      try {
+        const result = await deletePatientEntry(client, entry.id);
+        await Promise.all([
+          loadTimelineDay(timelineDay, { showLoading: false }),
+          loadEntries({ showLoading: false }),
+        ]);
+        setTimelineMessage(
+          t(
+            locale,
+            result.photoCleanupPending
+              ? 'entry.deletePhotoCleanupWarning'
+              : 'entry.deleted',
+          ),
+        );
+      } catch {
+        setTimelineError(t(locale, 'entry.deleteError'));
+      } finally {
+        setDeletingEntryId(null);
+      }
+    },
+    [
+      client,
+      entryLocalDay,
+      loadEntries,
+      loadTimelineDay,
+      locale,
+      offlineMode,
+      timelineDay,
+    ],
+  );
 
   useEffect(() => {
     let active = true;
@@ -707,9 +764,11 @@ export function PatientHomeScreen({
     );
     return (
       <PatientTimelineScreen
+        deletingEntryId={deletingEntryId}
         entries={dayEntries}
         error={timelineError}
         loading={timelineLoading}
+        message={timelineMessage}
         offlineMode={offlineMode}
         onBack={() => setShowTimeline(false)}
         onOpenBaseline={() => {
@@ -720,6 +779,7 @@ export function PatientHomeScreen({
           setShowTimeline(false);
           openRecentEntry(entry);
         }}
+        onDeleteEntry={deleteTimelineEntry}
         onOpenSettings={() => {
           setShowTimeline(false);
           onOpenSettings();

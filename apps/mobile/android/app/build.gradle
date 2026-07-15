@@ -3,6 +3,12 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+def releaseStoreFile = findProperty('PATIENT_RELEASE_STORE_FILE') ?: System.getenv('PATIENT_RELEASE_STORE_FILE')
+def releaseStorePassword = findProperty('PATIENT_RELEASE_STORE_PASSWORD') ?: System.getenv('PATIENT_RELEASE_STORE_PASSWORD')
+def releaseKeyAlias = findProperty('PATIENT_RELEASE_KEY_ALIAS') ?: System.getenv('PATIENT_RELEASE_KEY_ALIAS')
+def releaseKeyPassword = findProperty('PATIENT_RELEASE_KEY_PASSWORD') ?: System.getenv('PATIENT_RELEASE_KEY_PASSWORD')
+def releaseVersionCode = (findProperty('PATIENT_VERSION_CODE') ?: System.getenv('PATIENT_VERSION_CODE') ?: '2').toInteger()
+def releaseVersionName = findProperty('PATIENT_VERSION_NAME') ?: System.getenv('PATIENT_VERSION_NAME') ?: '0.1.0'
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -87,13 +93,13 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.anonymous.patientresearchtracking'
+    namespace 'com.patientresearchtracking.app'
     defaultConfig {
-        applicationId 'com.anonymous.patientresearchtracking'
+        applicationId 'com.patientresearchtracking.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "0.1.0"
+        versionCode releaseVersionCode
+        versionName releaseVersionName
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -104,15 +110,19 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            if (releaseStoreFile) storeFile file(releaseStoreFile)
+            if (releaseStorePassword) storePassword releaseStorePassword
+            if (releaseKeyAlias) keyAlias releaseKeyAlias
+            if (releaseKeyPassword) keyPassword releaseKeyPassword
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
@@ -129,6 +139,32 @@ android {
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+}
+
+def validateReleaseSigningConfiguration = tasks.register('validateReleaseSigningConfiguration') {
+    group = 'verification'
+    description = 'Fails when production Android signing credentials are missing.'
+    doLast {
+        def missingValues = [
+            PATIENT_RELEASE_STORE_FILE: releaseStoreFile,
+            PATIENT_RELEASE_STORE_PASSWORD: releaseStorePassword,
+            PATIENT_RELEASE_KEY_ALIAS: releaseKeyAlias,
+            PATIENT_RELEASE_KEY_PASSWORD: releaseKeyPassword,
+        ].findAll { _, value -> !value }.keySet()
+
+        if (!missingValues.isEmpty()) {
+            throw new GradleException("Missing release signing values: ${missingValues.join(', ')}")
+        }
+        if (!file(releaseStoreFile).isFile()) {
+            throw new GradleException("Release keystore does not exist: ${file(releaseStoreFile)}")
+        }
+    }
+}
+
+tasks.configureEach { task ->
+    if (task.name == 'preReleaseBuild') {
+        task.dependsOn validateReleaseSigningConfiguration
     }
 }
 

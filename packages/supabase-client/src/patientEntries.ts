@@ -1,6 +1,7 @@
 import type { PatientEntry } from '@project4/contracts';
 
 import type { AppSupabaseClient } from './index';
+import { deleteEntryPhotoObjects, listEntryPhotos } from './patientPhotos';
 
 export interface PatientEntryRow {
   id: string;
@@ -127,10 +128,31 @@ export async function updateEntryTimestamp(
 export async function deletePatientEntry(
   client: AppSupabaseClient,
   entryId: string,
-): Promise<void> {
-  const { error } = await client.from('patient_entries').delete().eq('id', entryId);
+): Promise<{ photoCleanupPending: boolean }> {
+  const photos = await listEntryPhotos(client, entryId);
+  const { data, error } = await client
+    .from('patient_entries')
+    .delete()
+    .eq('id', entryId)
+    .select('id')
+    .maybeSingle<{ id: string }>();
 
   if (error) {
     throw error;
+  }
+
+  if (!data) {
+    throw new Error('ENTRY_DELETE_NOT_ALLOWED');
+  }
+
+  if (!photos.length) {
+    return { photoCleanupPending: false };
+  }
+
+  try {
+    await deleteEntryPhotoObjects(client, photos);
+    return { photoCleanupPending: false };
+  } catch {
+    return { photoCleanupPending: true };
   }
 }

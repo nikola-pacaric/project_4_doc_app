@@ -49,8 +49,7 @@ export const dictionaries = {
     'baseline.measurements': 'Measurements',
     'baseline.medicalBackground': 'Medical Background',
     'baseline.menstrualHistory': 'Menstrual History',
-    'baseline.menstrualHistoryPlaceholder':
-      'Regularity, date of last cycle, or any symptoms...',
+    'baseline.menstrualHistoryPlaceholder': 'Regularity, date of last cycle, or any symptoms...',
     'baseline.occupation': 'Occupation',
     'baseline.occupationPlaceholder': 'Your current role',
     'baseline.open': 'Baseline profile',
@@ -473,7 +472,12 @@ export const dictionaries = {
     'entry.create': 'Save entry',
     'entry.date': 'Date (YYYY-MM-DD)',
     'entry.deleteConfirm': 'Delete this entry? This cannot be undone.',
+    'entry.deleteError': 'The entry could not be deleted. Only entries from today can be deleted.',
     'entry.deleteTitle': 'Delete entry',
+    'entry.deleted': 'Entry deleted.',
+    'entry.deleting': 'Deleting...',
+    'entry.deletePhotoCleanupWarning':
+      'Entry deleted. Private photo cleanup will need to be retried.',
     'entry.empty': 'No entries in the last 7 days.',
     'entry.loadError': 'Your recent entries could not be loaded.',
     'entry.offlineCached':
@@ -501,7 +505,7 @@ export const dictionaries = {
     'entry.updated': 'Timestamp updated.',
     'sync.pending': 'Pending sync',
     'phase.patientSlice': 'Patient daily tracking',
-    'timeline.editTodayOnly': 'Only entries from today can be edited.',
+    'timeline.editTodayOnly': 'Only entries from today can be edited or deleted.',
     'timeline.emptyDay': 'No entries for this day.',
     'timeline.nextWeek': 'Next week',
     'timeline.openCalendar': 'Open calendar',
@@ -647,8 +651,7 @@ export const dictionaries = {
     'baseline.measurements': 'Merenja',
     'baseline.medicalBackground': 'Medicinska pozadina',
     'baseline.menstrualHistory': 'Menstrualna istorija',
-    'baseline.menstrualHistoryPlaceholder':
-      'Redovnost, datum poslednjeg ciklusa ili simptomi...',
+    'baseline.menstrualHistoryPlaceholder': 'Redovnost, datum poslednjeg ciklusa ili simptomi...',
     'baseline.occupation': 'Zanimanje',
     'baseline.occupationPlaceholder': 'Vasa trenutna uloga',
     'baseline.open': 'Osnovni profil',
@@ -1075,7 +1078,12 @@ export const dictionaries = {
     'entry.create': 'Sacuvaj unos',
     'entry.date': 'Datum (GGGG-MM-DD)',
     'entry.deleteConfirm': 'Obrisati ovaj unos? Radnja se ne moze ponistiti.',
+    'entry.deleteError': 'Unos nije obrisan. Mogu se brisati samo danasnji unosi.',
     'entry.deleteTitle': 'Brisanje unosa',
+    'entry.deleted': 'Unos je obrisan.',
+    'entry.deleting': 'Brisanje...',
+    'entry.deletePhotoCleanupWarning':
+      'Unos je obrisan. Brisanje privatnih fotografija treba ponoviti.',
     'entry.empty': 'Nema unosa u poslednjih 7 dana.',
     'entry.loadError': 'Nije moguce ucitati skorasnje unose.',
     'entry.offlineCached':
@@ -1103,7 +1111,7 @@ export const dictionaries = {
     'entry.updated': 'Vreme unosa je izmenjeno.',
     'sync.pending': 'Ceka sinhronizaciju',
     'phase.patientSlice': 'Dnevno pracenje pacijenta',
-    'timeline.editTodayOnly': 'Samo unosi od danas mogu da se menjaju.',
+    'timeline.editTodayOnly': 'Samo danasnji unosi mogu da se menjaju ili brisu.',
     'timeline.emptyDay': 'Nema unosa za ovaj dan.',
     'timeline.nextWeek': 'Sledeca nedelja',
     'timeline.openCalendar': 'Otvori kalendar',

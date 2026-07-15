@@ -163,8 +163,7 @@ export function dedupePendingEntries(
 
 function pendingEntryDedupeKey(entry: LocalPendingEntry): string {
   if (entry.operation === 'create_text_entry') {
-    const payload = entry.payload as PendingTextEntryPayload;
-    return [entry.operation, payload.patientId, payload.occurredAt, payload.text.trim()].join('|');
+    return [entry.operation, entry.id].join('|');
   }
 
   if (entry.operation === 'update_note') {

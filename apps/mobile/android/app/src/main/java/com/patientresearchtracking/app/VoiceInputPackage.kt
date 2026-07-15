@@ -1,4 +1,4 @@
-package com.anonymous.patientresearchtracking
+package com.patientresearchtracking.app
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule

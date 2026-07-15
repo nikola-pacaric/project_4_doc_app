@@ -1,4 +1,4 @@
-package com.anonymous.patientresearchtracking
+package com.patientresearchtracking.app
 
 import android.app.Application
 import android.content.res.Configuration

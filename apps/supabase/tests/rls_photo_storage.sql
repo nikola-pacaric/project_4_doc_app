@@ -1,5 +1,10 @@
 begin;
 
+-- Hosted Supabase protects storage tables from direct SQL deletes. The Storage
+-- API enables this transaction-local switch before executing policy-checked
+-- deletes; use the same path so this rollback-only test reaches storage RLS.
+set local storage.allow_delete_query = 'true';
+
 insert into auth.users (
   id,
   aud,
@@ -408,12 +413,20 @@ set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000042';
 do $$
 declare
   visible_objects integer;
+  changed_rows integer;
 begin
   select count(*) into visible_objects
   from storage.objects
   where bucket_id = 'patient-entry-photos';
   if visible_objects <> 0 then
     raise exception 'patient B should not select patient A photo objects, saw %', visible_objects;
+  end if;
+
+  delete from storage.objects
+  where id = '40000000-0000-4000-8000-000000000041';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 0 then
+    raise exception 'patient B should not delete patient A photo objects';
   end if;
 end $$;
 
@@ -452,6 +465,38 @@ begin
   where bucket_id = 'patient-entry-photos';
   if visible_objects <> 1 then
     raise exception 'linked doctor should select linked patient photo objects, saw %', visible_objects;
+  end if;
+end $$;
+
+reset role;
+
+set local role authenticated;
+set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000041';
+
+do $$
+declare
+  changed_rows integer;
+  visible_objects integer;
+begin
+  delete from public.patient_entries
+  where id = '10000000-0000-4000-8000-000000000041';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 1 then
+    raise exception 'patient A should delete the own current-day photo entry';
+  end if;
+
+  select count(*) into visible_objects
+  from storage.objects
+  where id = '40000000-0000-4000-8000-000000000041';
+  if visible_objects <> 1 then
+    raise exception 'patient A should see the own orphaned object for cleanup';
+  end if;
+
+  delete from storage.objects
+  where id = '40000000-0000-4000-8000-000000000041';
+  get diagnostics changed_rows = row_count;
+  if changed_rows <> 1 then
+    raise exception 'patient A should clean own photo objects after entry metadata cascades';
   end if;
 end $$;
 

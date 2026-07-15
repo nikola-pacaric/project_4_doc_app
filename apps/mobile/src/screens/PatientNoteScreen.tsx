@@ -53,12 +53,18 @@ export function PatientNoteScreen({
   async function save(draft: NoteDraft) {
     setSaving(true);
     setError(null);
+    const occurredAt = normalizeNoteDateTime(draft.occurredAt);
+    const text = draft.text?.trim();
+    const pendingCreate =
+      !entryToEdit && occurredAt && text
+        ? createPendingTextEntry({ patientId: profile.id, text, occurredAt })
+        : null;
     try {
-      await createPatientNote(client, profile.id, draft);
+      await createPatientNote(client, profile.id, draft, {
+        clientEntryId: pendingCreate?.id,
+      });
       onSaved();
     } catch {
-      const occurredAt = normalizeNoteDateTime(draft.occurredAt);
-      const text = draft.text?.trim();
       if (entryToEdit && occurredAt && text) {
         await onPendingSaved(
           createPendingNoteUpdate({
@@ -70,14 +76,8 @@ export function PatientNoteScreen({
         onSaved();
         return;
       }
-      if (!entryToEdit && occurredAt && text) {
-        await onPendingSaved(
-          createPendingTextEntry({
-            patientId: profile.id,
-            text,
-            occurredAt,
-          }),
-        );
+      if (pendingCreate) {
+        await onPendingSaved(pendingCreate);
         onSaved();
         return;
       }

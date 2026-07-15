@@ -77,12 +77,18 @@ export function NoteFormScreen({
 
     setSaving(true);
     setError(null);
+    const occurredAt = normalizeNoteDateTime(draft.occurredAt);
+    const text = draft.text?.trim();
+    const pendingCreate =
+      !entryToEdit && occurredAt && text
+        ? createPendingTextEntry({ patientId: profile.id, text, occurredAt })
+        : null;
     try {
-      await createPatientNote(client, profile.id, draft);
+      await createPatientNote(client, profile.id, draft, {
+        clientEntryId: pendingCreate?.id,
+      });
       onSaved();
     } catch {
-      const occurredAt = normalizeNoteDateTime(draft.occurredAt);
-      const text = draft.text?.trim();
       if (entryToEdit && occurredAt && text) {
         onPendingSaved(
           createPendingNoteUpdate({
@@ -94,14 +100,8 @@ export function NoteFormScreen({
         onSaved();
         return;
       }
-      if (!entryToEdit && occurredAt && text) {
-        onPendingSaved(
-          createPendingTextEntry({
-            patientId: profile.id,
-            text,
-            occurredAt,
-          }),
-        );
+      if (pendingCreate) {
+        onPendingSaved(pendingCreate);
         onSaved();
         return;
       }

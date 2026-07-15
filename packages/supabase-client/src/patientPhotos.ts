@@ -223,3 +223,14 @@ export async function deleteEntryPhotos(
     );
   if (error) throw error;
 }
+
+export async function deleteEntryPhotoObjects(
+  client: AppSupabaseClient,
+  photos: Pick<EntryPhoto, 'photoPath' | 'thumbnailPath'>[],
+): Promise<void> {
+  if (!photos.length) return;
+
+  const paths = photos.flatMap((photo) => [photo.photoPath, photo.thumbnailPath]);
+  const { error } = await client.storage.from(PHOTO_BUCKET).remove(paths);
+  if (error) throw error;
+}

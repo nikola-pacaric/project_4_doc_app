@@ -27,9 +27,17 @@ function createClientMock(
   });
   const select = vi.fn(() => ({ single }));
   const rpc = vi.fn(() => ({ select }));
-  const eq = vi.fn().mockResolvedValue({ error: null });
+  const maybeSingle = vi.fn().mockResolvedValue({ data: { id: 'stool-entry-1' }, error: null });
+  const deleteSelect = vi.fn(() => ({ maybeSingle }));
+  const eq = vi.fn(() => ({ select: deleteSelect }));
   const del = vi.fn(() => ({ eq }));
-  const from = vi.fn(() => ({ delete: del }));
+  const photoReturns = vi.fn().mockResolvedValue({ data: [], error: null });
+  const photoOrder = vi.fn(() => ({ returns: photoReturns }));
+  const photoEq = vi.fn(() => ({ order: photoOrder }));
+  const photoSelect = vi.fn(() => ({ eq: photoEq }));
+  const from = vi.fn((table: string) =>
+    table === 'entry_photos' ? { select: photoSelect } : { delete: del },
+  );
 
   return {
     client: {
@@ -47,12 +55,18 @@ describe('createPatientNote', () => {
   it('uses the atomic note RPC for each new entry', async () => {
     const { client, rpc } = createClientMock();
 
-    const result = await createPatientNote(client, '00000000-0000-4000-8000-000000000301', {
-      text: '  Felt better after lunch.  ',
-      occurredAt: '2026-06-21T12:30:00.000Z',
-    });
+    const result = await createPatientNote(
+      client,
+      '00000000-0000-4000-8000-000000000301',
+      {
+        text: '  Felt better after lunch.  ',
+        occurredAt: '2026-06-21T12:30:00.000Z',
+      },
+      { clientEntryId: 'pending-1752561000000-abc123' },
+    );
 
     expect(rpc).toHaveBeenCalledWith('save_patient_note', {
+      p_client_entry_id: 'pending-1752561000000-abc123',
       p_entry_id: null,
       p_occurred_at: '2026-06-21T12:30:00.000Z',
       p_text: 'Felt better after lunch.',
@@ -72,8 +86,26 @@ describe('createPatientNote', () => {
 
     expect(rpc).toHaveBeenCalledWith(
       'save_patient_note',
-      expect.objectContaining({ p_entry_id: 'note-entry-1' }),
+      expect.objectContaining({ p_client_entry_id: null, p_entry_id: 'note-entry-1' }),
     );
+  });
+
+  it('rejects an idempotency key on note updates before calling Supabase', async () => {
+    const { client, rpc } = createClientMock();
+
+    await expect(
+      createPatientNote(
+        client,
+        'patient-1',
+        {
+          entryId: 'note-entry-1',
+          text: 'Updated note',
+          occurredAt: '2026-06-21T13:00:00.000Z',
+        },
+        { clientEntryId: 'pending-1752561000000-abc123' },
+      ),
+    ).rejects.toThrow('An idempotency key can only be used when creating a note.');
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it('rejects incomplete drafts before calling Supabase', async () => {
@@ -107,6 +139,7 @@ describe('createPatientNoStoolMarker', () => {
     await createPatientNoStoolMarker(client, 'patient-1', '2026-07-14T10:00:00.000Z');
 
     expect(rpc).toHaveBeenCalledWith('save_patient_note', {
+      p_client_entry_id: null,
       p_entry_id: null,
       p_occurred_at: '2026-07-14T10:00:00.000Z',
       p_text: 'No stool today',

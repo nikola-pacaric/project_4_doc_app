@@ -15,10 +15,15 @@
       "expo-sharing"
     ],
     "android": {
-      "package": "com.anonymous.patientresearchtracking",
+      "package": "com.patientresearchtracking.app",
+      "versionCode": 2,
+      "allowBackup": false,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.RECORD_AUDIO"
+      ],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ]
     }
   }
