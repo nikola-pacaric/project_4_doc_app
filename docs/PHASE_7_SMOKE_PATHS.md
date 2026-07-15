@@ -34,5 +34,15 @@ Status: not run on device/emulator in this checkpoint; deferred to final mobile 
 
 - Shared Supabase client tests cover invite list/create/revoke/redeem wrappers and linked patient timeline reads.
 - `apps/supabase/tests/rls_core_access.sql` covers unlinked/linked doctor patient access and read-only entry behavior.
-- `apps/supabase/tests/rls_doctor_invites.sql` covers invite creation, revocation, redemption, invalid/reused/revoked/expired code rejection, and access-row creation.
+- `apps/supabase/tests/rls_doctor_invites.sql` covers invite creation, revocation, redemption, invalid/reused/revoked/expired code rejection, one-active-doctor-per-patient enforcement, many-patients-per-doctor behavior, and access-row creation.
 - `apps/supabase/tests/rls_photo_storage.sql` covers linked doctor photo metadata and storage-object reads.
+
+## Relationship Cardinality
+
+Status: not yet manually run as a complete multi-account smoke path.
+
+1. Link Patient A to Doctor A with a valid invite.
+2. Create an invite from Doctor B and confirm Patient A cannot redeem it while Doctor A remains active.
+3. Create another invite from Doctor A and redeem it as Patient B.
+4. Confirm Doctor A sees both Patient A and Patient B in the linked-patients list.
+5. Confirm each patient sees only Doctor A as the active linked doctor.

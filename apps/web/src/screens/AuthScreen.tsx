@@ -5,6 +5,7 @@ import { useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
 import { PasswordField } from '../components/PasswordField';
+import { StatusMessage } from '../components/StatusMessage';
 
 type AuthMode = 'patient-login' | 'patient-signup' | 'doctor-login';
 
@@ -119,8 +120,8 @@ export function AuthScreen({ client }: AuthScreenProps) {
             toggleLabel={t(locale, passwordHidden ? 'auth.showPassword' : 'auth.hidePassword')}
             value={password}
           />
-          {error ? <p className="notice error">{error}</p> : null}
-          {message ? <p className="notice success">{message}</p> : null}
+          {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
+          {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
           <button className="primary-button" disabled={busy} type="submit">
             {t(locale, mode === 'patient-signup' ? 'auth.signUp' : 'auth.signIn')}
           </button>

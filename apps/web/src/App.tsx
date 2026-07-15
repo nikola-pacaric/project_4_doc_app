@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { loadWebPreferences, saveWebPreferences } from './lib/preferences';
 import { clearPatientOfflineData } from './offline/pendingEntries';
+import { StatusMessage } from './components/StatusMessage';
 import { AuthScreen } from './screens/AuthScreen';
 import { ConsentScreen } from './screens/ConsentScreen';
 import { DoctorPendingScreen } from './screens/DoctorPendingScreen';
@@ -93,18 +94,30 @@ export function App() {
 
   const locale = preferences.locale;
 
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
+
   let content;
 
   if (!isSupabaseConfigured || !supabase) {
-    content = <main className="status-screen">{t(locale, 'app.configMissing')}</main>;
+    content = (
+      <main className="status-screen">
+        <StatusMessage tone="error">{t(locale, 'app.configMissing')}</StatusMessage>
+      </main>
+    );
   } else if (authLoading || (session && !profile && !profileError)) {
-    content = <main className="status-screen">{t(locale, 'app.loading')}</main>;
+    content = (
+      <main aria-busy="true" aria-live="polite" className="status-screen" role="status">
+        {t(locale, 'app.loading')}
+      </main>
+    );
   } else if (!session) {
     content = <AuthScreen client={supabase} />;
   } else if (profileError || !profile) {
     content = (
       <main className="status-screen">
-        <p className="notice error">{t(locale, 'auth.unexpectedError')}</p>
+        <StatusMessage tone="error">{t(locale, 'auth.unexpectedError')}</StatusMessage>
         <button
           className="primary-button"
           onClick={() => {
@@ -165,14 +178,14 @@ export function App() {
         <div className="web-topbar-inner">
           <div className="web-brand">
             <span aria-hidden="true" className="web-brand-mark">
-              M
+              P
             </span>
             <div>
               <strong>{t(locale, 'web.portalTitle')}</strong>
               <span>{t(locale, 'web.portalSubtitle')}</span>
             </div>
           </div>
-          <span className="web-security-chip">{t(locale, 'web.secureConnection')}</span>
+          <span className="web-security-chip">{t(locale, 'web.privateWorkspace')}</span>
         </div>
       </header>
       <div className="web-app-content">{content}</div>

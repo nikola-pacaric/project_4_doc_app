@@ -8,6 +8,7 @@ Phase 2 creates the secure backend foundation:
 - Immutable account roles.
 - Patient-owned data rules.
 - Linked-doctor read rules.
+- One active, non-revoked doctor link per patient; many active patient links per doctor.
 - Doctor read-only timeline behavior.
 - Explicit grants for authenticated users because new Supabase projects may not expose new tables to the Data API automatically.
 - RLS enabled on all public app tables.
@@ -30,3 +31,8 @@ Run `tests/rls_core_access.sql` against the database to verify:
 - Unlinked doctors cannot see patient entries.
 - Linked doctors can read linked patient entries.
 - Linked doctors still cannot update patient entries.
+
+Run `tests/rls_doctor_invites.sql` to additionally verify that:
+
+- A patient with an active doctor link cannot redeem a second doctor's invite.
+- One doctor can remain actively linked to multiple different patients.

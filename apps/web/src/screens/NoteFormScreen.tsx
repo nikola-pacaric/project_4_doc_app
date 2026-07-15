@@ -15,6 +15,7 @@ import { createPatientNote, type AppSupabaseClient } from '@project4/supabase-cl
 import { useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { StatusMessage } from '../components/StatusMessage';
 import { VoiceTextField } from '../components/VoiceTextField';
 
 interface NoteFormScreenProps {
@@ -138,12 +139,7 @@ export function NoteFormScreen({
         <div className="exercise-field-grid">
           <fieldset className="structured-fieldset">
             <legend>{t(locale, 'note.date')}</legend>
-            <input
-              aria-label={t(locale, 'note.date')}
-              readOnly
-              required
-              value={date}
-            />
+            <input aria-label={t(locale, 'note.date')} readOnly required value={date} />
           </fieldset>
           <fieldset className="structured-fieldset">
             <legend>{t(locale, 'note.time')}</legend>
@@ -158,7 +154,7 @@ export function NoteFormScreen({
           </fieldset>
         </div>
 
-        {error ? <p className="notice error">{error}</p> : null}
+        {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
         <div className="button-row form-actions-row">
           <button className="secondary-button" onClick={onBack} type="button">
             {t(locale, 'common.cancel')}

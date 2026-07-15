@@ -29,6 +29,8 @@ import {
 import { FormField } from '../components/FormField';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PatientBottomNav } from '../components/PatientBottomNav';
+import { StatusMessage } from '../components/StatusMessage';
+import { useDiscardGuard } from '../hooks/useDiscardGuard';
 import { colors } from '../theme';
 
 /**
@@ -258,6 +260,27 @@ export function BaselineScreen({
     { name: '', dose: '' },
   ]);
 
+  const hasUnsavedChanges =
+    !loading &&
+    JSON.stringify({
+      draft,
+      hasChronicDiseases,
+      hasChronicTherapy,
+      chronicDiseaseNames,
+      chronicTherapies,
+    }) !==
+      JSON.stringify({
+        draft: toDraft(current),
+        hasChronicDiseases: savedYesNoFromText(current, current?.chronicDiseases),
+        hasChronicTherapy: savedYesNoFromText(current, current?.chronicTherapy),
+        chronicDiseaseNames: parseDiseaseNames(current?.chronicDiseases),
+        chronicTherapies: parseChronicTherapies(current?.chronicTherapy),
+      });
+  const confirmDiscard = useDiscardGuard({
+    enabled: hasUnsavedChanges && !saving,
+    onHardwareBack: onBack,
+  });
+
   const pillInputStyle = {
     backgroundColor: palette.surfaceContainerLow,
     borderColor: 'transparent',
@@ -373,9 +396,7 @@ export function BaselineScreen({
               ]}
             >
               <View style={styles.cardHeader}>
-                <View
-                  style={[styles.sectionIcon, { backgroundColor: palette.secondaryContainer }]}
-                >
+                <View style={[styles.sectionIcon, { backgroundColor: palette.secondaryContainer }]}>
                   <Text style={[styles.sectionIconGlyph, { color: palette.primary }]}>👤</Text>
                 </View>
                 <Text style={[styles.sectionTitle, { color: palette.onSurface }]}>
@@ -465,9 +486,7 @@ export function BaselineScreen({
               ]}
             >
               <View style={styles.cardHeader}>
-                <View
-                  style={[styles.sectionIcon, { backgroundColor: palette.secondaryContainer }]}
-                >
+                <View style={[styles.sectionIcon, { backgroundColor: palette.secondaryContainer }]}>
                   <Text style={[styles.sectionIconGlyph, { color: palette.primary }]}>✚</Text>
                 </View>
                 <Text style={[styles.sectionTitle, { color: palette.onSurface }]}>
@@ -551,9 +570,7 @@ export function BaselineScreen({
                     style={({ pressed }) => [
                       styles.addButton,
                       {
-                        borderColor: dark
-                          ? palette.outlineVariant
-                          : 'rgba(166, 53, 83, 0.2)',
+                        borderColor: dark ? palette.outlineVariant : 'rgba(166, 53, 83, 0.2)',
                       },
                       pressed && styles.cardPressed,
                     ]}
@@ -665,9 +682,7 @@ export function BaselineScreen({
                     style={({ pressed }) => [
                       styles.addButton,
                       {
-                        borderColor: dark
-                          ? palette.outlineVariant
-                          : 'rgba(166, 53, 83, 0.2)',
+                        borderColor: dark ? palette.outlineVariant : 'rgba(166, 53, 83, 0.2)',
                       },
                       pressed && styles.cardPressed,
                     ]}
@@ -688,9 +703,7 @@ export function BaselineScreen({
               ]}
             >
               <View style={styles.cardHeader}>
-                <View
-                  style={[styles.sectionIcon, { backgroundColor: palette.secondaryContainer }]}
-                >
+                <View style={[styles.sectionIcon, { backgroundColor: palette.secondaryContainer }]}>
                   <Text style={[styles.sectionIconGlyph, { color: palette.primary }]}>⛶</Text>
                 </View>
                 <Text style={[styles.sectionTitle, { color: palette.onSurface }]}>
@@ -728,10 +741,7 @@ export function BaselineScreen({
               </View>
 
               <View
-                style={[
-                  styles.weightChangeRow,
-                  { backgroundColor: palette.surfaceContainerLow },
-                ]}
+                style={[styles.weightChangeRow, { backgroundColor: palette.surfaceContainerLow }]}
               >
                 <View style={styles.weightChangeCopy}>
                   <Text style={[styles.toggleQuestion, { color: palette.onSurface }]}>
@@ -825,10 +835,18 @@ export function BaselineScreen({
             </View>
 
             {error ? (
-              <Text style={[styles.statusError, { color: palette.error }]}>{error}</Text>
+              <StatusMessage
+                message={error}
+                style={[styles.statusError, { color: palette.error }]}
+                tone="error"
+              />
             ) : null}
             {message ? (
-              <Text style={[styles.statusSuccess, { color: palette.primary }]}>{message}</Text>
+              <StatusMessage
+                message={message}
+                style={[styles.statusSuccess, { color: palette.primary }]}
+                tone="success"
+              />
             ) : null}
 
             {/* Save */}
@@ -865,9 +883,9 @@ export function BaselineScreen({
       <PatientBottomNav
         active="profile"
         onProfile={() => undefined}
-        onSettings={onOpenSettings ?? onBack}
-        onTimeline={onOpenTimeline ?? onBack}
-        onToday={onBack}
+        onSettings={() => confirmDiscard(onOpenSettings ?? onBack)}
+        onTimeline={() => confirmDiscard(onOpenTimeline ?? onBack)}
+        onToday={() => confirmDiscard(onBack)}
         palette={{
           background: dark ? colors.surface : 'rgba(241, 236, 242, 0.92)',
           onPrimaryContainer: dark ? palette.onPrimaryContainer : stitch.onPrimaryContainer,

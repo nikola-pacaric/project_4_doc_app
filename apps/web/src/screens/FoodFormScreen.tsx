@@ -27,6 +27,7 @@ import { useEffect, useState } from 'react';
 import { MealFields, type ClientMealDraft } from '../components/MealFields';
 import { OtherFluidFields, type ClientOtherFluidDraft } from '../components/OtherFluidFields';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { StatusMessage } from '../components/StatusMessage';
 
 interface FoodFormScreenProps {
   client: AppSupabaseClient;
@@ -69,7 +70,11 @@ function toLocalDateTime(value: Date): string {
 }
 
 function createEmptyMealDraft(): ClientMealDraft {
-  return { localId: generateLocalId(), ...mealDraftDefaults, occurredAt: toLocalDateTime(new Date()) };
+  return {
+    localId: generateLocalId(),
+    ...mealDraftDefaults,
+    occurredAt: toLocalDateTime(new Date()),
+  };
 }
 
 function createEmptyOtherFluidDraft(): ClientOtherFluidDraft {
@@ -148,7 +153,9 @@ function normalizeWaterLitersText(value: string): string {
 }
 
 function createPhotoId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return (
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
 }
 
 function sameMinute(dateA: string, dateB: string | null | undefined): boolean {
@@ -251,7 +258,9 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
   const [hydration, setHydration] = useState<FoodHydrationDraft>({ ...foodHydrationDefaults });
   const [waterText, setWaterText] = useState('');
   const [meals, setMeals] = useState<ClientMealDraft[]>([createEmptyMealDraft()]);
-  const [otherFluids, setOtherFluids] = useState<ClientOtherFluidDraft[]>([createEmptyOtherFluidDraft()]);
+  const [otherFluids, setOtherFluids] = useState<ClientOtherFluidDraft[]>([
+    createEmptyOtherFluidDraft(),
+  ]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -310,9 +319,10 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
       ...hydration,
       waterLiters: parsedWaterLiters,
       hasOtherFluids: hydration.hasOtherFluids,
-      otherFluids: hydration.hasOtherFluids === true && fluidsToSave.length > 0
-        ? serializeOtherFluids(fluidsToSave)
-        : undefined,
+      otherFluids:
+        hydration.hasOtherFluids === true && fluidsToSave.length > 0
+          ? serializeOtherFluids(fluidsToSave)
+          : undefined,
     };
 
     setWaterText(normalizedWaterText);
@@ -358,11 +368,9 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
           const savedMeal = mealRecords.find(
             (record) =>
               record.entryId === mealDraft.entryId ||
-              (
-                sameMinute(record.occurredAt, normalizedMealTime) &&
+              (sameMinute(record.occurredAt, normalizedMealTime) &&
                 record.type === (mealDraft.type ?? null) &&
-                (record.name?.trim() ?? null) === (mealDraft.name?.trim() || null)
-              ),
+                (record.name?.trim() ?? null) === (mealDraft.name?.trim() || null)),
           );
           if (!savedMeal?.entryId) {
             throw new Error('Saved meal could not be matched for photo upload.');
@@ -390,10 +398,8 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
           const savedFluid = fluidRecords.find(
             (record) =>
               record.entryId === fluidDraft.entryId ||
-              (
-                sameMinute(record.occurredAt, normalizedFluidTime) &&
-                (record.name?.trim() ?? null) === (fluidDraft.name?.trim() || null)
-              ),
+              (sameMinute(record.occurredAt, normalizedFluidTime) &&
+                (record.name?.trim() ?? null) === (fluidDraft.name?.trim() || null)),
           );
           if (!savedFluid?.entryId) {
             throw new Error('Saved fluid could not be matched for photo upload.');
@@ -420,13 +426,18 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
       ]);
       const finalHydration = toHydrationDraft(updatedFoodRecord?.details ?? null);
       const finalFoodEntryId = updatedFoodRecord?.entryId ?? null;
-      const finalFluidRecords = finalFoodEntryId ? await listPatientOtherFluids(client, finalFoodEntryId) : [];
+      const finalFluidRecords = finalFoodEntryId
+        ? await listPatientOtherFluids(client, finalFoodEntryId)
+        : [];
 
       setHydration(finalHydration);
       setWaterText(formatWaterLiters(finalHydration.waterLiters));
 
       const finalBaseMeals = toMealDrafts(updatedMealRecords);
-      const finalBaseOtherFluids = toOtherFluidDrafts(finalFluidRecords, finalHydration.otherFluids);
+      const finalBaseOtherFluids = toOtherFluidDrafts(
+        finalFluidRecords,
+        finalHydration.otherFluids,
+      );
 
       const [finalMealsWithPhotos, finalFluidsWithPhotos] = await Promise.all([
         withMealPhotoUris(client, finalBaseMeals),
@@ -510,8 +521,8 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
           ) : null}
 
           <div className="form-actions form-actions-row">
-            {error ? <p className="notice error">{error}</p> : null}
-            {message ? <p className="notice success">{message}</p> : null}
+            {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
+            {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
             <button className="secondary-button" onClick={onBack} type="button">
               {t(locale, 'common.cancel')}
             </button>

@@ -1,7 +1,6 @@
 import type { UserRole } from '@project4/contracts';
 import { t, type Locale } from '@project4/i18n';
 import { signInForRole, signUpPatient, type AppSupabaseClient } from '@project4/supabase-client';
-import { spacing } from '@project4/ui-tokens';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -18,6 +17,7 @@ import { FormField } from '../components/FormField';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PasswordField } from '../components/PasswordField';
 import { PrimaryButton } from '../components/PrimaryButton';
+import { StatusMessage } from '../components/StatusMessage';
 import { colors, createThemedStyles } from '../theme';
 
 type AuthMode = 'patient-signup' | 'patient-login' | 'doctor-login';
@@ -188,8 +188,10 @@ export function AuthScreen({ client, locale, onChangeLocale }: AuthScreenProps) 
               toggleLabel={t(locale, passwordHidden ? 'auth.showPassword' : 'auth.hidePassword')}
               value={password}
             />
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            {message ? <Text style={styles.success}>{message}</Text> : null}
+            {error ? <StatusMessage message={error} style={styles.error} tone="error" /> : null}
+            {message ? (
+              <StatusMessage message={message} style={styles.success} tone="success" />
+            ) : null}
             <PrimaryButton
               busy={busy}
               label={t(locale, mode === 'patient-signup' ? 'auth.signUp' : 'auth.signIn')}

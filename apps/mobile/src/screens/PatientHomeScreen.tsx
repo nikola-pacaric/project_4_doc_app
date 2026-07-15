@@ -40,7 +40,7 @@ import {
   type AppSupabaseClient,
 } from '@project4/supabase-client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, BackHandler } from 'react-native';
 import {
   appendPendingEntry,
   loadCachedEntriesForDay,
@@ -91,9 +91,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('Request timed out')), timeoutMs);
 
-    promise
-      .then(resolve, reject)
-      .finally(() => clearTimeout(timeout));
+    promise.then(resolve, reject).finally(() => clearTimeout(timeout));
   });
 }
 
@@ -157,9 +155,7 @@ export function PatientHomeScreen({
   const [periodRequired, setPeriodRequired] = useState(false);
   const [periodCompleted, setPeriodCompleted] = useState(false);
   const [showMenstruationForm, setShowMenstruationForm] = useState(false);
-  const [menstruationEntryToEdit, setMenstruationEntryToEdit] = useState<PatientEntry | null>(
-    null,
-  );
+  const [menstruationEntryToEdit, setMenstruationEntryToEdit] = useState<PatientEntry | null>(null);
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [noteEntryToEdit, setNoteEntryToEdit] = useState<PatientEntry | null>(null);
   const [showTimeline, setShowTimeline] = useState(initialTab === 'timeline');
@@ -188,50 +184,53 @@ export function PatientHomeScreen({
     setPeriodRequired(answer === true);
   }, []);
 
-  const openRecentEntry = useCallback((entry: PatientEntry) => {
-    if (isPendingEntryId(entry.id)) return;
-    if (offlineMode && entry.kind !== 'note' && entry.kind !== 'text') return;
+  const openRecentEntry = useCallback(
+    (entry: PatientEntry) => {
+      if (isPendingEntryId(entry.id)) return;
+      if (offlineMode && entry.kind !== 'note' && entry.kind !== 'text') return;
 
-    if (entry.kind === 'daily') {
-      setShowDailyForm(true);
-      return;
-    }
-    if (entry.kind === 'stool') {
-      setStoolEntryToEdit(entry);
-      setShowStoolForm(true);
-      return;
-    }
-    if (isNoStoolTodayEntry(entry)) {
-      setStoolEntryToEdit(entry);
-      setShowStoolForm(true);
-      return;
-    }
-    if (entry.kind === 'symptom') {
-      setShowSymptomForm(true);
-      return;
-    }
-    if (entry.kind === 'exercise') {
-      setExerciseEntryToEdit(entry);
-      setShowExerciseForm(true);
-      return;
-    }
-    if (entry.kind === 'medication') {
-      setMedicationEntryToEdit(entry);
-      setShowMedicationForm(true);
-      return;
-    }
-    if (entry.kind === 'menstruation') {
-      setMenstruationEntryToEdit(entry);
-      setShowMenstruationForm(true);
-      return;
-    }
-    if (entry.kind === 'meal') {
-      setShowFoodForm(true);
-      return;
-    }
-    setNoteEntryToEdit(entry);
-    setShowNoteForm(true);
-  }, [offlineMode]);
+      if (entry.kind === 'daily') {
+        setShowDailyForm(true);
+        return;
+      }
+      if (entry.kind === 'stool') {
+        setStoolEntryToEdit(entry);
+        setShowStoolForm(true);
+        return;
+      }
+      if (isNoStoolTodayEntry(entry)) {
+        setStoolEntryToEdit(entry);
+        setShowStoolForm(true);
+        return;
+      }
+      if (entry.kind === 'symptom') {
+        setShowSymptomForm(true);
+        return;
+      }
+      if (entry.kind === 'exercise') {
+        setExerciseEntryToEdit(entry);
+        setShowExerciseForm(true);
+        return;
+      }
+      if (entry.kind === 'medication') {
+        setMedicationEntryToEdit(entry);
+        setShowMedicationForm(true);
+        return;
+      }
+      if (entry.kind === 'menstruation') {
+        setMenstruationEntryToEdit(entry);
+        setShowMenstruationForm(true);
+        return;
+      }
+      if (entry.kind === 'meal') {
+        setShowFoodForm(true);
+        return;
+      }
+      setNoteEntryToEdit(entry);
+      setShowNoteForm(true);
+    },
+    [offlineMode],
+  );
 
   const loadPendingQueue = useCallback(async () => {
     setPendingEntries(await loadPendingEntries(profile.id));
@@ -351,6 +350,17 @@ export function PatientHomeScreen({
     void loadTimelineDay(today);
   }, [loadTimelineDay]);
 
+  useEffect(() => {
+    if (!showTimeline) return;
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setShowTimeline(false);
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [showTimeline]);
+
   const initialTabAppliedRef = useRef(false);
   useEffect(() => {
     if (initialTabAppliedRef.current) return;
@@ -369,110 +379,115 @@ export function PatientHomeScreen({
     [loadTimelineDay],
   );
 
-  const loadEntries = useCallback(async (options: LoadEntriesOptions = {}) => {
-    if (loadEntriesPromiseRef.current) return loadEntriesPromiseRef.current;
+  const loadEntries = useCallback(
+    async (options: LoadEntriesOptions = {}) => {
+      if (loadEntriesPromiseRef.current) return loadEntriesPromiseRef.current;
 
-    const loadPromise = (async () => {
-      if (options.showLoading !== false) {
-        setLoading(true);
-      }
-      setError(null);
-
-      try {
-        await withTimeout(syncPendingQueue(), ONLINE_LOAD_TIMEOUT_MS);
-        const range = localDayRange(toLocalDateInput(new Date()));
-        const [nextEntries, baseline, dailyForm, foodFormDetails] = await withTimeout(
-          Promise.all([
-            listRecentPatientEntries(client, profile.id),
-            getPatientBaseline(client, profile.id),
-            getPatientDailyForm(client, profile.id, range.start, range.end),
-            getPatientFoodForm(client, profile.id, range.start, range.end),
-          ]),
-          ONLINE_LOAD_TIMEOUT_MS,
-        );
-        const [nextCompleteMealEntryIds, nextCompleteMedicationEntryIds] = await withTimeout(
-          Promise.all([
-            listCompletePatientMealEntryIds(
-              client,
-              nextEntries.filter((entry) => entry.kind === 'meal').map((entry) => entry.id),
-            ),
-            listCompletePatientMedicationEntryIds(
-              client,
-              nextEntries.filter((entry) => entry.kind === 'medication').map((entry) => entry.id),
-            ),
-          ]),
-          ONLINE_LOAD_TIMEOUT_MS,
-        );
-        setOfflineMode(false);
-        setFoodForm(foodFormDetails);
-        await saveCachedRecentEntries(profile.id, nextEntries);
-        await saveCachedOpenedDayEntries(profile.id, nextEntries, (entry) =>
-          toLocalDateInput(new Date(entry.occurredAt)),
-          recentLocalDays(),
-        );
-        const dailyDraft = dailyForm ? toDailyFormDraft(dailyForm.details) : null;
-        const visibleDailyEntryIds =
-          dailyForm && (dailyForm.details.completedAt || hasDailyFormProgress(dailyDraft ?? {}))
-            ? [dailyForm.entryId]
-            : [];
-        setEntries(
-          filterPatientTimelineEntries(nextEntries, baseline?.sex, { visibleDailyEntryIds }),
-        );
-        setDailyEntryId(dailyForm?.entryId ?? null);
-        setDailyCompleted(Boolean(dailyForm?.details.completedAt));
-        setDailyMissingFields(
-          dailyForm && dailyDraft
-            ? getDailyFormMissingFields(
-                dailyDraft,
-                baseline?.sex === 'female',
-                Boolean(baseline?.chronicTherapy?.trim()),
-              )
-            : [],
-        );
-        setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
-        setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
-        setPeriodRequired(dailyForm?.details.hadMenstruation === true);
-        setSymptomsCompleted(hasTodayEntry(nextEntries, 'symptom'));
-        setExerciseCompleted(hasTodayEntry(nextEntries, 'exercise'));
-        setCompleteMealEntryIds(nextCompleteMealEntryIds);
-        setCompleteMedicationEntryIds(nextCompleteMedicationEntryIds);
-        setMedicationCompleted(
-          nextEntries.some(
-            (entry) =>
-              entry.kind === 'medication' &&
-              nextCompleteMedicationEntryIds.includes(entry.id) &&
-              toLocalDateInput(new Date(entry.occurredAt)) === toLocalDateInput(new Date()),
-          ),
-        );
-        setPeriodCompleted(hasTodayEntry(nextEntries, 'menstruation'));
-        setCanTrackMenstruation(baseline?.sex === 'female');
-      } catch {
-        const cachedOpenedDayEntries = await loadCachedOpenedDayEntries(profile.id);
-        const cachedEntries = cachedOpenedDayEntries.length
-          ? cachedOpenedDayEntries
-          : await loadCachedRecentEntries(profile.id);
-        setOfflineMode(true);
-        setFoodForm(null);
-        if (cachedEntries.length) {
-          setEntries(filterPatientTimelineEntries(cachedEntries, null));
-          setCompleteMealEntryIds([]);
-          setCompleteMedicationEntryIds([]);
-          setError(null);
-        } else {
-          setError(t(locale, 'entry.loadError'));
+      const loadPromise = (async () => {
+        if (options.showLoading !== false) {
+          setLoading(true);
         }
-      } finally {
-        setLoading(false);
-      }
-    })();
+        setError(null);
 
-    loadEntriesPromiseRef.current = loadPromise;
-    try {
-      return await loadPromise;
-    } finally {
-      loadEntriesPromiseRef.current = null;
-    }
-  }, [client, locale, profile.id, syncPendingQueue]);
+        try {
+          await withTimeout(syncPendingQueue(), ONLINE_LOAD_TIMEOUT_MS);
+          const range = localDayRange(toLocalDateInput(new Date()));
+          const [nextEntries, baseline, dailyForm, foodFormDetails] = await withTimeout(
+            Promise.all([
+              listRecentPatientEntries(client, profile.id),
+              getPatientBaseline(client, profile.id),
+              getPatientDailyForm(client, profile.id, range.start, range.end),
+              getPatientFoodForm(client, profile.id, range.start, range.end),
+            ]),
+            ONLINE_LOAD_TIMEOUT_MS,
+          );
+          const [nextCompleteMealEntryIds, nextCompleteMedicationEntryIds] = await withTimeout(
+            Promise.all([
+              listCompletePatientMealEntryIds(
+                client,
+                nextEntries.filter((entry) => entry.kind === 'meal').map((entry) => entry.id),
+              ),
+              listCompletePatientMedicationEntryIds(
+                client,
+                nextEntries.filter((entry) => entry.kind === 'medication').map((entry) => entry.id),
+              ),
+            ]),
+            ONLINE_LOAD_TIMEOUT_MS,
+          );
+          setOfflineMode(false);
+          setFoodForm(foodFormDetails);
+          await saveCachedRecentEntries(profile.id, nextEntries);
+          await saveCachedOpenedDayEntries(
+            profile.id,
+            nextEntries,
+            (entry) => toLocalDateInput(new Date(entry.occurredAt)),
+            recentLocalDays(),
+          );
+          const dailyDraft = dailyForm ? toDailyFormDraft(dailyForm.details) : null;
+          const visibleDailyEntryIds =
+            dailyForm && (dailyForm.details.completedAt || hasDailyFormProgress(dailyDraft ?? {}))
+              ? [dailyForm.entryId]
+              : [];
+          setEntries(
+            filterPatientTimelineEntries(nextEntries, baseline?.sex, { visibleDailyEntryIds }),
+          );
+          setDailyEntryId(dailyForm?.entryId ?? null);
+          setDailyCompleted(Boolean(dailyForm?.details.completedAt));
+          setDailyMissingFields(
+            dailyForm && dailyDraft
+              ? getDailyFormMissingFields(
+                  dailyDraft,
+                  baseline?.sex === 'female',
+                  Boolean(baseline?.chronicTherapy?.trim()),
+                )
+              : [],
+          );
+          setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
+          setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
+          setPeriodRequired(dailyForm?.details.hadMenstruation === true);
+          setSymptomsCompleted(hasTodayEntry(nextEntries, 'symptom'));
+          setExerciseCompleted(hasTodayEntry(nextEntries, 'exercise'));
+          setCompleteMealEntryIds(nextCompleteMealEntryIds);
+          setCompleteMedicationEntryIds(nextCompleteMedicationEntryIds);
+          setMedicationCompleted(
+            nextEntries.some(
+              (entry) =>
+                entry.kind === 'medication' &&
+                nextCompleteMedicationEntryIds.includes(entry.id) &&
+                toLocalDateInput(new Date(entry.occurredAt)) === toLocalDateInput(new Date()),
+            ),
+          );
+          setPeriodCompleted(hasTodayEntry(nextEntries, 'menstruation'));
+          setCanTrackMenstruation(baseline?.sex === 'female');
+        } catch {
+          const cachedOpenedDayEntries = await loadCachedOpenedDayEntries(profile.id);
+          const cachedEntries = cachedOpenedDayEntries.length
+            ? cachedOpenedDayEntries
+            : await loadCachedRecentEntries(profile.id);
+          setOfflineMode(true);
+          setFoodForm(null);
+          if (cachedEntries.length) {
+            setEntries(filterPatientTimelineEntries(cachedEntries, null));
+            setCompleteMealEntryIds([]);
+            setCompleteMedicationEntryIds([]);
+            setError(null);
+          } else {
+            setError(t(locale, 'entry.loadError'));
+          }
+        } finally {
+          setLoading(false);
+        }
+      })();
+
+      loadEntriesPromiseRef.current = loadPromise;
+      try {
+        return await loadPromise;
+      } finally {
+        loadEntriesPromiseRef.current = null;
+      }
+    },
+    [client, locale, profile.id, syncPendingQueue],
+  );
 
   const deleteTimelineEntry = useCallback(
     async (entry: PatientEntry) => {
@@ -499,9 +514,7 @@ export function PatientHomeScreen({
         setTimelineMessage(
           t(
             locale,
-            result.photoCleanupPending
-              ? 'entry.deletePhotoCleanupWarning'
-              : 'entry.deleted',
+            result.photoCleanupPending ? 'entry.deletePhotoCleanupWarning' : 'entry.deleted',
           ),
         );
       } catch {
@@ -510,15 +523,7 @@ export function PatientHomeScreen({
         setDeletingEntryId(null);
       }
     },
-    [
-      client,
-      entryLocalDay,
-      loadEntries,
-      loadTimelineDay,
-      locale,
-      offlineMode,
-      timelineDay,
-    ],
+    [client, entryLocalDay, loadEntries, loadTimelineDay, locale, offlineMode, timelineDay],
   );
 
   useEffect(() => {
@@ -542,9 +547,12 @@ export function PatientHomeScreen({
   }, [loadEntries]);
 
   useEffect(() => {
-    const retryTimer = setInterval(() => {
-      void loadEntries({ showLoading: false });
-    }, offlineMode ? OFFLINE_MODE_CHECK_MS : ONLINE_MODE_CHECK_MS);
+    const retryTimer = setInterval(
+      () => {
+        void loadEntries({ showLoading: false });
+      },
+      offlineMode ? OFFLINE_MODE_CHECK_MS : ONLINE_MODE_CHECK_MS,
+    );
 
     return () => clearInterval(retryTimer);
   }, [loadEntries, offlineMode]);
@@ -795,9 +803,7 @@ export function PatientHomeScreen({
   const dailyReadyToSubmit = Boolean(dailyEntryId && dailyMissingFields.length === 0);
   const today = toLocalDateInput(new Date());
   const todayMeals = entries.filter(
-    (entry) =>
-      entry.kind === 'meal' &&
-      toLocalDateInput(new Date(entry.occurredAt)) === today,
+    (entry) => entry.kind === 'meal' && toLocalDateInput(new Date(entry.occurredAt)) === today,
   );
   const mappedMeals = todayMeals.map((m) => {
     const isComplete = completeMealEntryIds.includes(m.id);
@@ -843,10 +849,9 @@ export function PatientHomeScreen({
     }
   }
 
-  const submitHelp =
-    offlineMode
-      ? t(locale, 'offline.actionsDisabled')
-      : dailyCompleted
+  const submitHelp = offlineMode
+    ? t(locale, 'offline.actionsDisabled')
+    : dailyCompleted
       ? t(locale, 'home.submitCompletedHelp')
       : (() => {
           const missingSubmitSections = [
@@ -855,9 +860,7 @@ export function PatientHomeScreen({
             !symptomsCompleted ? t(locale, 'home.action.symptoms') : null,
             !stoolCompleted ? t(locale, 'home.action.stool') : null,
             exerciseRequired && !exerciseCompleted ? t(locale, 'home.action.exercise') : null,
-            medicationRequired && !medicationCompleted
-              ? t(locale, 'home.action.medication')
-              : null,
+            medicationRequired && !medicationCompleted ? t(locale, 'home.action.medication') : null,
             periodRequired && !periodCompleted ? t(locale, 'home.action.period') : null,
           ].filter(Boolean) as string[];
 

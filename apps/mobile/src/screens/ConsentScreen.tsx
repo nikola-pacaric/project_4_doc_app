@@ -6,6 +6,7 @@ import { SafeAreaView, StyleSheet, Switch, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { StatusMessage } from '../components/StatusMessage';
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 
 interface ConsentScreenProps {
@@ -42,7 +43,9 @@ export function ConsentScreen({ displayName, onAccept, onSignOut }: ConsentScree
     <SafeAreaView style={sharedStyles.screen}>
       <KeyboardAwareScrollView
         keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled" contentContainerStyle={sharedStyles.scrollContent}>
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={sharedStyles.scrollContent}
+      >
         <ScreenHeader
           eyebrow={displayName ?? t(locale, 'role.patient')}
           title={t(locale, 'consent.title')}
@@ -59,7 +62,7 @@ export function ConsentScreen({ displayName, onAccept, onSignOut }: ConsentScree
             />
             <Text style={styles.switchLabel}>{t(locale, 'consent.accept')}</Text>
           </View>
-          {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
+          {error ? <StatusMessage message={error} style={sharedStyles.error} tone="error" /> : null}
           <PrimaryButton
             busy={busy}
             label={t(locale, 'common.save')}
@@ -76,23 +79,25 @@ export function ConsentScreen({ displayName, onAccept, onSignOut }: ConsentScree
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
-  consentPanel: {
-    gap: spacing.lg,
-    borderTopWidth: 1,
-    borderColor: colors.border,
-    paddingTop: spacing.lg,
-  },
-  switchRow: {
-    minHeight: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  switchLabel: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '700',
-  },
-}));
+const styles = createThemedStyles(() =>
+  StyleSheet.create({
+    consentPanel: {
+      gap: spacing.lg,
+      borderTopWidth: 1,
+      borderColor: colors.border,
+      paddingTop: spacing.lg,
+    },
+    switchRow: {
+      minHeight: 52,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    switchLabel: {
+      flex: 1,
+      color: colors.text,
+      fontSize: 17,
+      fontWeight: '700',
+    },
+  }),
+);

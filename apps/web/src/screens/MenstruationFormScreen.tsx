@@ -18,6 +18,7 @@ import {
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { StatusMessage } from '../components/StatusMessage';
 import { VoiceTextField } from '../components/VoiceTextField';
 
 interface MenstruationFormScreenProps {
@@ -139,84 +140,80 @@ export function MenstruationFormScreen({
 
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading ? (
-      <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
-        <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'menstruation.flow')}</legend>
-          <div className="choice-row three-options" role="radiogroup">
-            {menstruationFlows.map((flow) => (
-              <button
-                aria-checked={draft.flow === flow}
-                className={draft.flow === flow ? 'selected' : ''}
-                key={flow}
-                onClick={() => update('flow', flow)}
-                role="radio"
-                type="button"
-              >
-                {t(locale, `menstruation.flow.${flow}` as TranslationKey)}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-
-        <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'menstruation.pain')}</legend>
-          <div className="choice-row three-options" role="radiogroup">
-            {painLevels.map((painLevel) => (
-              <button
-                aria-checked={draft.painLevel === painLevel}
-                className={draft.painLevel === painLevel ? 'selected' : ''}
-                key={painLevel}
-                onClick={() => update('painLevel', painLevel)}
-                role="radio"
-                type="button"
-              >
-                {painLevel} · {t(locale, `menstruation.pain.${painLevel}` as TranslationKey)}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-
-        <div className="exercise-field-grid">
+        <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
           <fieldset className="structured-fieldset">
-            <legend>{t(locale, 'menstruation.date')}</legend>
-            <input
-              aria-label={t(locale, 'menstruation.date')}
-              readOnly
-              value={date}
+            <legend>{t(locale, 'menstruation.flow')}</legend>
+            <div className="choice-row three-options" role="radiogroup">
+              {menstruationFlows.map((flow) => (
+                <button
+                  aria-checked={draft.flow === flow}
+                  className={draft.flow === flow ? 'selected' : ''}
+                  key={flow}
+                  onClick={() => update('flow', flow)}
+                  role="radio"
+                  type="button"
+                >
+                  {t(locale, `menstruation.flow.${flow}` as TranslationKey)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'menstruation.pain')}</legend>
+            <div className="choice-row three-options" role="radiogroup">
+              {painLevels.map((painLevel) => (
+                <button
+                  aria-checked={draft.painLevel === painLevel}
+                  className={draft.painLevel === painLevel ? 'selected' : ''}
+                  key={painLevel}
+                  onClick={() => update('painLevel', painLevel)}
+                  role="radio"
+                  type="button"
+                >
+                  {painLevel} · {t(locale, `menstruation.pain.${painLevel}` as TranslationKey)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <div className="exercise-field-grid">
+            <fieldset className="structured-fieldset">
+              <legend>{t(locale, 'menstruation.date')}</legend>
+              <input aria-label={t(locale, 'menstruation.date')} readOnly value={date} />
+            </fieldset>
+            <fieldset className="structured-fieldset">
+              <legend>{t(locale, 'menstruation.time')}</legend>
+              <input
+                aria-label={t(locale, 'menstruation.time')}
+                onChange={(event) => updateDateTime(date, event.target.value)}
+                placeholder={t(locale, 'menstruation.timePlaceholder')}
+                type="time"
+                value={time}
+              />
+            </fieldset>
+          </div>
+          <fieldset className="structured-fieldset">
+            <VoiceTextField
+              label={t(locale, 'menstruation.notes')}
+              onChange={(value) => update('notes', value)}
+              placeholder={t(locale, 'menstruation.notesPlaceholder')}
+              rows={4}
+              type="textarea"
+              value={draft.notes ?? ''}
             />
           </fieldset>
-          <fieldset className="structured-fieldset">
-            <legend>{t(locale, 'menstruation.time')}</legend>
-            <input
-              aria-label={t(locale, 'menstruation.time')}
-              onChange={(event) => updateDateTime(date, event.target.value)}
-              placeholder={t(locale, 'menstruation.timePlaceholder')}
-              type="time"
-              value={time}
-            />
-          </fieldset>
-        </div>
-        <fieldset className="structured-fieldset">
-          <VoiceTextField
-            label={t(locale, 'menstruation.notes')}
-            onChange={(value) => update('notes', value)}
-            placeholder={t(locale, 'menstruation.notesPlaceholder')}
-            rows={4}
-            type="textarea"
-            value={draft.notes ?? ''}
-          />
-        </fieldset>
 
-        {error ? <p className="notice error">{error}</p> : null}
-        <div className="button-row form-actions-row">
-          <button className="secondary-button" onClick={onBack} type="button">
-            {t(locale, 'common.cancel')}
-          </button>
-          <button className="primary-button" disabled={saving} type="submit">
-            {t(locale, 'menstruation.save')}
-          </button>
-        </div>
-      </form>
+          {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
+          <div className="button-row form-actions-row">
+            <button className="secondary-button" onClick={onBack} type="button">
+              {t(locale, 'common.cancel')}
+            </button>
+            <button className="primary-button" disabled={saving} type="submit">
+              {t(locale, 'menstruation.save')}
+            </button>
+          </div>
+        </form>
       ) : null}
     </main>
   );

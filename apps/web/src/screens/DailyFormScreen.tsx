@@ -17,6 +17,7 @@ import {
 import { useEffect, useState } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { StatusMessage } from '../components/StatusMessage';
 import { VoiceTextField } from '../components/VoiceTextField';
 
 interface DailyFormScreenProps {
@@ -243,42 +244,46 @@ export function DailyFormScreen({
       {!loading ? (
         <form className="structured-entry-form daily-form">
           {completedAt || showDraftStatus ? (
-            <div className={`daily-status ${completedAt ? 'complete' : 'draft'} ${showDraftStatus ? 'centered' : ''}`}>
-              <strong>{completedAt ? t(locale, 'daily.statusComplete') : t(locale, 'daily.statusDraft')}</strong>
+            <div
+              className={`daily-status ${completedAt ? 'complete' : 'draft'} ${showDraftStatus ? 'centered' : ''}`}
+            >
+              <strong>
+                {completedAt ? t(locale, 'daily.statusComplete') : t(locale, 'daily.statusDraft')}
+              </strong>
               {completedAt ? <span>{t(locale, 'daily.statusCompleteHelp')}</span> : null}
             </div>
           ) : null}
           <fieldset className="structured-fieldset">
             <legend>{t(locale, 'daily.sleepNotes')}</legend>
             <div className="time-field-row">
-            <label>
-              <span>{t(locale, 'daily.wakeTime')}</span>
-              <input
-                onChange={(event) =>
-                  setDraft((value) => ({
-                    ...value,
-                    wakeTime: event.target.value,
-                  }))
-                }
-                required
-                type="time"
-                value={draft.wakeTime ?? ''}
-              />
-            </label>
-            <label>
-              <span>{t(locale, 'daily.sleepDuration')}</span>
-              <input
-                onChange={(event) =>
-                  setDraft((value) => ({
-                    ...value,
-                    sleepDuration: event.target.value,
-                  }))
-                }
-                required
-                type="time"
-                value={draft.sleepDuration ?? ''}
-              />
-            </label>
+              <label>
+                <span>{t(locale, 'daily.wakeTime')}</span>
+                <input
+                  onChange={(event) =>
+                    setDraft((value) => ({
+                      ...value,
+                      wakeTime: event.target.value,
+                    }))
+                  }
+                  required
+                  type="time"
+                  value={draft.wakeTime ?? ''}
+                />
+              </label>
+              <label>
+                <span>{t(locale, 'daily.sleepDuration')}</span>
+                <input
+                  onChange={(event) =>
+                    setDraft((value) => ({
+                      ...value,
+                      sleepDuration: event.target.value,
+                    }))
+                  }
+                  required
+                  type="time"
+                  value={draft.sleepDuration ?? ''}
+                />
+              </label>
             </div>
           </fieldset>
           {optionField({
@@ -329,9 +334,7 @@ export function DailyFormScreen({
             <legend>{t(locale, 'daily.chronicTherapyTaken')}</legend>
             <div className="choice-row" role="radiogroup">
               {([true, false] as const).map((answer) => {
-                const chronicTherapyAnswer = hasChronicTherapy
-                  ? draft.tookChronicTherapy
-                  : false;
+                const chronicTherapyAnswer = hasChronicTherapy ? draft.tookChronicTherapy : false;
 
                 return (
                   <button
@@ -339,9 +342,7 @@ export function DailyFormScreen({
                     className={chronicTherapyAnswer === answer ? 'selected' : ''}
                     disabled={!hasChronicTherapy}
                     key={String(answer)}
-                    onClick={() =>
-                      setDraft((value) => ({ ...value, tookChronicTherapy: answer }))
-                    }
+                    onClick={() => setDraft((value) => ({ ...value, tookChronicTherapy: answer }))}
                     role="radio"
                     type="button"
                   >
@@ -431,9 +432,7 @@ export function DailyFormScreen({
               <div className="conditional-field-bubble">
                 <VoiceTextField
                   label={t(locale, 'daily.napsDetails')}
-                  onChange={(val) =>
-                    setDraft((value) => ({ ...value, naps: val }))
-                  }
+                  onChange={(val) => setDraft((value) => ({ ...value, naps: val }))}
                   required
                   rows={3}
                   type="textarea"
@@ -444,8 +443,8 @@ export function DailyFormScreen({
           </fieldset>
           {textField('dayDescription', 'daily.dayDescription')}
           <div className="form-actions">
-            {error ? <p className="notice error">{error}</p> : null}
-            {message ? <p className="notice success">{message}</p> : null}
+            {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
+            {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
             <button className="secondary-button" onClick={onBack} type="button">
               {t(locale, 'common.cancel')}
             </button>

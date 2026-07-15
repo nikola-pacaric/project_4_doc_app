@@ -1,5 +1,5 @@
 import { getActiveLocale, getActiveVoiceLanguage, t } from '@project4/i18n';
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useId, useRef, useState, type RefObject } from 'react';
 
 interface VoiceTextFieldProps {
   label: string;
@@ -41,6 +41,8 @@ interface BrowserSpeechRecognition {
 type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
 
 function getSpeechRecognitionConstructor(): BrowserSpeechRecognitionConstructor | null {
+  if (typeof window === 'undefined') return null;
+
   const browserWindow = window as Window & {
     SpeechRecognition?: BrowserSpeechRecognitionConstructor;
     webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
@@ -59,8 +61,10 @@ export function VoiceTextField({
   type = 'textarea',
 }: VoiceTextFieldProps) {
   const locale = getActiveLocale();
+  const inputId = useId();
+  const messageId = `${inputId}-voice-status`;
   const [listening, setListening] = useState(false);
-  const [supported, setSupported] = useState<boolean | null>(null);
+  const [supported] = useState(() => getSpeechRecognitionConstructor() !== null);
   const [message, setMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
@@ -68,17 +72,15 @@ export function VoiceTextField({
   const valueRef = useRef(value);
   const onChangeRef = useRef(onChange);
 
-  valueRef.current = value;
-  onChangeRef.current = onChange;
+  useEffect(() => {
+    valueRef.current = value;
+    onChangeRef.current = onChange;
+  }, [onChange, value]);
 
   useEffect(() => {
     const SpeechRecognition = getSpeechRecognitionConstructor();
-    if (!SpeechRecognition) {
-      setSupported(false);
-      return;
-    }
+    if (!SpeechRecognition) return;
 
-    setSupported(true);
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
@@ -157,7 +159,9 @@ export function VoiceTextField({
   return (
     <div className="voice-text-field">
       <div className="voice-text-field-header">
-        <span className="choice-label">{label}</span>
+        <label className="choice-label" htmlFor={inputId}>
+          {label}
+        </label>
         {supported ? (
           <button
             aria-label={voiceLabel}
@@ -186,6 +190,8 @@ export function VoiceTextField({
       </div>
       {type === 'textarea' ? (
         <textarea
+          aria-describedby={message ? messageId : undefined}
+          id={inputId}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           ref={inputRef as RefObject<HTMLTextAreaElement>}
@@ -195,6 +201,8 @@ export function VoiceTextField({
         />
       ) : (
         <input
+          aria-describedby={message ? messageId : undefined}
+          id={inputId}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           ref={inputRef as RefObject<HTMLInputElement>}
@@ -203,7 +211,17 @@ export function VoiceTextField({
           value={value}
         />
       )}
-      {message ? <p className="voice-message">{message}</p> : null}
+      {message ? (
+        <p
+          aria-atomic="true"
+          aria-live="polite"
+          className="voice-message"
+          id={messageId}
+          role="status"
+        >
+          {message}
+        </p>
+      ) : null}
     </div>
   );
 }

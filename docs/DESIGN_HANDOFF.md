@@ -4,7 +4,7 @@
 
 This document gives a design agent the product context, screen list, forms, logic, and user flows needed to design the Android mobile app and companion web app.
 
-The app is a private 3-month patient research tracking pilot. Patients record daily medical and lifestyle data. Linked doctors review read-only patient timelines and create JSON exports. The app is not a diagnosis tool and should not look or sound like one.
+The app is a private 3-month patient research tracking pilot. Patients record daily medical and lifestyle data. Each patient can have one active linked doctor, while each doctor can have many actively linked patients. Doctors review read-only patient timelines and create JSON exports. The app is not a diagnosis tool and should not look or sound like one.
 
 ## Design Priorities
 
@@ -56,7 +56,8 @@ Do not design for V1:
 ### Patient
 
 - Creates and manages own entries, baseline profile, photos, consent, and settings.
-- Redeems doctor invite codes.
+- Redeems a doctor invite code only when no active doctor link exists.
+- Can have at most one active linked doctor at a time.
 - Can view cached own history offline.
 - Can create pending text/note entries offline.
 
@@ -65,7 +66,8 @@ Do not design for V1:
 - Logs in through a doctor account provisioned manually by an operator.
 - Creates single-use invite codes.
 - Revokes unused invite codes.
-- Views actively linked patients.
+- Can be actively linked to many patients through separate redeemed invite codes.
+- Views only those actively linked patients.
 - Reviews linked patient timelines/photos.
 - Creates JSON exports.
 - Cannot edit or delete patient data.
@@ -282,7 +284,7 @@ Content requirements:
 - Private research pilot.
 - Not a diagnosis tool.
 - Does not replace medical advice.
-- Data is visible only to the patient and actively linked doctors.
+- Data is visible only to the patient and that patient's one actively linked doctor.
 
 Logic:
 
@@ -745,6 +747,8 @@ Logic:
 - Doctor can revoke unused active invite codes.
 - Doctor cannot revoke already used/expired/revoked invites.
 - Linked patients appear after redeeming a doctor invite code.
+- A patient who already has an active doctor link cannot redeem another doctor's code.
+- A doctor can have many linked patient rows; the one-doctor limit applies to each patient, not to the doctor.
 - Doctor sees only active linked patients.
 
 ### Linked Patient Read-Only Timeline
@@ -917,6 +921,8 @@ The actual implementation may use buttons instead of tabs, but the design should
 
 - Patient owns patient-created data.
 - Doctor access depends on active doctor-patient link.
+- Each patient has at most one active doctor link; each doctor may have many active patient links.
+- Changing a patient's doctor requires operator deactivation/revocation of the current link in V1.
 - Revoked access must hide patient data from doctor.
 - No app data for unauthenticated users.
 - Photos are private.
@@ -930,7 +936,7 @@ The actual implementation may use buttons instead of tabs, but the design should
 - Offline pending text/note entry syncs after reconnect.
 - Photos are compressed, thumbnailed, private, and limited to meals, other fluids, and medication.
 - Voice works where supported and typing fallback works elsewhere.
-- Doctor invite code links one patient, rejects reuse, and hides unlinked patients.
+- Doctor invite code links one patient, rejects reuse and second-active-doctor redemption, allows the doctor to link additional patients through separate codes, and hides unlinked patients.
 - Doctor exports selected day and selected/current partial month JSON in all three modes.
 - Serbian/English and light/dark theme work in core flows.
 

@@ -57,6 +57,7 @@ import {
   saveCachedRecentEntries,
   savePendingEntries,
 } from '../offline/pendingEntries';
+import { StatusMessage } from '../components/StatusMessage';
 import { BaselineScreen } from './BaselineScreen';
 import { DailyFormScreen } from './DailyFormScreen';
 import { ExerciseFormScreen } from './ExerciseFormScreen';
@@ -93,9 +94,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return new Promise((resolve, reject) => {
     const timeout = window.setTimeout(() => reject(new Error('Request timed out')), timeoutMs);
 
-    promise
-      .then(resolve, reject)
-      .finally(() => window.clearTimeout(timeout));
+    promise.then(resolve, reject).finally(() => window.clearTimeout(timeout));
   });
 }
 
@@ -201,7 +200,12 @@ const quickActions = [
   { id: 'notes', icon: ENTRY_KIND_ICONS.note, labelKey: 'home.action.notes', kind: 'note' },
 ] as const;
 
-export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: TimelineScreenProps) {
+export function TimelineScreen({
+  client,
+  profile,
+  onOpenSettings,
+  onSignOut,
+}: TimelineScreenProps) {
   const locale = getActiveLocale();
   const [entries, setEntries] = useState<PatientEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -235,9 +239,7 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
   const [showMenstruationForm, setShowMenstruationForm] = useState(false);
-  const [menstruationEntryToEdit, setMenstruationEntryToEdit] = useState<PatientEntry | null>(
-    null,
-  );
+  const [menstruationEntryToEdit, setMenstruationEntryToEdit] = useState<PatientEntry | null>(null);
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [noteEntryToEdit, setNoteEntryToEdit] = useState<PatientEntry | null>(null);
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
@@ -392,105 +394,110 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
     [loadTimelineDay],
   );
 
-  const loadEntries = useCallback(async (options: LoadEntriesOptions = {}) => {
-    if (loadEntriesPromiseRef.current) return loadEntriesPromiseRef.current;
+  const loadEntries = useCallback(
+    async (options: LoadEntriesOptions = {}) => {
+      if (loadEntriesPromiseRef.current) return loadEntriesPromiseRef.current;
 
-    const loadPromise = (async () => {
-      if (options.showLoading !== false) {
-        setLoading(true);
-      }
-      setError(null);
-      try {
-        await withTimeout(syncPendingQueue(), ONLINE_LOAD_TIMEOUT_MS);
-        const range = dayRange(localDateValue(new Date()));
-        const [nextEntries, baseline, dailyForm, foodFormDetails] = await withTimeout(
-          Promise.all([
-            listRecentPatientEntries(client, profile.id),
-            getPatientBaseline(client, profile.id),
-            getPatientDailyForm(client, profile.id, range.start, range.end),
-            getPatientFoodForm(client, profile.id, range.start, range.end),
-          ]),
-          ONLINE_LOAD_TIMEOUT_MS,
-        );
-        setOfflineMode(false);
-        setFoodForm(foodFormDetails);
-        saveCachedRecentEntries(profile.id, nextEntries);
-        saveCachedOpenedDayEntries(profile.id, nextEntries, (entry) =>
-          localDateValue(new Date(entry.occurredAt)),
-          recentLocalDays(),
-        );
-        const nextHasChronicTherapy = Boolean(baseline?.chronicTherapy?.trim());
-        const includeMenstruation = baseline?.sex === 'female';
-        const dailyDraft = dailyForm ? toDailyDraft(dailyForm.details) : null;
-        const visibleDailyEntryIds =
-          dailyForm && (dailyForm.details.completedAt || hasDailyFormProgress(dailyDraft ?? {}))
-            ? [dailyForm.entryId]
-            : [];
-        setEntries(
-          filterPatientTimelineEntries(nextEntries, baseline?.sex, { visibleDailyEntryIds }),
-        );
-        const mealIds = nextEntries.filter((entry) => entry.kind === 'meal').map((entry) => entry.id);
-        const medIds = nextEntries.filter((entry) => entry.kind === 'medication').map((entry) => entry.id);
-        const [nextCompleteMealEntryIds, nextCompleteMedicationEntryIds] = await Promise.all([
-          listCompletePatientMealEntryIds(client, mealIds),
-          listCompletePatientMedicationEntryIds(client, medIds),
-        ]);
-        setCompleteMealEntryIds(nextCompleteMealEntryIds);
-        setCompleteMedicationEntryIds(nextCompleteMedicationEntryIds);
-        setCanTrackMenstruation(includeMenstruation);
-        setDailyEntryId(dailyForm?.entryId ?? null);
-        setDailyCompleted(Boolean(dailyForm?.details.completedAt));
-        setDailyReadyToSubmit(
-          dailyForm && dailyDraft
-            ? isCompleteDailyForm(
-                dailyDraft,
-                includeMenstruation,
-                nextHasChronicTherapy,
-              )
-            : false,
-        );
-        setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
-        setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
-        setPeriodRequired(dailyForm?.details.hadMenstruation === true);
-        setExerciseCompleted(hasTodayEntry(nextEntries, 'exercise'));
-        setMedicationCompleted(
-          nextEntries.some(
-            (entry) =>
-              entry.kind === 'medication' &&
-              nextCompleteMedicationEntryIds.includes(entry.id) &&
-              localDateValue(new Date(entry.occurredAt)) === localDateValue(new Date()),
-          ),
-        );
-        setPeriodCompleted(hasTodayEntry(nextEntries, 'menstruation'));
-      } catch {
-        const cachedOpenedDayEntries = loadCachedOpenedDayEntries(profile.id);
-        const cachedEntries = cachedOpenedDayEntries.length
-          ? cachedOpenedDayEntries
-          : loadCachedRecentEntries(profile.id);
-        setOfflineMode(true);
-        setFoodForm(null);
-        setCompleteMealEntryIds([]);
-        setCompleteMedicationEntryIds([]);
-        setEntryPhotos({});
-        setLightboxPhoto(null);
-        if (cachedEntries.length) {
-          setEntries(filterPatientTimelineEntries(cachedEntries, null));
-          setError(null);
-        } else {
-          setError(t(locale, 'entry.loadError'));
+      const loadPromise = (async () => {
+        if (options.showLoading !== false) {
+          setLoading(true);
         }
-      } finally {
-        setLoading(false);
-      }
-    })();
+        setError(null);
+        try {
+          await withTimeout(syncPendingQueue(), ONLINE_LOAD_TIMEOUT_MS);
+          const range = dayRange(localDateValue(new Date()));
+          const [nextEntries, baseline, dailyForm, foodFormDetails] = await withTimeout(
+            Promise.all([
+              listRecentPatientEntries(client, profile.id),
+              getPatientBaseline(client, profile.id),
+              getPatientDailyForm(client, profile.id, range.start, range.end),
+              getPatientFoodForm(client, profile.id, range.start, range.end),
+            ]),
+            ONLINE_LOAD_TIMEOUT_MS,
+          );
+          setOfflineMode(false);
+          setFoodForm(foodFormDetails);
+          saveCachedRecentEntries(profile.id, nextEntries);
+          saveCachedOpenedDayEntries(
+            profile.id,
+            nextEntries,
+            (entry) => localDateValue(new Date(entry.occurredAt)),
+            recentLocalDays(),
+          );
+          const nextHasChronicTherapy = Boolean(baseline?.chronicTherapy?.trim());
+          const includeMenstruation = baseline?.sex === 'female';
+          const dailyDraft = dailyForm ? toDailyDraft(dailyForm.details) : null;
+          const visibleDailyEntryIds =
+            dailyForm && (dailyForm.details.completedAt || hasDailyFormProgress(dailyDraft ?? {}))
+              ? [dailyForm.entryId]
+              : [];
+          setEntries(
+            filterPatientTimelineEntries(nextEntries, baseline?.sex, { visibleDailyEntryIds }),
+          );
+          const mealIds = nextEntries
+            .filter((entry) => entry.kind === 'meal')
+            .map((entry) => entry.id);
+          const medIds = nextEntries
+            .filter((entry) => entry.kind === 'medication')
+            .map((entry) => entry.id);
+          const [nextCompleteMealEntryIds, nextCompleteMedicationEntryIds] = await Promise.all([
+            listCompletePatientMealEntryIds(client, mealIds),
+            listCompletePatientMedicationEntryIds(client, medIds),
+          ]);
+          setCompleteMealEntryIds(nextCompleteMealEntryIds);
+          setCompleteMedicationEntryIds(nextCompleteMedicationEntryIds);
+          setCanTrackMenstruation(includeMenstruation);
+          setDailyEntryId(dailyForm?.entryId ?? null);
+          setDailyCompleted(Boolean(dailyForm?.details.completedAt));
+          setDailyReadyToSubmit(
+            dailyForm && dailyDraft
+              ? isCompleteDailyForm(dailyDraft, includeMenstruation, nextHasChronicTherapy)
+              : false,
+          );
+          setExerciseRequired(dailyForm?.details.hadPhysicalActivity === true);
+          setMedicationRequired(dailyForm?.details.tookMedicationOutsideChronicTherapy === true);
+          setPeriodRequired(dailyForm?.details.hadMenstruation === true);
+          setExerciseCompleted(hasTodayEntry(nextEntries, 'exercise'));
+          setMedicationCompleted(
+            nextEntries.some(
+              (entry) =>
+                entry.kind === 'medication' &&
+                nextCompleteMedicationEntryIds.includes(entry.id) &&
+                localDateValue(new Date(entry.occurredAt)) === localDateValue(new Date()),
+            ),
+          );
+          setPeriodCompleted(hasTodayEntry(nextEntries, 'menstruation'));
+        } catch {
+          const cachedOpenedDayEntries = loadCachedOpenedDayEntries(profile.id);
+          const cachedEntries = cachedOpenedDayEntries.length
+            ? cachedOpenedDayEntries
+            : loadCachedRecentEntries(profile.id);
+          setOfflineMode(true);
+          setFoodForm(null);
+          setCompleteMealEntryIds([]);
+          setCompleteMedicationEntryIds([]);
+          setEntryPhotos({});
+          setLightboxPhoto(null);
+          if (cachedEntries.length) {
+            setEntries(filterPatientTimelineEntries(cachedEntries, null));
+            setError(null);
+          } else {
+            setError(t(locale, 'entry.loadError'));
+          }
+        } finally {
+          setLoading(false);
+        }
+      })();
 
-    loadEntriesPromiseRef.current = loadPromise;
-    try {
-      return await loadPromise;
-    } finally {
-      loadEntriesPromiseRef.current = null;
-    }
-  }, [client, locale, profile.id, syncPendingQueue]);
+      loadEntriesPromiseRef.current = loadPromise;
+      try {
+        return await loadPromise;
+      } finally {
+        loadEntriesPromiseRef.current = null;
+      }
+    },
+    [client, locale, profile.id, syncPendingQueue],
+  );
 
   async function deleteTimelineEntry(entry: PatientEntry) {
     const today = localDateValue(new Date());
@@ -519,12 +526,7 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
         loadEntries({ showLoading: false }),
       ]);
       setMessage(
-        t(
-          locale,
-          result.photoCleanupPending
-            ? 'entry.deletePhotoCleanupWarning'
-            : 'entry.deleted',
-        ),
+        t(locale, result.photoCleanupPending ? 'entry.deletePhotoCleanupWarning' : 'entry.deleted'),
       );
     } catch {
       setTimelineError(t(locale, 'entry.deleteError'));
@@ -582,7 +584,9 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
             const signedPhotos = await Promise.all(
               photos.map(async (photo) => ({
                 id: photo.id,
-                label: photo.contextLabel?.trim() || t(locale, `entry.kind.${entry.kind}` as TranslationKey),
+                label:
+                  photo.contextLabel?.trim() ||
+                  t(locale, `entry.kind.${entry.kind}` as TranslationKey),
                 photoUrl: await createEntryPhotoSignedUrl(client, photo.photoPath),
                 thumbnailUrl: await createEntryPhotoSignedUrl(client, photo.thumbnailPath),
               })),
@@ -607,9 +611,12 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
   }, [client, entries, locale, offlineMode, showTimelineList, timelineDayEntries]);
 
   useEffect(() => {
-    const retryTimer = window.setInterval(() => {
-      void loadEntries({ showLoading: false });
-    }, offlineMode ? OFFLINE_MODE_CHECK_MS : ONLINE_MODE_CHECK_MS);
+    const retryTimer = window.setInterval(
+      () => {
+        void loadEntries({ showLoading: false });
+      },
+      offlineMode ? OFFLINE_MODE_CHECK_MS : ONLINE_MODE_CHECK_MS,
+    );
 
     return () => window.clearInterval(retryTimer);
   }, [loadEntries, offlineMode]);
@@ -695,11 +702,7 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
             onClick={() => setLightboxPhoto({ url: photo.photoUrl, label: photo.label })}
             type="button"
           >
-            <img
-              alt={title}
-              className="timeline-entry-photo-thumb"
-              src={photo.thumbnailUrl}
-            />
+            <img alt={title} className="timeline-entry-photo-thumb" src={photo.thumbnailUrl} />
           </button>
         ))}
       </div>
@@ -885,8 +888,11 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
     if (action.id === 'period') return periodRequired;
     return true;
   });
-  const completedKinds = new Set(todayEntries.filter((entry) => !pendingIds.has(entry.id)).map((entry) => entry.kind));
-  const stoolCompleted = hasTodayEntry(visibleEntries, 'stool') || hasTodayNoStoolEntry(visibleEntries);
+  const completedKinds = new Set(
+    todayEntries.filter((entry) => !pendingIds.has(entry.id)).map((entry) => entry.kind),
+  );
+  const stoolCompleted =
+    hasTodayEntry(visibleEntries, 'stool') || hasTodayNoStoolEntry(visibleEntries);
   const todayMeals = todayEntries.filter((entry) => entry.kind === 'meal');
   const mappedMeals = todayMeals.map((m) => {
     const isComplete = completeMealEntryIds.includes(m.id);
@@ -947,11 +953,8 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
       : !dailyEntryId
         ? t(locale, 'home.submitDailyFirst')
         : missingSubmitSections.length
-        ? t(locale, 'home.submitMissing').replace(
-            '{sections}',
-            missingSubmitSections.join(', '),
-          )
-        : t(locale, 'home.submitHelp');
+          ? t(locale, 'home.submitMissing').replace('{sections}', missingSubmitSections.join(', '))
+          : t(locale, 'home.submitHelp');
 
   if (showTimelineList) {
     const dayEntries = mergePendingTextEntries(timelineDayEntries, pendingEntries).filter(
@@ -999,8 +1002,8 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
           />
         </label>
 
-        {timelineError ? <p className="notice error">{timelineError}</p> : null}
-        {message ? <p className="notice success">{message}</p> : null}
+        {timelineError ? <StatusMessage tone="error">{timelineError}</StatusMessage> : null}
+        {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
         {timelineLoading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
         {!timelineLoading && dayEntries.length === 0 ? (
           <p className="empty-state">{t(locale, 'timeline.emptyDay')}</p>
@@ -1014,8 +1017,7 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
               : entry.text?.trim() || kindLabel;
             const pending = dayPendingIds.has(entry.id);
             const isTodayDay = timelineDay === todayForPicker;
-            const offlineDisabled =
-              offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
+            const offlineDisabled = offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
             const canOpen = isTodayDay && !pending && !offlineDisabled;
             const canShowDelete = isTodayDay && !pending;
             const deleting = deletingEntryId === entry.id;
@@ -1024,10 +1026,13 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
                 ? dailyCompleted
                 : entry.kind === 'meal'
                   ? completeMealEntryIds.includes(entry.id) && foodCompleted
-                : entry.kind === 'medication'
-                  ? completeMedicationEntryIds.includes(entry.id)
-                : true;
-            const entryStatusClass = entryCompleted || (entry.kind === 'daily' && dailyReadyToSubmit) ? 'complete' : 'draft';
+                  : entry.kind === 'medication'
+                    ? completeMedicationEntryIds.includes(entry.id)
+                    : true;
+            const entryStatusClass =
+              entryCompleted || (entry.kind === 'daily' && dailyReadyToSubmit)
+                ? 'complete'
+                : 'draft';
             const icon = (
               <span
                 className="web-entry-icon"
@@ -1054,14 +1059,16 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
             );
             const trailing = (
               <span className="web-entry-trailing">
-                {pending ? <small className="web-entry-pending">{t(locale, 'sync.pending')}</small> : null}
+                {pending ? (
+                  <small className="web-entry-pending">{t(locale, 'sync.pending')}</small>
+                ) : null}
                 {!pending ? (
                   <small className={`web-entry-status ${entryStatusClass}`}>
                     {t(
                       locale,
                       entryCompleted || (entry.kind === 'daily' && dailyReadyToSubmit)
                         ? 'home.action.completed'
-                        : 'daily.statusDraft'
+                        : 'daily.statusDraft',
                     )}
                   </small>
                 ) : null}
@@ -1122,7 +1129,11 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
               >
                 &times;
               </button>
-              <img src={lightboxPhoto.url} alt={lightboxPhoto.label} className="photo-lightbox-img" />
+              <img
+                src={lightboxPhoto.url}
+                alt={lightboxPhoto.label}
+                className="photo-lightbox-img"
+              />
               <p className="photo-lightbox-label">{lightboxPhoto.label}</p>
             </div>
           </div>
@@ -1159,8 +1170,8 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
         </div>
       </section>
 
-      {error ? <p className="notice error">{error}</p> : null}
-      {message ? <p className="notice success">{message}</p> : null}
+      {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
+      {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
 
       <section className="web-home-grid">
         <div className="web-progress-panel">
@@ -1234,8 +1245,8 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
                 : action.id === 'food'
                   ? () => setShowFoodForm(true)
                   : action.id === 'symptoms'
-                      ? () => setShowSymptomForm(true)
-                      : action.id === 'exercise'
+                    ? () => setShowSymptomForm(true)
+                    : action.id === 'exercise'
                       ? () => {
                           setExerciseEntryToEdit(null);
                           setShowExerciseForm(true);
@@ -1296,17 +1307,19 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
           {todayEntries.slice(0, 8).map((entry) => {
             const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
             const pending = pendingIds.has(entry.id);
-            const offlineDisabled =
-              offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
+            const offlineDisabled = offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
             const entryCompleted =
               entry.kind === 'daily'
                 ? dailyCompleted
                 : entry.kind === 'meal'
                   ? completeMealEntryIds.includes(entry.id) && foodCompleted
-                : entry.kind === 'medication'
-                  ? completeMedicationEntryIds.includes(entry.id)
-                : true;
-            const entryStatusClass = entryCompleted || (entry.kind === 'daily' && dailyReadyToSubmit) ? 'complete' : 'draft';
+                  : entry.kind === 'medication'
+                    ? completeMedicationEntryIds.includes(entry.id)
+                    : true;
+            const entryStatusClass =
+              entryCompleted || (entry.kind === 'daily' && dailyReadyToSubmit)
+                ? 'complete'
+                : 'draft';
             return (
               <article
                 className={`web-recent-entry ${pending ? 'pending' : ''} ${
@@ -1339,7 +1352,9 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
                     </small>
                   </span>
                   <span className="web-entry-trailing">
-                    {pending ? <small className="web-entry-pending">{t(locale, 'sync.pending')}</small> : null}
+                    {pending ? (
+                      <small className="web-entry-pending">{t(locale, 'sync.pending')}</small>
+                    ) : null}
                     {offlineDisabled ? (
                       <small className="web-entry-status offline">
                         {t(locale, 'offline.onlyNotes')}
@@ -1351,7 +1366,7 @@ export function TimelineScreen({ client, profile, onOpenSettings, onSignOut }: T
                           locale,
                           entryCompleted || (entry.kind === 'daily' && dailyReadyToSubmit)
                             ? 'home.action.completed'
-                            : 'daily.statusDraft'
+                            : 'daily.statusDraft',
                         )}
                       </small>
                     ) : null}

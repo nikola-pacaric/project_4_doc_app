@@ -32,6 +32,7 @@ import { MonthPickerField } from '../components/MonthPickerField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SelectField } from '../components/SelectField';
+import { StatusMessage } from '../components/StatusMessage';
 import { downloadDoctorExportImageBytes, shareDoctorExportBundle } from '../lib/doctorExport';
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 import {
@@ -271,17 +272,13 @@ export function DoctorLinkedPatientTimelineScreen({
             onPress={() => void handleExport()}
           />
           {exportStatus ? (
-            <Text selectable style={sharedStyles.success}>
-              {exportStatus}
-            </Text>
+            <StatusMessage message={exportStatus} style={sharedStyles.success} tone="success" />
           ) : null}
           {exportError ? (
-            <Text selectable style={sharedStyles.error}>
-              {exportError}
-            </Text>
+            <StatusMessage message={exportError} style={sharedStyles.error} tone="error" />
           ) : null}
         </View>
-        {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
+        {error ? <StatusMessage message={error} style={sharedStyles.error} tone="error" /> : null}
         {loading ? <ActivityIndicator color={colors.accent} size="large" /> : null}
         {!loading && !entries.length && !error ? (
           <Text style={styles.empty}>{t(locale, 'entry.empty')}</Text>
@@ -316,12 +313,7 @@ export function DoctorLinkedPatientTimelineScreen({
                       { backgroundColor: entryKindIconStyle(entry.kind).background },
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.icon,
-                        { color: entryKindIconStyle(entry.kind).color },
-                      ]}
-                    >
+                    <Text style={[styles.icon, { color: entryKindIconStyle(entry.kind).color }]}>
                       {entryKindIcon(entry.kind)}
                     </Text>
                   </View>
@@ -359,94 +351,96 @@ export function DoctorLinkedPatientTimelineScreen({
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  action: { flex: 1 },
-  readOnly: {
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    color: colors.mutedText,
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 20,
-    padding: spacing.md,
-  },
-  exportPanel: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: spacing.md,
-    padding: spacing.md,
-  },
-  exportTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
-  exportHelp: { color: colors.mutedText, fontSize: 15, lineHeight: 22 },
-  empty: { color: colors.mutedText, fontSize: 15, lineHeight: 22 },
-  list: { gap: spacing.sm },
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  entryRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  iconContainer: {
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: 20,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  icon: { fontSize: 21 },
-  copy: { flex: 1, gap: 3 },
-  title: { color: colors.text, fontSize: 16, fontWeight: '800', lineHeight: 22 },
-  meta: { color: colors.mutedText, fontSize: 13, fontWeight: '600' },
-  kind: { color: colors.accent, fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
-  photos: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    paddingLeft: 48,
-  },
-  photoButton: {
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  thumbnail: {
-    height: 72,
-    width: 72,
-  },
-  selectedPhotoPanel: {
-    alignItems: 'center',
-    gap: spacing.sm,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: spacing.md,
-  },
-  selectedPhoto: {
-    aspectRatio: 1,
-    borderRadius: 8,
-    maxHeight: 320,
-    width: '100%',
-  },
-  photoLabel: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-}));
+const styles = createThemedStyles(() =>
+  StyleSheet.create({
+    actions: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    action: { flex: 1 },
+    readOnly: {
+      borderColor: colors.border,
+      borderRadius: 8,
+      borderWidth: 1,
+      color: colors.mutedText,
+      fontSize: 14,
+      fontWeight: '700',
+      lineHeight: 20,
+      padding: spacing.md,
+    },
+    exportPanel: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      gap: spacing.md,
+      padding: spacing.md,
+    },
+    exportTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
+    exportHelp: { color: colors.mutedText, fontSize: 15, lineHeight: 22 },
+    empty: { color: colors.mutedText, fontSize: 15, lineHeight: 22 },
+    list: { gap: spacing.sm },
+    card: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      gap: spacing.sm,
+      padding: spacing.md,
+    },
+    entryRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    iconContainer: {
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      borderRadius: 20,
+      height: 40,
+      justifyContent: 'center',
+      width: 40,
+    },
+    icon: { fontSize: 21 },
+    copy: { flex: 1, gap: 3 },
+    title: { color: colors.text, fontSize: 16, fontWeight: '800', lineHeight: 22 },
+    meta: { color: colors.mutedText, fontSize: 13, fontWeight: '600' },
+    kind: { color: colors.accent, fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+    photos: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      paddingLeft: 48,
+    },
+    photoButton: {
+      borderColor: colors.border,
+      borderRadius: 8,
+      borderWidth: 1,
+      overflow: 'hidden',
+    },
+    thumbnail: {
+      height: 72,
+      width: 72,
+    },
+    selectedPhotoPanel: {
+      alignItems: 'center',
+      gap: spacing.sm,
+      borderColor: colors.border,
+      borderRadius: 8,
+      borderWidth: 1,
+      padding: spacing.md,
+    },
+    selectedPhoto: {
+      aspectRatio: 1,
+      borderRadius: 8,
+      maxHeight: 320,
+      width: '100%',
+    },
+    photoLabel: {
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: '800',
+      textAlign: 'center',
+    },
+  }),
+);

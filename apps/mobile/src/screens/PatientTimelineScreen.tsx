@@ -25,6 +25,7 @@ import {
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PatientBottomNav } from '../components/PatientBottomNav';
 import { WeekDayStrip } from '../components/WeekDayStrip';
+import { StatusMessage } from '../components/StatusMessage';
 import { colors } from '../theme';
 import {
   addLocalDays,
@@ -236,10 +237,18 @@ export function PatientTimelineScreen({
         </View>
 
         {error ? (
-          <Text style={[styles.statusError, { color: palette.error }]}>{error}</Text>
+          <StatusMessage
+            message={error}
+            style={[styles.statusError, { color: palette.error }]}
+            tone="error"
+          />
         ) : null}
         {message ? (
-          <Text style={[styles.statusMessage, { color: palette.primary }]}>{message}</Text>
+          <StatusMessage
+            message={message}
+            style={[styles.statusMessage, { color: palette.primary }]}
+            tone="success"
+          />
         ) : null}
         {loading ? (
           <ActivityIndicator color={palette.primary} size="large" style={styles.loader} />
@@ -258,8 +267,7 @@ export function PatientTimelineScreen({
               ? t(locale, 'stool.noStoolToday')
               : entry.text?.trim() || kindLabel;
             const pending = pendingIds.has(entry.id);
-            const offlineDisabled =
-              offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
+            const offlineDisabled = offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
             const canOpen =
               canEditSelectedDay && !pending && !offlineDisabled && Boolean(onOpenEntry);
             const canShowDelete = selectedDay === today && !pending && Boolean(onDeleteEntry);
@@ -319,9 +327,7 @@ export function PatientTimelineScreen({
                         style={[
                           styles.statusChipText,
                           {
-                            color: pending
-                              ? palette.onErrorContainer
-                              : palette.onSurfaceVariant,
+                            color: pending ? palette.onErrorContainer : palette.onSurfaceVariant,
                           },
                         ]}
                       >
@@ -330,17 +336,13 @@ export function PatientTimelineScreen({
                     </View>
                   </View>
                   <View style={styles.timeRow}>
-                    <Text style={[styles.timeIcon, { color: palette.onSurfaceVariant }]}>
-                      🕐
-                    </Text>
+                    <Text style={[styles.timeIcon, { color: palette.onSurfaceVariant }]}>🕐</Text>
                     <Text style={[styles.timeText, { color: palette.onSurfaceVariant }]}>
                       {timeLabel}
                     </Text>
                   </View>
                   {entry.text && !isNoStoolTodayEntry(entry) ? (
-                    <Text style={[styles.kindLabel, { color: palette.primary }]}>
-                      {kindLabel}
-                    </Text>
+                    <Text style={[styles.kindLabel, { color: palette.primary }]}>{kindLabel}</Text>
                   ) : null}
                 </View>
               </>
@@ -349,9 +351,7 @@ export function PatientTimelineScreen({
             return (
               <View
                 accessibilityHint={
-                  canEditSelectedDay
-                    ? undefined
-                    : t(locale, 'timeline.editTodayOnly')
+                  canEditSelectedDay ? undefined : t(locale, 'timeline.editTodayOnly')
                 }
                 key={entry.id}
                 style={[

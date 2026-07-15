@@ -24,6 +24,7 @@ import { darkTheme } from '@project4/ui-tokens';
 import { CircularProgress } from '../components/CircularProgress';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PatientBottomNav } from '../components/PatientBottomNav';
+import { StatusMessage } from '../components/StatusMessage';
 import { colors } from '../theme';
 import { formatEntryTime, toLocalDateInput } from '../utils/dateTime';
 
@@ -354,7 +355,11 @@ export function DailyProgressHomeScreen({
         ) : null}
 
         {error ? (
-          <Text style={[styles.errorText, { color: palette.error }]}>{error}</Text>
+          <StatusMessage
+            message={error}
+            style={[styles.errorText, { color: palette.error }]}
+            tone="error"
+          />
         ) : null}
 
         {/* Daily progress bubble */}
@@ -672,7 +677,6 @@ export function DailyProgressHomeScreen({
             {submitHelp}
           </Text>
         </View>
-
       </KeyboardAwareScrollView>
 
       <PatientBottomNav

@@ -14,6 +14,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { StatusMessage } from '../components/StatusMessage';
 
 interface SettingsScreenProps {
   preferences: AppPreferences;
@@ -158,7 +159,7 @@ export function SettingsScreen({
         options={themeOptions}
         value={preferences.theme}
       />
-      <p className="notice success">{t(locale, 'settings.saved')}</p>
+      <StatusMessage tone="success">{t(locale, 'settings.saved')}</StatusMessage>
 
       {showDoctorLink ? (
         <section className="settings-group settings-doctor-link">
@@ -166,7 +167,9 @@ export function SettingsScreen({
             <>
               <h2 className="settings-doctor-title">{t(locale, 'patientInvite.linkedTitle')}</h2>
               <p>{t(locale, 'patientInvite.linkedHelp')}</p>
-              <p className="notice success">{t(locale, 'patientInvite.linkedNotice')}</p>
+              <StatusMessage tone="success">
+                {t(locale, 'patientInvite.linkedNotice')}
+              </StatusMessage>
             </>
           ) : (
             <>
@@ -194,9 +197,7 @@ export function SettingsScreen({
                 </label>
                 <button
                   className="secondary-button"
-                  disabled={
-                    doctorLinkOffline || doctorInviteRedeeming || !doctorInviteCode.trim()
-                  }
+                  disabled={doctorLinkOffline || doctorInviteRedeeming || !doctorInviteCode.trim()}
                   type="submit"
                 >
                   {doctorInviteRedeeming
@@ -205,18 +206,16 @@ export function SettingsScreen({
                 </button>
               </form>
               {doctorLinkOffline ? (
-                <p className="notice error">{t(locale, 'patientInvite.offline')}</p>
+                <StatusMessage tone="error">{t(locale, 'patientInvite.offline')}</StatusMessage>
               ) : null}
               {doctorInviteMessage ? (
-                <p
-                  className={`notice ${
-                    doctorInviteMessage === t(locale, 'patientInvite.success')
-                      ? 'success'
-                      : 'error'
-                  }`}
+                <StatusMessage
+                  tone={
+                    doctorInviteMessage === t(locale, 'patientInvite.success') ? 'success' : 'error'
+                  }
                 >
                   {doctorInviteMessage}
-                </p>
+                </StatusMessage>
               ) : null}
             </>
           )}

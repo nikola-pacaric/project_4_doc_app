@@ -6,8 +6,8 @@
   --app-surface-alt: #f7f5f6;
   --app-muted: #8a767d;
   --app-border: #f0dfe1;
-  --app-accent: #f45b7a;
-  --app-accent-strong: #d94969;
+  --app-accent: #b33155;
+  --app-accent-strong: #8f2445;
   --app-accent-soft: #fff0f3;
   --app-danger: #c83f52;
   --app-on-accent: #ffffff;
@@ -41,7 +41,8 @@ body,
 
 body {
   min-height: 100vh;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.74), transparent 42%), var(--app-canvas);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.74), transparent 42%), var(--app-canvas);
 }
 
 button,
@@ -2256,7 +2257,11 @@ button:focus-visible {
 .web-app-shell {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 85% 10%, color-mix(in srgb, var(--app-accent) 12%, transparent), transparent 28%),
+    radial-gradient(
+      circle at 85% 10%,
+      color-mix(in srgb, var(--app-accent) 12%, transparent),
+      transparent 28%
+    ),
     var(--app-surface-alt);
 }
 

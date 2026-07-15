@@ -17,6 +17,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
 import { PhotoUploader } from '../components/PhotoUploader';
+import { StatusMessage } from '../components/StatusMessage';
 import { VoiceTextField } from '../components/VoiceTextField';
 import { type WebPreparedPhoto } from '../utils/photoHelper';
 
@@ -58,7 +59,9 @@ function toDraft(record: MedicationRecord): ClientMedicationDraft {
 }
 
 function createPhotoId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return (
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
 }
 
 export function MedicationFormScreen({
@@ -122,7 +125,10 @@ export function MedicationFormScreen({
     };
   }, [client, entryToEdit, locale]);
 
-  function update<K extends keyof ClientMedicationDraft>(field: K, value: ClientMedicationDraft[K]) {
+  function update<K extends keyof ClientMedicationDraft>(
+    field: K,
+    value: ClientMedicationDraft[K],
+  ) {
     setError(null);
     setDraft((current) => ({ ...current, [field]: value }));
   }
@@ -178,86 +184,86 @@ export function MedicationFormScreen({
 
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading ? (
-      <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
-        <fieldset className="structured-fieldset">
-          <VoiceTextField
-            label={t(locale, 'medication.name')}
-            onChange={(value) => update('name', value)}
-            placeholder={t(locale, 'medication.namePlaceholder')}
-            type="text"
-            value={draft.name ?? ''}
-          />
-        </fieldset>
-        <fieldset className="structured-fieldset">
-          <VoiceTextField
-            label={t(locale, 'medication.dose')}
-            onChange={(value) => update('dose', value)}
-            placeholder={t(locale, 'medication.dosePlaceholder')}
-            type="text"
-            value={draft.dose ?? ''}
-          />
-        </fieldset>
-        <fieldset className="structured-fieldset conditional-question">
-          <legend>{t(locale, 'medication.chronicTherapy')}</legend>
-          <p className="field-help">{t(locale, 'medication.chronicTherapyHelp')}</p>
-          <div className="choice-row" role="radiogroup">
-            {[
-              { value: true, label: t(locale, 'common.yes') },
-              { value: false, label: t(locale, 'common.no') },
-            ].map((option) => (
-              <button
-                aria-checked={draft.isChronicTherapy === option.value}
-                className={draft.isChronicTherapy === option.value ? 'selected' : ''}
-                key={String(option.value)}
-                onClick={() => update('isChronicTherapy', option.value)}
-                role="radio"
-                type="button"
-              >
-                {option.label}
-              </button>
-            ))}
+        <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
+          <fieldset className="structured-fieldset">
+            <VoiceTextField
+              label={t(locale, 'medication.name')}
+              onChange={(value) => update('name', value)}
+              placeholder={t(locale, 'medication.namePlaceholder')}
+              type="text"
+              value={draft.name ?? ''}
+            />
+          </fieldset>
+          <fieldset className="structured-fieldset">
+            <VoiceTextField
+              label={t(locale, 'medication.dose')}
+              onChange={(value) => update('dose', value)}
+              placeholder={t(locale, 'medication.dosePlaceholder')}
+              type="text"
+              value={draft.dose ?? ''}
+            />
+          </fieldset>
+          <fieldset className="structured-fieldset conditional-question">
+            <legend>{t(locale, 'medication.chronicTherapy')}</legend>
+            <p className="field-help">{t(locale, 'medication.chronicTherapyHelp')}</p>
+            <div className="choice-row" role="radiogroup">
+              {[
+                { value: true, label: t(locale, 'common.yes') },
+                { value: false, label: t(locale, 'common.no') },
+              ].map((option) => (
+                <button
+                  aria-checked={draft.isChronicTherapy === option.value}
+                  className={draft.isChronicTherapy === option.value ? 'selected' : ''}
+                  key={String(option.value)}
+                  onClick={() => update('isChronicTherapy', option.value)}
+                  role="radio"
+                  type="button"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'medication.timeTaken')}</legend>
+            <input
+              aria-label={t(locale, 'medication.timeTaken')}
+              onChange={(event) => updateTime(event.target.value)}
+              placeholder={t(locale, 'medication.timePlaceholder')}
+              type="time"
+              value={time}
+            />
+          </fieldset>
+          <fieldset className="structured-fieldset">
+            <VoiceTextField
+              label={t(locale, 'medication.reason')}
+              onChange={(value) => update('reason', value)}
+              placeholder={t(locale, 'medication.reasonPlaceholder')}
+              rows={4}
+              type="textarea"
+              value={draft.reason ?? ''}
+            />
+          </fieldset>
+
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'photo.title')}</legend>
+            <PhotoUploader
+              existingPhotoUris={draft.existingPhotoUris}
+              localPhoto={draft.localPhoto}
+              onPhotoSelected={(photo) => update('localPhoto', photo)}
+            />
+          </fieldset>
+
+          {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
+          <div className="button-row form-actions-row">
+            <button className="secondary-button" onClick={onBack} type="button">
+              {t(locale, 'common.cancel')}
+            </button>
+            <button className="primary-button" disabled={saving} type="submit">
+              {t(locale, 'medication.save')}
+            </button>
           </div>
-        </fieldset>
-        <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'medication.timeTaken')}</legend>
-          <input
-            aria-label={t(locale, 'medication.timeTaken')}
-            onChange={(event) => updateTime(event.target.value)}
-            placeholder={t(locale, 'medication.timePlaceholder')}
-            type="time"
-            value={time}
-          />
-        </fieldset>
-        <fieldset className="structured-fieldset">
-          <VoiceTextField
-            label={t(locale, 'medication.reason')}
-            onChange={(value) => update('reason', value)}
-            placeholder={t(locale, 'medication.reasonPlaceholder')}
-            rows={4}
-            type="textarea"
-            value={draft.reason ?? ''}
-          />
-        </fieldset>
-
-        <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'photo.title')}</legend>
-          <PhotoUploader
-            existingPhotoUris={draft.existingPhotoUris}
-            localPhoto={draft.localPhoto}
-            onPhotoSelected={(photo) => update('localPhoto', photo)}
-          />
-        </fieldset>
-
-        {error ? <p className="notice error">{error}</p> : null}
-        <div className="button-row form-actions-row">
-          <button className="secondary-button" onClick={onBack} type="button">
-            {t(locale, 'common.cancel')}
-          </button>
-          <button className="primary-button" disabled={saving} type="submit">
-            {t(locale, 'medication.save')}
-          </button>
-        </div>
-      </form>
+        </form>
       ) : null}
     </main>
   );

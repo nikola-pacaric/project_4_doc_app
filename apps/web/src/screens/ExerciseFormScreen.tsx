@@ -9,6 +9,7 @@ import {
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { StatusMessage } from '../components/StatusMessage';
 import { VoiceTextField } from '../components/VoiceTextField';
 
 interface ExerciseFormScreenProps {
@@ -160,90 +161,90 @@ export function ExerciseFormScreen({
 
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading ? (
-      <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
-        <fieldset className="structured-fieldset">
-          <VoiceTextField
-            label={t(locale, 'exercise.activity')}
-            onChange={(value) => update('activity', value)}
-            placeholder={t(locale, 'exercise.activityPlaceholder')}
-            type="text"
-            value={draft.activity ?? ''}
-          />
-        </fieldset>
-
-        <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'exercise.duration')}</legend>
-          <input
-            aria-label={t(locale, 'exercise.duration')}
-            inputMode="numeric"
-            max={1440}
-            min={1}
-            onChange={(event) => {
-              const value = event.target.valueAsNumber;
-              update('durationMinutes', Number.isFinite(value) ? value : undefined);
-            }}
-            placeholder={t(locale, 'exercise.durationPlaceholder')}
-            step={1}
-            type="number"
-            value={draft.durationMinutes ?? ''}
-          />
-        </fieldset>
-
-        <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'exercise.intensity')}</legend>
-          <div className="choice-row three-options" role="radiogroup">
-            {exerciseIntensities.map((intensity) => (
-              <button
-                aria-checked={draft.intensity === intensity}
-                className={draft.intensity === intensity ? 'selected' : ''}
-                key={intensity}
-                onClick={() => update('intensity', intensity)}
-                role="radio"
-                type="button"
-              >
-                {t(locale, `exercise.intensity.${intensity}` as TranslationKey)}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-
-        <div className="baseline-field-pair">
+        <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
           <fieldset className="structured-fieldset">
-            <legend>{t(locale, 'exercise.date')}</legend>
-            <input aria-label={t(locale, 'exercise.date')} readOnly value={date} />
-          </fieldset>
-          <fieldset className="structured-fieldset">
-            <legend>{t(locale, 'exercise.time')}</legend>
-            <input
-              aria-label={t(locale, 'exercise.time')}
-              onChange={(event) => updateDateTime(date, event.target.value)}
-              placeholder={t(locale, 'exercise.timePlaceholder')}
-              type="time"
-              value={time}
+            <VoiceTextField
+              label={t(locale, 'exercise.activity')}
+              onChange={(value) => update('activity', value)}
+              placeholder={t(locale, 'exercise.activityPlaceholder')}
+              type="text"
+              value={draft.activity ?? ''}
             />
           </fieldset>
-        </div>
-        <fieldset className="structured-fieldset">
-          <VoiceTextField
-            label={t(locale, 'exercise.notes')}
-            onChange={(value) => update('notes', value)}
-            placeholder={t(locale, 'exercise.notesPlaceholder')}
-            rows={4}
-            type="textarea"
-            value={draft.notes ?? ''}
-          />
-        </fieldset>
 
-        {error ? <p className="notice error">{error}</p> : null}
-        <div className="button-row form-actions-row">
-          <button className="secondary-button" onClick={onBack} type="button">
-            {t(locale, 'common.cancel')}
-          </button>
-          <button className="primary-button" disabled={saving} type="submit">
-            {t(locale, 'exercise.save')}
-          </button>
-        </div>
-      </form>
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'exercise.duration')}</legend>
+            <input
+              aria-label={t(locale, 'exercise.duration')}
+              inputMode="numeric"
+              max={1440}
+              min={1}
+              onChange={(event) => {
+                const value = event.target.valueAsNumber;
+                update('durationMinutes', Number.isFinite(value) ? value : undefined);
+              }}
+              placeholder={t(locale, 'exercise.durationPlaceholder')}
+              step={1}
+              type="number"
+              value={draft.durationMinutes ?? ''}
+            />
+          </fieldset>
+
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'exercise.intensity')}</legend>
+            <div className="choice-row three-options" role="radiogroup">
+              {exerciseIntensities.map((intensity) => (
+                <button
+                  aria-checked={draft.intensity === intensity}
+                  className={draft.intensity === intensity ? 'selected' : ''}
+                  key={intensity}
+                  onClick={() => update('intensity', intensity)}
+                  role="radio"
+                  type="button"
+                >
+                  {t(locale, `exercise.intensity.${intensity}` as TranslationKey)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <div className="baseline-field-pair">
+            <fieldset className="structured-fieldset">
+              <legend>{t(locale, 'exercise.date')}</legend>
+              <input aria-label={t(locale, 'exercise.date')} readOnly value={date} />
+            </fieldset>
+            <fieldset className="structured-fieldset">
+              <legend>{t(locale, 'exercise.time')}</legend>
+              <input
+                aria-label={t(locale, 'exercise.time')}
+                onChange={(event) => updateDateTime(date, event.target.value)}
+                placeholder={t(locale, 'exercise.timePlaceholder')}
+                type="time"
+                value={time}
+              />
+            </fieldset>
+          </div>
+          <fieldset className="structured-fieldset">
+            <VoiceTextField
+              label={t(locale, 'exercise.notes')}
+              onChange={(value) => update('notes', value)}
+              placeholder={t(locale, 'exercise.notesPlaceholder')}
+              rows={4}
+              type="textarea"
+              value={draft.notes ?? ''}
+            />
+          </fieldset>
+
+          {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
+          <div className="button-row form-actions-row">
+            <button className="secondary-button" onClick={onBack} type="button">
+              {t(locale, 'common.cancel')}
+            </button>
+            <button className="primary-button" disabled={saving} type="submit">
+              {t(locale, 'exercise.save')}
+            </button>
+          </div>
+        </form>
       ) : null}
     </main>
   );

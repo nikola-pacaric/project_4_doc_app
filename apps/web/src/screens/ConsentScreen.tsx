@@ -2,6 +2,7 @@ import { getActiveLocale, t } from '@project4/i18n';
 import { useState } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { StatusMessage } from '../components/StatusMessage';
 
 interface ConsentScreenProps {
   displayName: string | null;
@@ -48,7 +49,7 @@ export function ConsentScreen({ displayName, onAccept, onSignOut }: ConsentScree
           />
           <span>{t(locale, 'consent.accept')}</span>
         </label>
-        {error ? <p className="notice error">{error}</p> : null}
+        {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
         <div className="button-row">
           <button
             className="primary-button"

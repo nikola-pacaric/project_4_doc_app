@@ -1,14 +1,10 @@
 import type { ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  Keyboard,
-  SafeAreaView,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Keyboard, SafeAreaView, Text, View } from 'react-native';
 
 import { FormBottomNav } from './FormBottomNav';
 import { KeyboardAwareScrollView } from './KeyboardAwareScrollView';
+import { StatusMessage } from './StatusMessage';
+import { useDiscardGuard } from '../hooks/useDiscardGuard';
 import {
   getTactilePalette,
   isDarkThemeActive,
@@ -39,6 +35,8 @@ interface TactileFormShellProps {
   footer?: ReactNode;
   /** Hide bottom nav (e.g. loading-only shell). */
   hideNav?: boolean;
+  /** Confirm before any unsaved form state is abandoned. */
+  guardUnsavedChanges?: boolean;
 }
 
 export function useTactileFormPalette(): TactilePalette {
@@ -64,13 +62,23 @@ export function TactileFormShell({
   saveDisabled = false,
   footer,
   hideNav = false,
+  guardUnsavedChanges = true,
 }: TactileFormShellProps) {
   const palette = getTactilePalette();
   const dark = isDarkThemeActive();
 
-  function dismissAnd(action: () => void) {
+  const confirmDiscard = useDiscardGuard({
+    enabled: guardUnsavedChanges && !loading && !saveBusy,
+    onHardwareBack: onCancelToday,
+  });
+
+  function dismissAnd(action: () => void, confirm = false) {
     Keyboard.dismiss();
-    action();
+    if (confirm) {
+      confirmDiscard(action);
+    } else {
+      action();
+    }
   }
 
   return (
@@ -99,14 +107,18 @@ export function TactileFormShell({
         )}
 
         {!loading && error ? (
-          <Text selectable style={[layout.errorText, { color: palette.error }]}>
-            {error}
-          </Text>
+          <StatusMessage
+            message={error}
+            style={[layout.errorText, { color: palette.error }]}
+            tone="error"
+          />
         ) : null}
         {!loading && message ? (
-          <Text selectable style={[layout.successText, { color: palette.primary }]}>
-            {message}
-          </Text>
+          <StatusMessage
+            message={message}
+            style={[layout.successText, { color: palette.primary }]}
+            tone="success"
+          />
         ) : null}
 
         {!loading && footer ? footer : null}
@@ -114,19 +126,17 @@ export function TactileFormShell({
 
       {!hideNav && onSave ? (
         <FormBottomNav
-          onProfile={() => dismissAnd(onCancelProfile ?? onCancelToday)}
+          onProfile={() => dismissAnd(onCancelProfile ?? onCancelToday, true)}
           onSave={() => dismissAnd(onSave)}
-          onTimeline={() => dismissAnd(onCancelTimeline ?? onCancelToday)}
-          onToday={() => dismissAnd(onCancelToday)}
+          onTimeline={() => dismissAnd(onCancelTimeline ?? onCancelToday, true)}
+          onToday={() => dismissAnd(onCancelToday, true)}
           palette={{
             background: dark ? colors.surface : 'rgba(241, 236, 242, 0.92)',
             onPrimaryContainer: dark
               ? palette.onPrimaryContainer
               : tactileStitch.onPrimaryContainer,
             onSurfaceVariant: palette.onSurfaceVariant,
-            primaryContainer: dark
-              ? palette.primaryContainer
-              : tactileStitch.primaryContainer,
+            primaryContainer: dark ? palette.primaryContainer : tactileStitch.primaryContainer,
             shadow: palette.shadow,
           }}
           saveBusy={saveBusy}

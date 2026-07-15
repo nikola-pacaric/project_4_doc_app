@@ -36,14 +36,16 @@ export function FormField({
   const inputRef = useRef<TextInput>(null);
   const valueRef = useRef(props.value ?? '');
   const onChangeTextRef = useRef(props.onChangeText);
-  const [, setSupported] = useState<boolean | null>(null);
+  const [supported, setSupported] = useState<boolean | null>(null);
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const canUseVoice =
     enableVoice && props.editable !== false && typeof props.onChangeText === 'function';
 
-  valueRef.current = props.value ?? '';
-  onChangeTextRef.current = props.onChangeText;
+  useEffect(() => {
+    valueRef.current = props.value ?? '';
+    onChangeTextRef.current = props.onChangeText;
+  }, [props.onChangeText, props.value]);
 
   useEffect(() => {
     if (!canUseVoice) return;
@@ -63,17 +65,14 @@ export function FormField({
   }, [canUseVoice]);
 
   async function startListening() {
-    if (!canUseVoice || listening) return;
+    if (!canUseVoice || supported !== true || listening) return;
 
     inputRef.current?.focus();
     setListening(true);
     setMessage(t(locale, 'voice.listening'));
 
     try {
-      const transcript = await startVoiceInput(
-        getActiveVoiceLanguage(),
-        t(locale, 'voice.prompt'),
-      );
+      const transcript = await startVoiceInput(getActiveVoiceLanguage(), t(locale, 'voice.prompt'));
       onChangeTextRef.current?.(appendVoiceTranscript(valueRef.current, transcript));
       setMessage(t(locale, 'voice.added'));
     } catch (error) {
@@ -84,7 +83,7 @@ export function FormField({
     }
   }
 
-  const showVoiceButton = canUseVoice;
+  const showVoiceButton = canUseVoice && supported === true;
   const voiceDisabled = listening;
 
   return (
@@ -108,8 +107,8 @@ export function FormField({
             sharedStyles.input,
             leadingIcon ? styles.leadingInput : undefined,
             props.multiline && styles.multiline,
-            canUseVoice && styles.voiceInput,
-            canUseVoice && props.multiline && styles.voiceMultilineInput,
+            showVoiceButton && styles.voiceInput,
+            showVoiceButton && props.multiline && styles.voiceMultilineInput,
             props.editable === false && styles.readOnly,
             style,
           ]}
@@ -141,7 +140,11 @@ export function FormField({
           </Pressable>
         ) : null}
       </View>
-      {message ? <Text style={styles.help}>{message}</Text> : null}
+      {message ? (
+        <Text accessibilityLiveRegion="polite" style={styles.help}>
+          {message}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -157,109 +160,111 @@ function MicIcon({ active }: { active: boolean }) {
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
-  field: {
-    gap: spacing.xs,
-  },
-  inputWrap: {
-    position: 'relative',
-  },
-  leadingInput: {
-    paddingLeft: 52,
-  },
-  leadingIcon: {
-    alignItems: 'center',
-    bottom: 0,
-    justifyContent: 'center',
-    left: 4,
-    opacity: 0.72,
-    position: 'absolute',
-    top: 0,
-    width: 44,
-  },
-  multiline: {
-    minHeight: 112,
-    textAlignVertical: 'top',
-  },
-  voiceInput: {
-    paddingRight: 56,
-  },
-  voiceMultilineInput: {
-    paddingBottom: 48,
-  },
-  readOnly: {
-    backgroundColor: colors.background,
-    color: colors.mutedText,
-  },
-  voiceButton: {
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderRadius: 20,
-    bottom: 1,
-    height: 40,
-    justifyContent: 'center',
-    position: 'absolute',
-    right: 6,
-    width: 40,
-  },
-  voiceButtonMultiline: {
-    bottom: 4,
-  },
-  voiceButtonActive: {
-    backgroundColor: colors.surface,
-  },
-  micIcon: {
-    alignItems: 'center',
-    height: 18,
-    justifyContent: 'center',
-    width: 17,
-  },
-  micIconActive: {
-    opacity: 0.86,
-  },
-  micHead: {
-    borderColor: colors.accent,
-    borderRadius: 6,
-    borderWidth: 2,
-    height: 12,
-    width: 9,
-  },
-  micCradle: {
-    borderBottomColor: colors.accent,
-    borderBottomLeftRadius: 6,
-    borderBottomRightRadius: 6,
-    borderBottomWidth: 2,
-    borderLeftColor: colors.accent,
-    borderLeftWidth: 2,
-    borderRightColor: colors.accent,
-    borderRightWidth: 2,
-    height: 6,
-    marginTop: -4,
-    width: 13,
-  },
-  micStem: {
-    backgroundColor: colors.accent,
-    borderRadius: 1,
-    height: 4,
-    marginTop: -1,
-    width: 2,
-  },
-  micBase: {
-    backgroundColor: colors.accent,
-    borderRadius: 1,
-    height: 2,
-    width: 9,
-  },
-  pressed: {
-    opacity: 0.72,
-  },
-  disabled: {
-    opacity: 0.38,
-  },
-  help: {
-    color: colors.mutedText,
-    flexShrink: 1,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-}));
+const styles = createThemedStyles(() =>
+  StyleSheet.create({
+    field: {
+      gap: spacing.xs,
+    },
+    inputWrap: {
+      position: 'relative',
+    },
+    leadingInput: {
+      paddingLeft: 52,
+    },
+    leadingIcon: {
+      alignItems: 'center',
+      bottom: 0,
+      justifyContent: 'center',
+      left: 4,
+      opacity: 0.72,
+      position: 'absolute',
+      top: 0,
+      width: 44,
+    },
+    multiline: {
+      minHeight: 112,
+      textAlignVertical: 'top',
+    },
+    voiceInput: {
+      paddingRight: 56,
+    },
+    voiceMultilineInput: {
+      paddingBottom: 48,
+    },
+    readOnly: {
+      backgroundColor: colors.background,
+      color: colors.mutedText,
+    },
+    voiceButton: {
+      alignItems: 'center',
+      backgroundColor: 'transparent',
+      borderRadius: 20,
+      bottom: 1,
+      height: 40,
+      justifyContent: 'center',
+      position: 'absolute',
+      right: 6,
+      width: 40,
+    },
+    voiceButtonMultiline: {
+      bottom: 4,
+    },
+    voiceButtonActive: {
+      backgroundColor: colors.surface,
+    },
+    micIcon: {
+      alignItems: 'center',
+      height: 18,
+      justifyContent: 'center',
+      width: 17,
+    },
+    micIconActive: {
+      opacity: 0.86,
+    },
+    micHead: {
+      borderColor: colors.accent,
+      borderRadius: 6,
+      borderWidth: 2,
+      height: 12,
+      width: 9,
+    },
+    micCradle: {
+      borderBottomColor: colors.accent,
+      borderBottomLeftRadius: 6,
+      borderBottomRightRadius: 6,
+      borderBottomWidth: 2,
+      borderLeftColor: colors.accent,
+      borderLeftWidth: 2,
+      borderRightColor: colors.accent,
+      borderRightWidth: 2,
+      height: 6,
+      marginTop: -4,
+      width: 13,
+    },
+    micStem: {
+      backgroundColor: colors.accent,
+      borderRadius: 1,
+      height: 4,
+      marginTop: -1,
+      width: 2,
+    },
+    micBase: {
+      backgroundColor: colors.accent,
+      borderRadius: 1,
+      height: 2,
+      width: 9,
+    },
+    pressed: {
+      opacity: 0.72,
+    },
+    disabled: {
+      opacity: 0.38,
+    },
+    help: {
+      color: colors.mutedText,
+      flexShrink: 1,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+  }),
+);

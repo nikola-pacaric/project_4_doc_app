@@ -12,6 +12,8 @@ Phase 0 is complete when the core screens, navigation, data boundaries, and firs
 - V1 is not a diagnosis tool and must not claim formal medical-device or compliance certification.
 - Patient data remains private by default.
 - Doctors can read linked patient data only through active `doctor_patient_access`.
+- Each patient may have at most one active doctor link; each doctor may have many active patient links.
+- Changing a patient's doctor requires operator deactivation/revocation because patient revocation UI is outside V1.
 - Doctors cannot edit or delete patient entries.
 - Consent/privacy gating must happen before app workflows.
 - All visible UI text must use translation keys.
@@ -253,6 +255,7 @@ Implementation notes:
 Implementation notes:
 
 - Doctors can read only active linked patients.
+- A doctor may have many linked patients, but each patient may appear under only one active doctor.
 - Doctors must never edit or delete patient entries.
 - Exports must never include base64 images.
 - Export access must be audited.
@@ -326,6 +329,7 @@ Initial app priorities:
 - V1 workflows are mapped without adding non-goal scope.
 - Patient first slice is clear and comes before broad UI polish.
 - Doctor workflows are read-only for patient data.
+- Doctor-link cardinality is explicit: one active doctor per patient, many active patients per doctor.
 - Consent/privacy gate is explicit.
 - Localization and theme are present from the start.
 - RLS, export, photo, and offline-lite are called out as release gates.

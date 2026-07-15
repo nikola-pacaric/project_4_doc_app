@@ -1,6 +1,7 @@
 import { getActiveLocale, t } from '@project4/i18n';
 import { useRef, useState } from 'react';
 import { prepareWebPhoto, type WebPreparedPhoto } from '../utils/photoHelper';
+import { StatusMessage } from './StatusMessage';
 
 interface PhotoUploaderProps {
   existingPhotoUris?: string[];
@@ -108,7 +109,9 @@ export function PhotoUploader({
           disabled={loading}
           onClick={triggerLibrarySelect}
         >
-          {loading ? t(locale, 'app.loading') : t(locale, localPhoto ? 'photo.replace' : 'photo.pick')}
+          {loading
+            ? t(locale, 'app.loading')
+            : t(locale, localPhoto ? 'photo.replace' : 'photo.pick')}
         </button>
         <button
           type="button"
@@ -119,7 +122,7 @@ export function PhotoUploader({
           {t(locale, 'photo.take')}
         </button>
       </div>
-      {error ? <p className="notice error">{error}</p> : null}
+      {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
     </div>
   );
 }

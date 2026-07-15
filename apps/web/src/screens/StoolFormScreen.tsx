@@ -15,6 +15,7 @@ import {
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { StatusMessage } from '../components/StatusMessage';
 import { VoiceTextField } from '../components/VoiceTextField';
 
 interface StoolFormScreenProps {
@@ -218,103 +219,103 @@ export function StoolFormScreen({
 
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading ? (
-      <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
-        <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'stool.noStoolToday')}</legend>
-          <p>{t(locale, 'stool.noStoolDetail')}</p>
-          <button
-            className="secondary-button"
-            disabled={saving}
-            onClick={() => void saveNoStool()}
-            type="button"
-          >
-            {t(locale, 'stool.saveNoStool')}
-          </button>
-        </fieldset>
+        <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'stool.noStoolToday')}</legend>
+            <p>{t(locale, 'stool.noStoolDetail')}</p>
+            <button
+              className="secondary-button"
+              disabled={saving}
+              onClick={() => void saveNoStool()}
+              type="button"
+            >
+              {t(locale, 'stool.saveNoStool')}
+            </button>
+          </fieldset>
 
-        <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'stool.bristolType')}</legend>
-          <div className="bristol-grid" role="radiogroup">
-            {bristolTypes.map((type) => (
-              <button
-                aria-checked={draft.bristolType === type}
-                className={draft.bristolType === type ? 'selected' : ''}
-                key={type}
-                onClick={() => update('bristolType', type)}
-                role="radio"
-                type="button"
-              >
-                {type}
-              </button>
-            ))}
-          </div>
-          {draft.bristolType ? (
-            <div className="bristol-summary">
-              <strong>
-                {t(locale, 'stool.bristolSelected').replace('{type}', String(draft.bristolType))}
-              </strong>
-              <span>
-                {t(locale, `stool.bristolDescription.${draft.bristolType}` as TranslationKey)}
-              </span>
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'stool.bristolType')}</legend>
+            <div className="bristol-grid" role="radiogroup">
+              {bristolTypes.map((type) => (
+                <button
+                  aria-checked={draft.bristolType === type}
+                  className={draft.bristolType === type ? 'selected' : ''}
+                  key={type}
+                  onClick={() => update('bristolType', type)}
+                  role="radio"
+                  type="button"
+                >
+                  {type}
+                </button>
+              ))}
             </div>
-          ) : null}
-        </fieldset>
+            {draft.bristolType ? (
+              <div className="bristol-summary">
+                <strong>
+                  {t(locale, 'stool.bristolSelected').replace('{type}', String(draft.bristolType))}
+                </strong>
+                <span>
+                  {t(locale, `stool.bristolDescription.${draft.bristolType}` as TranslationKey)}
+                </span>
+              </div>
+            ) : null}
+          </fieldset>
 
-        <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'stool.urgency')}</legend>
-          <div className="choice-row four-options" role="radiogroup">
-            {urgencyLevels.map((level) => (
-              <button
-                aria-checked={draft.urgencyLevel === level}
-                className={draft.urgencyLevel === level ? 'selected' : ''}
-                key={level}
-                onClick={() => update('urgencyLevel', level)}
-                role="radio"
-                type="button"
-              >
-                {t(locale, `stool.urgency.${level}` as TranslationKey)}
-              </button>
-            ))}
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'stool.urgency')}</legend>
+            <div className="choice-row four-options" role="radiogroup">
+              {urgencyLevels.map((level) => (
+                <button
+                  aria-checked={draft.urgencyLevel === level}
+                  className={draft.urgencyLevel === level ? 'selected' : ''}
+                  key={level}
+                  onClick={() => update('urgencyLevel', level)}
+                  role="radio"
+                  type="button"
+                >
+                  {t(locale, `stool.urgency.${level}` as TranslationKey)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="structured-fieldset">
+            <legend>{t(locale, 'stool.checkmarks')}</legend>
+            <div className="check-grid">
+              {symptomFields.map((field) => (
+                <label className="check-card" key={field}>
+                  <input
+                    checked={draft[field] ?? false}
+                    onChange={(event) => update(field, event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>{t(locale, `stool.${field}` as TranslationKey)}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="structured-fieldset">
+            <VoiceTextField
+              label={t(locale, 'stool.notes')}
+              onChange={(value) => update('notes', value)}
+              placeholder={t(locale, 'stool.notesPlaceholder')}
+              rows={4}
+              type="textarea"
+              value={draft.notes ?? ''}
+            />
+          </fieldset>
+
+          {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
+          <div className="button-row form-actions-row">
+            <button className="secondary-button" onClick={onBack} type="button">
+              {t(locale, 'common.cancel')}
+            </button>
+            <button className="primary-button" disabled={saving} type="submit">
+              {t(locale, 'stool.save')}
+            </button>
           </div>
-        </fieldset>
-
-        <fieldset className="structured-fieldset">
-          <legend>{t(locale, 'stool.checkmarks')}</legend>
-          <div className="check-grid">
-            {symptomFields.map((field) => (
-              <label className="check-card" key={field}>
-                <input
-                  checked={draft[field] ?? false}
-                  onChange={(event) => update(field, event.target.checked)}
-                  type="checkbox"
-                />
-                <span>{t(locale, `stool.${field}` as TranslationKey)}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        <fieldset className="structured-fieldset">
-          <VoiceTextField
-            label={t(locale, 'stool.notes')}
-            onChange={(value) => update('notes', value)}
-            placeholder={t(locale, 'stool.notesPlaceholder')}
-            rows={4}
-            type="textarea"
-            value={draft.notes ?? ''}
-          />
-        </fieldset>
-
-        {error ? <p className="notice error">{error}</p> : null}
-        <div className="button-row form-actions-row">
-          <button className="secondary-button" onClick={onBack} type="button">
-            {t(locale, 'common.cancel')}
-          </button>
-          <button className="primary-button" disabled={saving} type="submit">
-            {t(locale, 'stool.save')}
-          </button>
-        </div>
-      </form>
+        </form>
       ) : null}
     </main>
   );

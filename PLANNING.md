@@ -5,7 +5,7 @@ Source of truth: `Specification/finals/FINAL_PROJECT_HANDOFF.md`.
 ## 1. Goal And Product Shape
 - Build V1 as two apps: a web app and a native Android app connected to the same Supabase backend.
 - Both apps must expose the same data, roles, forms, workflows, Serbian/English UI, voice language setting, and light/dark theme behavior.
-- Purpose: a private 3-month patient research tracking pilot where patients record medical/lifestyle data and linked doctors review timelines/export selected data.
+- Purpose: a private 3-month patient research tracking pilot where patients record medical/lifestyle data and each patient may share a timeline with one active linked doctor; each doctor may review/export data for many actively linked patients.
 - Boundary: V1 is not a diagnosis tool and does not claim formal medical-device or compliance certification.
 
 ## 2. V1 Scope
@@ -57,8 +57,8 @@ packages/ui-tokens
 - Treat RLS, export, photo, and offline-lite behavior as high-risk release gates.
 
 ## 5. Roles And Permissions
-- Patient: create/read/update/delete own entries, baseline, photos, settings, consent; redeem invite codes; view cached own history offline.
-- Doctor: read own profile; create/revoke own unused invite codes; read active linked patients and their timelines/photos; create linked-patient exports; never edit/delete patient entries.
+- Patient: create/read/update/delete own entries, baseline, photos, settings, consent; hold at most one active doctor link and redeem an invite only when no active link exists; view cached own history offline.
+- Doctor: read own profile; create/revoke own unused invite codes; maintain active links with many patients; read those patients and their timelines/photos; create linked-patient exports; never edit/delete patient entries.
 - Unauthenticated: no app data access.
 - Admin/operator: manually provision doctors, configure Supabase/storage, run privileged repair work, and keep service credentials server-side.
 
@@ -74,6 +74,9 @@ Client-local only:
 Data rules:
 - Patient owns patient-created data.
 - Doctor read access depends on active `doctor_patient_access`.
+- Each patient may have at most one active, non-revoked `doctor_patient_access` row at a time.
+- A doctor may have active `doctor_patient_access` rows for many different patients.
+- Historical inactive/revoked access rows may remain. A patient may link a different doctor only after the existing link is deactivated or revoked by an operator; V1 has no patient revocation UI.
 - Revoked access rows must be respected even without a patient revocation UI.
 - No automatic deletion during the 3-month research period.
 
@@ -86,6 +89,8 @@ Required guarded functions/RPC:
 
 Backend behavior:
 - Invite codes are short, single-use, revocable before use, expire after 7 days, and create active access when redeemed.
+- Redemption fails when the patient already has an active doctor link, even if the new code belongs to another doctor.
+- A doctor can create separate invite codes for different patients and remain actively linked to all of those patients.
 - Exports only work for active linked doctors.
 - Export ranges are selected day, selected/current partial month, or all time from the patient's first recorded entry through the current moment.
 - Export modes: all data, all data with images, images only with labels.
@@ -160,9 +165,10 @@ Photo storage:
 - Done: photos are private compressed JPEG <=1280px wide with thumbnails and no original upload; voice/fallback behavior works.
 
 ### Phase 7 - Doctor Linking And Dashboard
+- Cardinality decision (confirmed 2026-07-15): a patient may have only one active doctor; a doctor may have many active patients. Changing a patient's doctor requires operator deactivation/revocation of the existing link because patient revocation UI remains outside V1.
 - Progress checkpoint (user/Codex-verified 2026-07-08): Phase 7 is complete for the shared product slice. The web workflow was user-verified: doctor creates an invite code, patient redeems it, the doctor panel marks the code used, and the linked patient appears with a read-only timeline. Codex verified the live Supabase project has one clean redeemed invite mapped to one active doctor-patient access row with no duplicate codes or duplicate active access pairs. Local `npm test` and `npm run typecheck` passed. Live Supabase `npm run rls:core`, `npm run rls:invites`, and `npm run rls:photos` passed. Android/mobile Phase 7 device visual smoke remains deferred to final mobile validation.
 - Implement doctor dashboard, invite creation, unused invite revoke, patient redemption, active linked patient list, linked patient timeline, and read-only doctor views.
-- Done: one code links one patient, reuse is rejected, revoked/expired codes fail, and unlinked patients stay hidden.
+- Done: one code links one patient, a patient cannot add a second active doctor, a doctor can link many patients through separate codes, reuse is rejected, revoked/expired codes fail, and unlinked patients stay hidden.
 
 ### Phase 8 - Doctor Exports
 - Implement selected-day, selected/current partial-month, and all-time exports in all three modes with audit/metadata and JSON schema validation.
@@ -199,7 +205,7 @@ Photo storage:
 - Offline-lite pending text entry syncs once within 60 seconds after reconnect.
 - Photo uploads are compressed JPEG, max 1280px wide, thumbnailed, private, and not original full-resolution uploads.
 - Voice input works where supported and typing fallback works elsewhere.
-- Doctor invite code links one patient, rejects reuse, and hides unlinked patients.
+- Doctor invite code links one patient, rejects reuse, prevents that patient from adding a second active doctor, allows the doctor to link other patients, and hides unlinked patients.
 - Doctor exports selected-day, current/partial-month, and all-time JSON in all three modes.
 - No export embeds base64 images.
 - RLS proves patients cannot access other patients and doctors cannot access or edit unauthorized patient data.

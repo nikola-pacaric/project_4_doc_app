@@ -297,4 +297,51 @@ end $$;
 
 reset role;
 
+set local role authenticated;
+set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000073';
+
+do $$
+declare
+  created record;
+begin
+  select * into created from public.create_doctor_invite_code();
+
+  insert into invite_test_state (key, invite_id, invite_code)
+  values ('same_doctor_second_patient', created.id, created.code);
+end $$;
+
+reset role;
+
+set local role authenticated;
+set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000072';
+
+do $$
+begin
+  perform public.redeem_doctor_invite_code(invite_code)
+  from invite_test_state
+  where key = 'same_doctor_second_patient';
+end $$;
+
+reset role;
+
+set local role authenticated;
+set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000073';
+
+do $$
+declare
+  linked_patients integer;
+begin
+  select count(distinct patient_id) into linked_patients
+  from public.doctor_patient_access
+  where doctor_id = '00000000-0000-4000-8000-000000000073'
+    and active = true
+    and revoked_at is null;
+
+  if linked_patients <> 2 then
+    raise exception 'doctor should have two active linked patients, saw %', linked_patients;
+  end if;
+end $$;
+
+reset role;
+
 rollback;

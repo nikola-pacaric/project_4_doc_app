@@ -14,6 +14,7 @@ import { FormField } from './FormField';
 import { OptionButtons } from './OptionButtons';
 import { SelectField } from './SelectField';
 import { TimePickerField } from './TimePickerField';
+import { StatusMessage } from './StatusMessage';
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { toLocalDateInput } from '../utils/dateTime';
 
@@ -195,56 +196,64 @@ export function SymptomDetailsCard({ draft, invalid, onChange }: SymptomDetailsC
         </View>
       ) : null}
 
-      {invalid ? <Text style={sharedStyles.error}>{t(locale, 'symptom.cardError')}</Text> : null}
+      {invalid ? (
+        <StatusMessage
+          message={t(locale, 'symptom.cardError')}
+          style={sharedStyles.error}
+          tone="error"
+        />
+      ) : null}
     </View>
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
-  card: {
-    gap: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-  },
-  cardInvalid: {
-    borderColor: colors.danger,
-  },
-  cardHeader: {
-    gap: spacing.xs,
-  },
-  cardTitle: {
-    color: colors.text,
-    fontSize: 21,
-    fontWeight: '800',
-  },
-  required: {
-    color: colors.mutedText,
-    fontSize: 13,
-  },
-  groupTitle: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  help: {
-    color: colors.mutedText,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  inputColumn: {
-    flex: 1,
-  },
-  painSection: {
-    gap: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
-  },
-}));
+const styles = createThemedStyles(() =>
+  StyleSheet.create({
+    card: {
+      gap: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+      padding: spacing.md,
+    },
+    cardInvalid: {
+      borderColor: colors.danger,
+    },
+    cardHeader: {
+      gap: spacing.xs,
+    },
+    cardTitle: {
+      color: colors.text,
+      fontSize: 21,
+      fontWeight: '800',
+    },
+    required: {
+      color: colors.mutedText,
+      fontSize: 13,
+    },
+    groupTitle: {
+      color: colors.text,
+      fontSize: 17,
+      fontWeight: '800',
+    },
+    help: {
+      color: colors.mutedText,
+      fontSize: 13,
+      lineHeight: 19,
+    },
+    inputRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    inputColumn: {
+      flex: 1,
+    },
+    painSection: {
+      gap: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: spacing.md,
+    },
+  }),
+);

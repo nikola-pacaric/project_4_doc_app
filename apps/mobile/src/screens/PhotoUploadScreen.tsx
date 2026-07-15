@@ -11,6 +11,7 @@ import { ActivityIndicator, Image, SafeAreaView, StyleSheet, Text, View } from '
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { StatusMessage } from '../components/StatusMessage';
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 
 export interface PhotoUploadScreenProps {
@@ -78,7 +79,9 @@ function imageResultBytes(image: ManipulatedImageResult): Uint8Array {
 }
 
 function createPhotoId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return (
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
 }
 
 function resizeActions(width: number | undefined, targetWidth: number) {
@@ -272,7 +275,10 @@ export function PhotoUploadScreen({
               {t(locale, 'photo.sizeSummary')
                 .replace('{width}', String(preparedPhoto.photo.width))
                 .replace('{height}', String(preparedPhoto.photo.height))
-                .replace('{kilobytes}', String(Math.round(preparedPhoto.photoBytes.byteLength / 1024)))}
+                .replace(
+                  '{kilobytes}',
+                  String(Math.round(preparedPhoto.photoBytes.byteLength / 1024)),
+                )}
             </Text>
           </View>
         ) : (
@@ -282,7 +288,7 @@ export function PhotoUploadScreen({
           </View>
         )}
 
-        {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
+        {error ? <StatusMessage message={error} style={sharedStyles.error} tone="error" /> : null}
 
         <View style={styles.actions}>
           <PrimaryButton label={t(locale, 'common.back')} onPress={onBack} variant="secondary" />
@@ -312,38 +318,40 @@ export function PhotoUploadScreen({
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
-  entrySummary: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: spacing.xs,
-    padding: spacing.md,
-  },
-  entryTitle: { color: colors.text, fontSize: 16, fontWeight: '800', lineHeight: 22 },
-  entryMeta: { color: colors.mutedText, fontSize: 13, fontWeight: '700' },
-  warning: { color: colors.mutedText, fontSize: 14, fontWeight: '700', lineHeight: 20 },
-  previewBlock: { gap: spacing.sm },
-  preview: {
-    aspectRatio: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    width: '100%',
-  },
-  meta: { color: colors.mutedText, fontSize: 13, fontWeight: '700', lineHeight: 19 },
-  emptyPreview: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    gap: spacing.sm,
-    minHeight: 180,
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  emptyText: { color: colors.mutedText, fontSize: 15, lineHeight: 22, textAlign: 'center' },
-  actions: { gap: spacing.sm },
-}));
+const styles = createThemedStyles(() =>
+  StyleSheet.create({
+    entrySummary: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      gap: spacing.xs,
+      padding: spacing.md,
+    },
+    entryTitle: { color: colors.text, fontSize: 16, fontWeight: '800', lineHeight: 22 },
+    entryMeta: { color: colors.mutedText, fontSize: 13, fontWeight: '700' },
+    warning: { color: colors.mutedText, fontSize: 14, fontWeight: '700', lineHeight: 20 },
+    previewBlock: { gap: spacing.sm },
+    preview: {
+      aspectRatio: 1,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      width: '100%',
+    },
+    meta: { color: colors.mutedText, fontSize: 13, fontWeight: '700', lineHeight: 19 },
+    emptyPreview: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 12,
+      borderStyle: 'dashed',
+      borderWidth: 1,
+      gap: spacing.sm,
+      minHeight: 180,
+      justifyContent: 'center',
+      padding: spacing.lg,
+    },
+    emptyText: { color: colors.mutedText, fontSize: 15, lineHeight: 22, textAlign: 'center' },
+    actions: { gap: spacing.sm },
+  }),
+);

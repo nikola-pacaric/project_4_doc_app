@@ -11,9 +11,19 @@ import { spacing } from '@project4/ui-tokens';
 import { StatusBar } from 'expo-status-bar';
 import { registerRootComponent } from 'expo';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, AppState, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  AppState,
+  BackHandler,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
+import { AppErrorBoundary } from './src/components/AppErrorBoundary';
 import { PrimaryButton } from './src/components/PrimaryButton';
+import { StatusMessage } from './src/components/StatusMessage';
 import { isSupabaseConfigured, supabase } from './src/lib/supabase';
 import { clearPatientOfflineData } from './src/offline/pendingEntries';
 import { SymptomPreview } from './src/preview/SymptomPreview';
@@ -40,6 +50,18 @@ function MainApp() {
     setPatientLandingTab(tab);
     setSettingsOpen(false);
   }
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setPatientLandingTab('today');
+      setSettingsOpen(false);
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [settingsOpen]);
 
   useEffect(() => {
     void loadMobilePreferences()
@@ -159,7 +181,11 @@ function MainApp() {
     content = (
       <SafeAreaView style={sharedStyles.screen}>
         <View style={styles.centered}>
-          <Text style={sharedStyles.heading}>{t(locale, 'app.configMissing')}</Text>
+          <StatusMessage
+            message={t(locale, 'app.configMissing')}
+            style={sharedStyles.error}
+            tone="error"
+          />
         </View>
       </SafeAreaView>
     );
@@ -184,7 +210,11 @@ function MainApp() {
     content = (
       <SafeAreaView style={sharedStyles.screen}>
         <View style={styles.centered}>
-          <Text style={sharedStyles.error}>{t(locale, 'auth.unexpectedError')}</Text>
+          <StatusMessage
+            message={t(locale, 'auth.unexpectedError')}
+            style={sharedStyles.error}
+            tone="error"
+          />
           <PrimaryButton label={t(locale, 'common.retry')} onPress={retryProfile} />
           <PrimaryButton
             label={t(locale, 'auth.signOut')}
@@ -245,11 +275,10 @@ function MainApp() {
 }
 
 export default function App() {
-  if (process.env.EXPO_PUBLIC_PREVIEW_SCREEN === 'symptom') {
-    return <SymptomPreview />;
-  }
+  const content =
+    process.env.EXPO_PUBLIC_PREVIEW_SCREEN === 'symptom' ? <SymptomPreview /> : <MainApp />;
 
-  return <MainApp />;
+  return <AppErrorBoundary>{content}</AppErrorBoundary>;
 }
 
 const styles = createThemedStyles(() =>

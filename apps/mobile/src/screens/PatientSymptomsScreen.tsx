@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '../components/PrimaryButton';
+import { StatusMessage } from '../components/StatusMessage';
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 import { SymptomFormScreen } from './SymptomFormScreen';
@@ -129,7 +130,11 @@ export function PatientSymptomsScreen({
     return (
       <SafeAreaView style={sharedStyles.screen}>
         <View style={styles.centered}>
-          <Text style={sharedStyles.error}>{error}</Text>
+          <StatusMessage
+            message={error ?? t(locale, 'symptom.loadError')}
+            style={sharedStyles.error}
+            tone="error"
+          />
           <PrimaryButton label={t(locale, 'common.cancel')} onPress={onBack} variant="secondary" />
         </View>
       </SafeAreaView>
@@ -151,12 +156,14 @@ export function PatientSymptomsScreen({
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-    padding: 24,
-  },
-}));
+const styles = createThemedStyles(() =>
+  StyleSheet.create({
+    centered: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 16,
+      padding: 24,
+    },
+  }),
+);

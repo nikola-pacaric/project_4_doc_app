@@ -14,6 +14,7 @@ import {
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { StatusMessage } from '../components/StatusMessage';
 import { VoiceTextField } from '../components/VoiceTextField';
 
 interface BaselineScreenProps {
@@ -217,9 +218,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
             <fieldset className="structured-fieldset">
               <VoiceTextField
                 label={t(locale, 'baseline.occupation')}
-                onChange={(val) =>
-                  setDraft((value) => ({ ...value, occupation: val }))
-                }
+                onChange={(val) => setDraft((value) => ({ ...value, occupation: val }))}
                 required
                 type="text"
                 value={draft.occupation ?? ''}
@@ -407,9 +406,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
                       label={t(locale, 'baseline.chronicTherapyName')}
                       onChange={(val) => {
                         const next = chronicTherapies.map((current, currentIndex) =>
-                          currentIndex === index
-                            ? { ...current, name: val }
-                            : current,
+                          currentIndex === index ? { ...current, name: val } : current,
                         );
                         setChronicTherapies(next);
                         setDraft((value) => ({
@@ -425,9 +422,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
                       label={t(locale, 'baseline.chronicTherapyDose')}
                       onChange={(val) => {
                         const next = chronicTherapies.map((current, currentIndex) =>
-                          currentIndex === index
-                            ? { ...current, dose: val }
-                            : current,
+                          currentIndex === index ? { ...current, dose: val } : current,
                         );
                         setChronicTherapies(next);
                         setDraft((value) => ({
@@ -475,9 +470,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
             <fieldset className="structured-fieldset">
               <VoiceTextField
                 label={t(locale, 'baseline.menstrualHistory')}
-                onChange={(val) =>
-                  setDraft((value) => ({ ...value, menstrualHistory: val }))
-                }
+                onChange={(val) => setDraft((value) => ({ ...value, menstrualHistory: val }))}
                 rows={3}
                 type="textarea"
                 value={draft.menstrualHistory ?? ''}
@@ -491,8 +484,8 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
             <button className="primary-button" disabled={saving} type="submit">
               {t(locale, 'common.save')}
             </button>
-            {error ? <p className="notice error">{error}</p> : null}
-            {message ? <p className="notice success">{message}</p> : null}
+            {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
+            {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
           </div>
         </form>
       ) : null}

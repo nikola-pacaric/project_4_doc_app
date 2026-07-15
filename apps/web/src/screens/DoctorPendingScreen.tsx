@@ -12,6 +12,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { StatusMessage } from '../components/StatusMessage';
 import { DoctorLinkedPatientTimelineScreen } from './DoctorLinkedPatientTimelineScreen';
 
 interface DoctorPendingScreenProps {
@@ -123,7 +124,10 @@ export function DoctorPendingScreen({
   }
 
   const activeInviteHelp = activeInvite
-    ? t(locale, 'doctor.activeInviteHelp').replace('{date}', formatShortDate(activeInvite.expiresAt))
+    ? t(locale, 'doctor.activeInviteHelp').replace(
+        '{date}',
+        formatShortDate(activeInvite.expiresAt),
+      )
     : t(locale, 'doctor.noActiveInvite');
 
   if (selectedPatient) {
@@ -162,8 +166,8 @@ export function DoctorPendingScreen({
         </div>
       </section>
 
-      {error ? <p className="notice error">{error}</p> : null}
-      {success ? <p className="notice success">{success}</p> : null}
+      {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
+      {success ? <StatusMessage tone="success">{success}</StatusMessage> : null}
 
       <section className="doctor-dashboard-grid">
         <article className="doctor-panel">

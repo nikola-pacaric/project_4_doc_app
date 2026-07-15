@@ -17,6 +17,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { StatusMessage } from '../components/StatusMessage';
 
 interface DoctorLinkedPatientTimelineScreenProps {
   client: AppSupabaseClient;
@@ -274,11 +275,11 @@ export function DoctorLinkedPatientTimelineScreen({
           >
             {exporting ? t(locale, 'doctor.exportPreparing') : t(locale, 'doctor.exportDownload')}
           </button>
-          {exportStatus ? <p className="notice success">{exportStatus}</p> : null}
-          {exportError ? <p className="notice error">{exportError}</p> : null}
+          {exportStatus ? <StatusMessage tone="success">{exportStatus}</StatusMessage> : null}
+          {exportError ? <StatusMessage tone="error">{exportError}</StatusMessage> : null}
         </div>
       </section>
-      {error ? <p className="notice error">{error}</p> : null}
+      {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading && entries.length === 0 && !error ? (
         <p className="empty-state">{t(locale, 'entry.empty')}</p>

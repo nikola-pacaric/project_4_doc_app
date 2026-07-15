@@ -9,6 +9,7 @@ import {
 import type { SymptomDraft, SymptomIntensity } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
 import { VoiceTextField } from './VoiceTextField';
+import { StatusMessage } from './StatusMessage';
 
 interface SymptomFieldsProps {
   drafts: SymptomDraft[];
@@ -234,7 +235,7 @@ export function SymptomFields({
           </div>
         ) : null}
         {invalid.includes(type) ? (
-          <p className="notice error">{t(locale, 'symptom.cardError')}</p>
+          <StatusMessage tone="error">{t(locale, 'symptom.cardError')}</StatusMessage>
         ) : null}
       </div>
     );

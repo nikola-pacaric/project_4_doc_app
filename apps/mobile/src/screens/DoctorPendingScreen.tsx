@@ -13,6 +13,7 @@ import { spacing } from '@project4/ui-tokens';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -24,6 +25,7 @@ import {
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { StatusMessage } from '../components/StatusMessage';
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { DoctorLinkedPatientTimelineScreen } from './DoctorLinkedPatientTimelineScreen';
 
@@ -108,6 +110,17 @@ export function DoctorPendingScreen({
     void loadDashboard();
   }, [loadDashboard]);
 
+  useEffect(() => {
+    if (!selectedPatient) return;
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setSelectedPatient(null);
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [selectedPatient]);
+
   async function createInvite() {
     setCreating(true);
     setError(null);
@@ -145,7 +158,10 @@ export function DoctorPendingScreen({
   }
 
   const activeInviteHelp = activeInvite
-    ? t(locale, 'doctor.activeInviteHelp').replace('{date}', formatShortDate(activeInvite.expiresAt))
+    ? t(locale, 'doctor.activeInviteHelp').replace(
+        '{date}',
+        formatShortDate(activeInvite.expiresAt),
+      )
     : t(locale, 'doctor.noActiveInvite');
 
   if (selectedPatient) {
@@ -306,8 +322,10 @@ export function DoctorPendingScreen({
           </>
         )}
 
-        {error ? <Text style={sharedStyles.error}>{error}</Text> : null}
-        {success ? <Text style={sharedStyles.success}>{success}</Text> : null}
+        {error ? <StatusMessage message={error} style={sharedStyles.error} tone="error" /> : null}
+        {success ? (
+          <StatusMessage message={success} style={sharedStyles.success} tone="success" />
+        ) : null}
 
         <PrimaryButton
           label={t(locale, 'timeline.refresh')}
@@ -329,126 +347,128 @@ export function DoctorPendingScreen({
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
-  loadingPanel: {
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.xl,
-  },
-  profileCard: {
-    gap: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-  },
-  section: {
-    gap: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-  },
-  sectionHeader: {
-    gap: spacing.xs,
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 19,
-    fontWeight: '800',
-  },
-  sectionMeta: {
-    color: colors.mutedText,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  statusPill: {
-    alignSelf: 'flex-start',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.accent,
-    borderRadius: 999,
-    color: colors.accent,
-    fontSize: 13,
-    fontWeight: '800',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-  },
-  profileRows: {
-    gap: spacing.sm,
-  },
-  profileRow: {
-    gap: spacing.xs,
-  },
-  profileLabel: {
-    color: colors.mutedText,
-    fontSize: 13,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  profileValue: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  inviteCodeBox: {
-    gap: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    borderRadius: 8,
-    padding: spacing.md,
-  },
-  inviteCode: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: 0,
-    textAlign: 'center',
-  },
-  inviteMeta: {
-    color: colors.mutedText,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  row: {
-    gap: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
-  },
-  rowText: {
-    gap: spacing.xs,
-  },
-  rowTitle: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  rowMeta: {
-    color: colors.mutedText,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  patientRow: {
-    gap: spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
-  },
-  pressedRow: {
-    opacity: 0.74,
-  },
-  openPatient: {
-    color: colors.accent,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  emptyState: {
-    gap: spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
-  },
-}));
+const styles = createThemedStyles(() =>
+  StyleSheet.create({
+    loadingPanel: {
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.xl,
+    },
+    profileCard: {
+      gap: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      backgroundColor: colors.surface,
+      padding: spacing.md,
+    },
+    section: {
+      gap: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      backgroundColor: colors.surface,
+      padding: spacing.md,
+    },
+    sectionHeader: {
+      gap: spacing.xs,
+    },
+    sectionTitle: {
+      color: colors.text,
+      fontSize: 19,
+      fontWeight: '800',
+    },
+    sectionMeta: {
+      color: colors.mutedText,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    statusPill: {
+      alignSelf: 'flex-start',
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.accent,
+      borderRadius: 999,
+      color: colors.accent,
+      fontSize: 13,
+      fontWeight: '800',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+    },
+    profileRows: {
+      gap: spacing.sm,
+    },
+    profileRow: {
+      gap: spacing.xs,
+    },
+    profileLabel: {
+      color: colors.mutedText,
+      fontSize: 13,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+    },
+    profileValue: {
+      color: colors.text,
+      fontSize: 17,
+      fontWeight: '800',
+    },
+    inviteCodeBox: {
+      gap: spacing.xs,
+      borderWidth: 1,
+      borderColor: colors.accent,
+      borderRadius: 8,
+      padding: spacing.md,
+    },
+    inviteCode: {
+      color: colors.text,
+      fontSize: 28,
+      fontWeight: '900',
+      letterSpacing: 0,
+      textAlign: 'center',
+    },
+    inviteMeta: {
+      color: colors.mutedText,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    row: {
+      gap: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: spacing.md,
+    },
+    rowText: {
+      gap: spacing.xs,
+    },
+    rowTitle: {
+      color: colors.text,
+      fontSize: 17,
+      fontWeight: '800',
+    },
+    rowMeta: {
+      color: colors.mutedText,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    patientRow: {
+      gap: spacing.xs,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: spacing.md,
+    },
+    pressedRow: {
+      opacity: 0.74,
+    },
+    openPatient: {
+      color: colors.accent,
+      fontSize: 13,
+      fontWeight: '800',
+    },
+    emptyState: {
+      gap: spacing.xs,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: spacing.md,
+    },
+  }),
+);

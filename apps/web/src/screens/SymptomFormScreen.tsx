@@ -14,6 +14,7 @@ import {
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
+import { StatusMessage } from '../components/StatusMessage';
 import { SymptomFields } from '../components/SymptomFields';
 
 interface SymptomFormScreenProps {
@@ -161,7 +162,10 @@ export function SymptomFormScreen({ client, onBack, onSaved, profile }: SymptomF
       </div>
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading ? (
-        <form className="structured-entry-form symptom-form" onSubmit={(event) => void submit(event)}>
+        <form
+          className="structured-entry-form symptom-form"
+          onSubmit={(event) => void submit(event)}
+        >
           <fieldset className="structured-fieldset symptom-section-heading">
             <legend>{t(locale, 'symptom.selectTitle')}</legend>
             <p>{t(locale, 'symptom.selectHelp')}</p>
@@ -185,8 +189,8 @@ export function SymptomFormScreen({ client, onBack, onSaved, profile }: SymptomF
             <button className="primary-button" disabled={saving} type="submit">
               {t(locale, 'symptom.save')}
             </button>
-            {error ? <p className="notice error">{error}</p> : null}
-            {message ? <p className="notice success">{message}</p> : null}
+            {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
+            {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
           </div>
         </form>
       ) : null}
