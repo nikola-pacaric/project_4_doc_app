@@ -43,7 +43,7 @@ packages/ui-tokens
 - Mobile: React Native + TypeScript, preferably Expo with prebuild support.
 - Backend: Supabase Auth, Postgres, Storage, RLS, guarded RPC/Edge Functions.
 - Supabase package layout: `apps/supabase` is the package root; the standard Supabase CLI project lives in `apps/supabase/supabase`, with migrations in `apps/supabase/supabase/migrations`, Edge Functions in `apps/supabase/supabase/functions`, and focused SQL/RLS tests in `apps/supabase/tests`.
-- Supabase workflow commands are run from `apps/supabase`: `npm run migration:list`, `npm run db:push:dry`, `npm run rls:core`, and `npm run rls:photos`.
+- Supabase workflow commands are run from `apps/supabase`: `npm run migration:list`, `npm run db:push:dry`, `npm run rls:core`, `npm run rls:notes`, and `npm run rls:photos`.
 - Testing: unit/component, integration, RLS/security, web e2e, mobile smoke/e2e.
 
 ## 4. Non-Negotiable Build Rules
@@ -152,6 +152,7 @@ Photo storage:
 - Done: baseline and daily medical/symptom forms save and reload without required field loss; form schema unit tests pass; mobile and web form layouts pass their required viewport review without horizontal clipping or overflow.
 
 ### Phase 5 - Offline-Lite
+- Progress checkpoint (Codex-verified 2026-07-16): A note-save regression from audit-table grant hardening was repaired with a private audit trigger while direct authenticated audit inserts remain blocked. The live atomic note suite passed create, exact retry, update, audit, and role-boundary coverage, and `rls:notes` is now part of the documented Supabase workflow.
 - Progress checkpoint (user/Codex-verified 2026-07-04): Phase 5 offline-lite is complete. Android/mobile and companion web smoke tests were user-verified: offline mode auto-detects quickly when connectivity drops, online-only actions are visibly disabled, Notes remains usable, cached timeline viewing works, the red cached-entry notice no longer flickers, pending note creation/editing displays a pending-sync marker, and reconnect sync clears pending state. Codex verified live Supabase note sync for Android and web smoke tests, confirmed no duplicate note rows were created, applied a note-save audit migration, and verified every note create/update now writes a timestamped `audit_events` row preserving previous/new text and timestamps. Local `npm run typecheck`, `npm test`, and `npm run build:web` passed.
 - Progress checkpoint (Codex-verified 2026-07-03): First Android/mobile and companion web offline-lite slice added. Recent patient timeline entries and opened timeline days are cached locally after successful loads and reused when loading fails, new note/text saves fall back to a local pending queue when online save fails, note/text timestamp edits fall back to a local pending queue when online save fails, pending items appear in recent/timeline lists with a pending-sync marker, and pending items retry on refresh/app resume/focus. Offline smoke testing remains pending.
 - Cache own recent history/opened days, allow pending offline text entries, allow pending timestamp edits, show pending markers, sync on reconnect, and clear pending state.

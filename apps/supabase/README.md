@@ -18,6 +18,7 @@ npm run migration:list
 npm run db:push:dry
 npm run rls:core
 npm run rls:invites
+npm run rls:notes
 npm run rls:photos
 npm run types:generate
 ```

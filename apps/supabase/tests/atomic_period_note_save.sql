@@ -69,6 +69,16 @@ begin
   ) then
     raise exception 'authenticated patients must be able to execute note saves';
   end if;
+  if has_table_privilege('authenticated', 'public.audit_events', 'INSERT') then
+    raise exception 'authenticated users must not insert audit rows directly';
+  end if;
+  if has_function_privilege(
+    'authenticated',
+    'app_private.audit_patient_note_changes()',
+    'EXECUTE'
+  ) then
+    raise exception 'authenticated users must not execute the note audit trigger directly';
+  end if;
 end $$;
 
 set local role authenticated;
@@ -233,6 +243,7 @@ reset role;
 do $$
 declare
   note_created_audit_count integer;
+  note_updated_audit_count integer;
 begin
   select count(*) into note_created_audit_count
   from public.audit_events
@@ -242,6 +253,17 @@ begin
 
   if note_created_audit_count <> 1 then
     raise exception 'an exact note retry must create one audit event, found %', note_created_audit_count;
+  end if;
+
+  select count(*) into note_updated_audit_count
+  from public.audit_events
+  where patient_id = '00000000-0000-4000-8000-000000000261'
+    and event_type = 'patient_note_updated'
+    and metadata ->> 'previous_text' = 'First note'
+    and metadata ->> 'new_text' = 'Updated note';
+
+  if note_updated_audit_count <> 1 then
+    raise exception 'a note edit must create one update audit event, found %', note_updated_audit_count;
   end if;
 end $$;
 

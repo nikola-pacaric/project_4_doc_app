@@ -66,7 +66,7 @@
 - Keep Supabase inspection targeted to the relevant tables, policies, functions, migrations, or logs; do not dump broad schemas or unrelated project state.
 - Keep migrations, policies, RPC/functions, fixtures, and security tests explicit, reviewable, and separated according to the existing project structure.
 - Use the standard Supabase CLI project under `apps/supabase/supabase/`: migrations live in `apps/supabase/supabase/migrations/`, Edge Functions live in `apps/supabase/supabase/functions/`, and focused SQL/RLS tests stay in `apps/supabase/tests/`.
-- Run Supabase package scripts from `apps/supabase` for the normal workflow: `npm run migration:list`, `npm run db:push:dry`, `npm run rls:core`, and `npm run rls:photos`.
+- Run Supabase package scripts from `apps/supabase` for the normal workflow: `npm run migration:list`, `npm run db:push:dry`, `npm run rls:core`, `npm run rls:notes`, and `npm run rls:photos`.
 - Test every exposed table and storage path for unauthenticated, owner, other-patient, linked-doctor, and unlinked-doctor behavior as applicable.
 - Never weaken or bypass RLS to simplify application code or testing.
 - Prefer focused local SQL/security tests while developing; reserve broad Supabase validation for meaningful integration and release checkpoints.
