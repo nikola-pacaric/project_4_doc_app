@@ -7,6 +7,7 @@ import {
   createPendingTextEntry,
   cachedOpenedDayEntries,
   dedupePendingEntries,
+  filterPatientOfflineStorageKeys,
   isPendingEntryId,
   mergeOpenedDayEntryCache,
   mergePendingTextEntries,
@@ -15,6 +16,7 @@ import {
   pendingTextEntryToPatientEntry,
   replaceOpenedDayEntryCache,
   removePendingEntry,
+  shouldClearMedicalCacheForAuthTransition,
 } from './index';
 
 describe('patientOfflineStorageKeys', () => {
@@ -24,6 +26,38 @@ describe('patientOfflineStorageKeys', () => {
       'project4:recent-entries:patient-1',
       'project4:opened-day-entries:patient-1',
     ]);
+  });
+
+  it('finds every medical cache while preserving preferences and auth storage', () => {
+    expect(
+      filterPatientOfflineStorageKeys([
+        'project4:preferences',
+        'sb-project-auth-token',
+        'project4:pending-entries:patient-1',
+        'project4:recent-entries:patient-2',
+        'project4:opened-day-entries:patient-3',
+      ]),
+    ).toEqual([
+      'project4:pending-entries:patient-1',
+      'project4:recent-entries:patient-2',
+      'project4:opened-day-entries:patient-3',
+    ]);
+  });
+});
+
+describe('shouldClearMedicalCacheForAuthTransition', () => {
+  it('clears stale caches when the app starts without a session', () => {
+    expect(shouldClearMedicalCacheForAuthTransition(null, null)).toBe(true);
+  });
+
+  it('clears caches on session loss and account changes', () => {
+    expect(shouldClearMedicalCacheForAuthTransition('patient-1', null)).toBe(true);
+    expect(shouldClearMedicalCacheForAuthTransition('patient-1', 'patient-2')).toBe(true);
+  });
+
+  it('keeps caches for the same authenticated user', () => {
+    expect(shouldClearMedicalCacheForAuthTransition(null, 'patient-1')).toBe(false);
+    expect(shouldClearMedicalCacheForAuthTransition('patient-1', 'patient-1')).toBe(false);
   });
 });
 

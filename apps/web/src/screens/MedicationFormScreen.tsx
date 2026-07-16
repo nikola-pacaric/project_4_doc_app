@@ -149,6 +149,7 @@ export function MedicationFormScreen({
     setError(null);
     try {
       const saved = await createPatientMedication(client, profile.id, draft);
+      setDraft((current) => ({ ...current, entryId: saved.entryId }));
       if (draft.localPhoto) {
         const photoId = createPhotoId();
         await uploadPreparedEntryPhoto(client, {

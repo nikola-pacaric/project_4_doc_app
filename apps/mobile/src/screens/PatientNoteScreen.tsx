@@ -25,14 +25,15 @@ interface PatientNoteScreenProps {
 function toDraft(entry: PatientEntry): NoteDraft {
   const occurredAt = new Date(entry.occurredAt);
   return {
-    entryId: entry.kind === 'note' ? entry.id : undefined,
+    entryId: entry.id,
     text: entry.text ?? '',
     occurredAt: `${occurredAt.getFullYear()}-${String(occurredAt.getMonth() + 1).padStart(
       2,
       '0',
-    )}-${String(occurredAt.getDate()).padStart(2, '0')} ${String(
-      occurredAt.getHours(),
-    ).padStart(2, '0')}:${String(occurredAt.getMinutes()).padStart(2, '0')}`,
+    )}-${String(occurredAt.getDate()).padStart(2, '0')} ${String(occurredAt.getHours()).padStart(
+      2,
+      '0',
+    )}:${String(occurredAt.getMinutes()).padStart(2, '0')}`,
   };
 }
 

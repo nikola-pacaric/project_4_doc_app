@@ -1,5 +1,5 @@
 import type { StoolRecord, UserProfile } from '@project4/contracts';
-import type { StoolDraft } from '@project4/forms';
+import { stoolDraftDefaults, type StoolDraft } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
 import {
   createPatientNoStoolMarker,
@@ -77,7 +77,15 @@ export function PatientStoolScreen({
         if (!record) {
           // Existing entry without stool details (e.g. "No stool today" note) —
           // keep entry id for update, do not treat as load failure.
-          setInitialDraft(null);
+          setInitialDraft({
+            ...stoolDraftDefaults,
+            entryId: entryToEdit.id,
+            pain: false,
+            mucus: false,
+            blood: false,
+            fattyStool: false,
+            blackStool: false,
+          });
           setOccurredAt(entryToEdit.occurredAt);
           return;
         }
@@ -123,19 +131,9 @@ export function PatientStoolScreen({
     setSaving(true);
     setError(null);
     try {
-      if (entryToEdit?.id && initialDraft?.entryId) {
-        // Converting an existing stool entry → replace it with the no-stool marker.
-        await createPatientNoStoolMarker(client, profile.id, markerOccurredAt, {
-          replaceEntryId: entryToEdit.id,
-        });
-      } else if (entryToEdit?.id) {
-        // Updating an existing no-stool note marker.
-        await createPatientNoStoolMarker(client, profile.id, markerOccurredAt, {
-          entryId: entryToEdit.id,
-        });
-      } else {
-        await createPatientNoStoolMarker(client, profile.id, markerOccurredAt);
-      }
+      await createPatientNoStoolMarker(client, profile.id, markerOccurredAt, {
+        entryId: entryToEdit?.id,
+      });
       setSavedNoStool(true);
       onSaved();
     } catch {
@@ -173,10 +171,7 @@ export function PatientStoolScreen({
         <Text selectable style={styles.entrySummary}>
           {savedNoStool
             ? t(locale, 'stool.noStoolToday')
-            : t(locale, 'stool.bristolSelected').replace(
-                '{type}',
-                String(savedStool?.bristolType),
-              )}
+            : t(locale, 'stool.bristolSelected').replace('{type}', String(savedStool?.bristolType))}
         </Text>
         <Text selectable style={styles.detail}>
           {t(locale, savedNoStool ? 'stool.noStoolSavedDetail' : 'stool.savedDetail')}
@@ -211,27 +206,29 @@ export function PatientStoolScreen({
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
-  content: {
-    alignItems: 'stretch',
-    flexGrow: 1,
-    gap: spacing.md,
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  loadingScreen: { alignItems: 'center', justifyContent: 'center' },
-  successIcon: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: 36,
-    height: 72,
-    justifyContent: 'center',
-    width: 72,
-  },
-  successIconText: { color: '#ffffff', fontSize: 38, fontWeight: '800' },
-  title: { color: colors.text, fontSize: 28, fontWeight: '800', textAlign: 'center' },
-  entrySummary: { color: colors.accent, fontSize: 20, fontWeight: '800', textAlign: 'center' },
-  detail: { color: colors.mutedText, fontSize: 16, lineHeight: 24, textAlign: 'center' },
-  actions: { gap: spacing.sm, paddingTop: spacing.md },
-}));
+const styles = createThemedStyles(() =>
+  StyleSheet.create({
+    content: {
+      alignItems: 'stretch',
+      flexGrow: 1,
+      gap: spacing.md,
+      justifyContent: 'center',
+      padding: spacing.lg,
+    },
+    loadingScreen: { alignItems: 'center', justifyContent: 'center' },
+    successIcon: {
+      alignItems: 'center',
+      alignSelf: 'center',
+      backgroundColor: colors.accent,
+      borderRadius: 36,
+      height: 72,
+      justifyContent: 'center',
+      width: 72,
+    },
+    successIconText: { color: '#ffffff', fontSize: 38, fontWeight: '800' },
+    title: { color: colors.text, fontSize: 28, fontWeight: '800', textAlign: 'center' },
+    entrySummary: { color: colors.accent, fontSize: 20, fontWeight: '800', textAlign: 'center' },
+    detail: { color: colors.mutedText, fontSize: 16, lineHeight: 24, textAlign: 'center' },
+    actions: { gap: spacing.sm, paddingTop: spacing.md },
+  }),
+);

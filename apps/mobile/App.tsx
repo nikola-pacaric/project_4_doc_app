@@ -7,6 +7,7 @@ import {
   type AppPreferences,
 } from '@project4/i18n';
 import { acceptCurrentConsent, getCurrentProfile, type Session } from '@project4/supabase-client';
+import { shouldClearMedicalCacheForAuthTransition } from '@project4/sync';
 import { spacing } from '@project4/ui-tokens';
 import { StatusBar } from 'expo-status-bar';
 import { registerRootComponent } from 'expo';
@@ -25,7 +26,7 @@ import { AppErrorBoundary } from './src/components/AppErrorBoundary';
 import { PrimaryButton } from './src/components/PrimaryButton';
 import { StatusMessage } from './src/components/StatusMessage';
 import { isSupabaseConfigured, supabase } from './src/lib/supabase';
-import { clearPatientOfflineData } from './src/offline/pendingEntries';
+import { clearAllPatientOfflineData } from './src/offline/pendingEntries';
 import { SymptomPreview } from './src/preview/SymptomPreview';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { ConsentScreen } from './src/screens/ConsentScreen';
@@ -81,19 +82,66 @@ function MainApp() {
 
     const client = supabase;
 
-    void client.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setProfile(null);
-      setAuthLoading(false);
-    });
+    let active = true;
+    let authEventReceived = false;
+    let knownUserId: string | null = null;
+    let medicalCacheClearPending = false;
+    let transitionVersion = 0;
 
-    const { data: listener } = client.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
+    function applyAuthSession(nextSession: Session | null) {
+      if (!active) return;
+      const version = ++transitionVersion;
+      const nextUserId = nextSession?.user.id ?? null;
+      const shouldClearCache =
+        medicalCacheClearPending ||
+        shouldClearMedicalCacheForAuthTransition(knownUserId, nextUserId);
+      knownUserId = nextUserId;
+      medicalCacheClearPending ||= shouldClearCache;
+
       setProfile(null);
       setProfileError(false);
-      // Sign-in / sign-out should always land on the default surface, not a prior Settings view.
       setSettingsOpen(false);
       setPatientLandingTab('today');
+      if (!nextSession) {
+        setSession(null);
+      }
+
+      void (async () => {
+        try {
+          if (shouldClearCache) {
+            await clearAllPatientOfflineData();
+          }
+        } catch {
+          if (version === transitionVersion) {
+            setSession(null);
+            setAuthLoading(false);
+          }
+          return;
+        }
+
+        if (!active || version !== transitionVersion) return;
+        medicalCacheClearPending = false;
+        setSession(nextSession);
+        setAuthLoading(false);
+      })();
+    }
+
+    void client.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!authEventReceived) {
+          applyAuthSession(data.session);
+        }
+      })
+      .catch(() => {
+        if (!authEventReceived) {
+          applyAuthSession(null);
+        }
+      });
+
+    const { data: listener } = client.auth.onAuthStateChange((_event, nextSession) => {
+      authEventReceived = true;
+      applyAuthSession(nextSession);
     });
 
     const appStateListener = AppState.addEventListener('change', (state) => {
@@ -105,6 +153,8 @@ function MainApp() {
     });
 
     return () => {
+      active = false;
+      transitionVersion += 1;
       listener.subscription.unsubscribe();
       appStateListener.remove();
     };
@@ -136,7 +186,6 @@ function MainApp() {
   }, [profileReloadToken, session?.user.id]);
 
   async function signOut() {
-    const patientId = profile?.role === 'patient' ? profile.id : session?.user.id;
     setSettingsOpen(false);
     setPatientLandingTab('today');
     try {
@@ -144,9 +193,7 @@ function MainApp() {
         await supabase.auth.signOut();
       }
     } finally {
-      if (patientId) {
-        await clearPatientOfflineData(patientId);
-      }
+      await clearAllPatientOfflineData();
     }
   }
 

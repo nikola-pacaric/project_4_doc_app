@@ -146,32 +146,27 @@ describe('createPatientNoStoolMarker', () => {
     });
   });
 
-  it('deletes the previous stool entry when converting to no-stool', async () => {
-    const { client, rpc, from, eq } = createClientMock(
-      {
-        data: {
-          id: 'no-stool-2',
-          patient_id: 'patient-1',
-          kind: 'note',
-          occurred_at: '2026-07-14T10:00:00.000Z',
-          text: 'No stool today',
-          created_at: '2026-07-14T10:00:00.000Z',
-          updated_at: '2026-07-14T10:00:00.000Z',
-        },
-        error: null,
+  it('updates the previous stool entry in place when converting to no-stool', async () => {
+    const { client, rpc } = createClientMock({
+      data: {
+        id: 'stool-entry-1',
+        patient_id: 'patient-1',
+        kind: 'note',
+        occurred_at: '2026-07-14T10:00:00.000Z',
+        text: 'No stool today',
+        created_at: '2026-07-14T10:00:00.000Z',
+        updated_at: '2026-07-14T10:00:00.000Z',
       },
-      { includeDelete: true },
-    );
-
-    await createPatientNoStoolMarker(client, 'patient-1', '2026-07-14T10:00:00.000Z', {
-      replaceEntryId: 'stool-entry-1',
+      error: null,
     });
 
-    expect(from).toHaveBeenCalledWith('patient_entries');
-    expect(eq).toHaveBeenCalledWith('id', 'stool-entry-1');
+    await createPatientNoStoolMarker(client, 'patient-1', '2026-07-14T10:00:00.000Z', {
+      entryId: 'stool-entry-1',
+    });
+
     expect(rpc).toHaveBeenCalledWith(
       'save_patient_note',
-      expect.objectContaining({ p_entry_id: null, p_text: 'No stool today' }),
+      expect.objectContaining({ p_entry_id: 'stool-entry-1', p_text: 'No stool today' }),
     );
   });
 

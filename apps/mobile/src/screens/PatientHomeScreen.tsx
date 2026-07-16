@@ -830,6 +830,8 @@ export function PatientHomeScreen({
     !dailyEntryId ||
     dailyMissingFields.length > 0 ||
     !foodCompleted ||
+    !symptomsCompleted ||
+    !stoolCompleted ||
     (exerciseRequired && !exerciseCompleted) ||
     (medicationRequired && !medicationCompleted) ||
     (periodRequired && !periodCompleted);

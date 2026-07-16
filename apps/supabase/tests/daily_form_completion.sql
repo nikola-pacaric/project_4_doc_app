@@ -41,6 +41,18 @@ values
   ('10000000-0000-4000-8000-000000000502', '07:30', '08:00', 'usual', false, 2, 'Normal day', null, false, 2, false)
 on conflict (entry_id) do nothing;
 
+insert into public.patient_entries (id, patient_id, kind, occurred_at, text)
+values
+  ('10000000-0000-4000-8000-000000000503', '00000000-0000-4000-8000-000000000502', 'symptom', '2026-06-21 09:00:00+02', null),
+  ('10000000-0000-4000-8000-000000000504', '00000000-0000-4000-8000-000000000502', 'note', '2026-06-21 20:00:00+02', 'No stool today');
+
+insert into public.symptom_details (
+  entry_id, symptom_type, started_at, intensity, woke_from_sleep
+)
+values (
+  '10000000-0000-4000-8000-000000000503', 'none', '2026-06-21 09:00:00+02', 1, false
+);
+
 set local role authenticated;
 set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000502';
 
@@ -98,6 +110,44 @@ begin
   update public.daily_form_details
   set wake_time = '07:30', had_physical_activity = true
   where entry_id = '10000000-0000-4000-8000-000000000501';
+
+  begin
+    perform public.complete_patient_daily_form('10000000-0000-4000-8000-000000000501');
+    raise exception 'daily completion should require a symptom answer';
+  exception when check_violation then null;
+  end;
+
+  insert into public.patient_entries (id, patient_id, kind, occurred_at)
+  values (
+    '10000000-0000-4000-8000-000000000505',
+    '00000000-0000-4000-8000-000000000501',
+    'symptom',
+    '2026-06-21 09:00:00+02'
+  );
+
+  insert into public.symptom_details (
+    entry_id, symptom_type, started_at, intensity, woke_from_sleep
+  )
+  values (
+    '10000000-0000-4000-8000-000000000505',
+    'none',
+    '2026-06-21 09:00:00+02',
+    1,
+    false
+  );
+
+  begin
+    perform public.complete_patient_daily_form('10000000-0000-4000-8000-000000000501');
+    raise exception 'daily completion should require a stool answer';
+  exception when check_violation then null;
+  end;
+
+  perform public.save_patient_note(
+    null,
+    '2026-06-21 20:00:00+02',
+    'No stool today',
+    'daily-test-no-stool'
+  );
 
   begin
     update public.daily_form_details

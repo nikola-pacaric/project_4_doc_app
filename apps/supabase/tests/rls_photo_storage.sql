@@ -491,33 +491,27 @@ set local "request.jwt.claim.sub" = '00000000-0000-4000-8000-000000000041';
 do $$
 declare
   changed_rows integer;
+  metadata_rows integer;
 begin
   delete from public.patient_entries
   where id = '10000000-0000-4000-8000-000000000041';
   get diagnostics changed_rows = row_count;
-  if changed_rows <> 0 then
-    raise exception 'entry deletion should wait until photo objects and metadata are removed';
+  if changed_rows <> 1 then
+    raise exception 'patient A should delete the own current-day entry before photo cleanup';
+  end if;
+
+  select count(*) into metadata_rows
+  from public.entry_photos
+  where id = '30000000-0000-4000-8000-000000000041';
+  if metadata_rows <> 0 then
+    raise exception 'entry deletion should cascade its photo metadata';
   end if;
 
   delete from storage.objects
   where id = '40000000-0000-4000-8000-000000000041';
   get diagnostics changed_rows = row_count;
   if changed_rows <> 1 then
-    raise exception 'patient A should delete the own photo object before metadata';
-  end if;
-
-  delete from public.entry_photos
-  where id = '30000000-0000-4000-8000-000000000041';
-  get diagnostics changed_rows = row_count;
-  if changed_rows <> 1 then
-    raise exception 'patient A should delete metadata after photo objects are gone';
-  end if;
-
-  delete from public.patient_entries
-  where id = '10000000-0000-4000-8000-000000000041';
-  get diagnostics changed_rows = row_count;
-  if changed_rows <> 1 then
-    raise exception 'patient A should delete the own current-day entry after photo cleanup';
+    raise exception 'patient A should clean the own photo object after entry deletion';
   end if;
 end $$;
 

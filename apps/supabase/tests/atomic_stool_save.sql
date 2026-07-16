@@ -60,6 +60,9 @@ declare
   second_entry_id uuid;
   stool_count integer;
   saved_bristol_type integer;
+  saved_kind public.entry_kind;
+  saved_text text;
+  detail_count integer;
 begin
   first_entry_id := public.save_patient_stool(
     null,
@@ -117,6 +120,54 @@ begin
   where entry_id = first_entry_id;
   if saved_bristol_type <> 3 then
     raise exception 'existing stool entry was not updated';
+  end if;
+
+  perform public.save_patient_note(
+    first_entry_id,
+    '2026-06-22 08:20:00+02',
+    'No stool today',
+    null
+  );
+
+  select kind, text into saved_kind, saved_text
+  from public.patient_entries
+  where id = first_entry_id;
+  if saved_kind <> 'note' or saved_text <> 'No stool today' then
+    raise exception 'stool-to-no-stool conversion must update the existing entry';
+  end if;
+
+  select count(*) into detail_count
+  from public.stool_details
+  where entry_id = first_entry_id;
+  if detail_count <> 0 then
+    raise exception 'stool-to-no-stool conversion must remove stool details';
+  end if;
+
+  perform public.save_patient_stool(
+    first_entry_id,
+    '2026-06-22 08:25:00+02',
+    5,
+    'none',
+    false,
+    false,
+    false,
+    false,
+    false,
+    'Converted back'
+  );
+
+  select kind, text into saved_kind, saved_text
+  from public.patient_entries
+  where id = first_entry_id;
+  if saved_kind <> 'stool' or saved_text is not null then
+    raise exception 'no-stool-to-stool conversion must reuse the existing entry';
+  end if;
+
+  select count(*) into detail_count
+  from public.stool_details
+  where entry_id = first_entry_id;
+  if detail_count <> 1 then
+    raise exception 'no-stool-to-stool conversion must restore stool details';
   end if;
 
   begin

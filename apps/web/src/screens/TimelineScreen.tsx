@@ -672,7 +672,7 @@ export function TimelineScreen({
   }
 
   async function submitDay() {
-    if (!dailyEntryId || dailyCompleted || !dailyReadyToSubmit) return;
+    if (!dailyEntryId || submitDisabled) return;
 
     setSubmittingDay(true);
     setError(null);
@@ -932,6 +932,8 @@ export function TimelineScreen({
     !dailyEntryId ||
     !dailyReadyToSubmit ||
     !foodCompleted ||
+    !symptomsCompleted ||
+    !stoolCompleted ||
     (exerciseRequired && !exerciseCompleted) ||
     (medicationRequired && !medicationCompleted) ||
     (periodRequired && !periodCompleted);

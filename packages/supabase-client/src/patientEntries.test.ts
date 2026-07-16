@@ -141,7 +141,7 @@ describe('deletePatientEntry', () => {
     };
   }
 
-  it('removes photo objects and metadata before deleting the authorized entry', async () => {
+  it('deletes the authorized entry before removing its photo objects', async () => {
     const { client, entryDeleteRows, metadataDeleteRows, remove } = createDeleteClientMock();
 
     await expect(deletePatientEntry(client, 'entry-1')).resolves.toEqual({
@@ -149,33 +149,32 @@ describe('deletePatientEntry', () => {
     });
 
     expect(entryDeleteRows).toHaveBeenCalled();
-    expect(metadataDeleteRows).toHaveBeenCalled();
+    expect(metadataDeleteRows).not.toHaveBeenCalled();
     expect(remove).toHaveBeenCalledWith([
       'patients/patient-1/entries/entry-1/photos/photo-1.jpg',
       'patients/patient-1/entries/entry-1/thumbs/photo-1.jpg',
     ]);
-    expect(remove.mock.invocationCallOrder[0]!).toBeLessThan(
-      metadataDeleteRows.mock.invocationCallOrder[0]!,
-    );
-    expect(metadataDeleteRows.mock.invocationCallOrder[0]!).toBeLessThan(
-      entryDeleteRows.mock.invocationCallOrder[0]!,
+    expect(entryDeleteRows.mock.invocationCallOrder[0]!).toBeLessThan(
+      remove.mock.invocationCallOrder[0]!,
     );
   });
 
-  it('reports a rejected database deletion after photo cleanup', async () => {
+  it('leaves photo objects untouched when the database deletion is rejected', async () => {
     const { client, remove } = createDeleteClientMock({ deleted: false });
 
     await expect(deletePatientEntry(client, 'entry-1')).rejects.toThrow('ENTRY_DELETE_NOT_ALLOWED');
-    expect(remove).toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
   });
 
-  it('keeps the entry and metadata when storage removal fails', async () => {
+  it('reports pending photo cleanup after the database entry is deleted', async () => {
     const { client, entryDeleteRows, metadataDeleteRows } = createDeleteClientMock({
       storageError: new Error('storage unavailable'),
     });
 
-    await expect(deletePatientEntry(client, 'entry-1')).rejects.toThrow('storage unavailable');
+    await expect(deletePatientEntry(client, 'entry-1')).resolves.toEqual({
+      photoCleanupPending: true,
+    });
     expect(metadataDeleteRows).not.toHaveBeenCalled();
-    expect(entryDeleteRows).not.toHaveBeenCalled();
+    expect(entryDeleteRows).toHaveBeenCalled();
   });
 });

@@ -9,7 +9,7 @@ import {
   type AppSupabaseClient,
 } from '@project4/supabase-client';
 import { PHOTO_MIME_TYPE } from '@project4/photo';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { colors, sharedStyles } from '../theme';
@@ -28,7 +28,9 @@ interface PatientMedicationScreenProps {
 }
 
 function createPhotoId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return (
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
 }
 
 function toDraft(record: MedicationRecord): ClientMedicationDraft {
@@ -59,6 +61,11 @@ export function PatientMedicationScreen({
   const [error, setError] = useState<string | null>(null);
   const [existingPhotoUris, setExistingPhotoUris] = useState<string[]>([]);
   const [photoTarget, setPhotoTarget] = useState<ClientMedicationDraft | null>(null);
+  const savedEntryIdRef = useRef<string | null>(entryToEdit?.id ?? null);
+
+  useEffect(() => {
+    savedEntryIdRef.current = entryToEdit?.id ?? null;
+  }, [entryToEdit?.id]);
 
   useEffect(() => {
     if (!entryToEdit) {
@@ -103,8 +110,12 @@ export function PatientMedicationScreen({
     setSaving(true);
     setError(null);
     try {
-      const activeDraft = { ...draft };
+      const activeDraft = {
+        ...draft,
+        entryId: draft.entryId ?? savedEntryIdRef.current ?? undefined,
+      };
       const savedRecord = await createPatientMedication(client, profile.id, activeDraft);
+      savedEntryIdRef.current = savedRecord.entryId;
 
       if (activeDraft.localPhoto && savedRecord.entryId) {
         const photoId = createPhotoId();

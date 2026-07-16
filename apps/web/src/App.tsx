@@ -1,11 +1,12 @@
 import type { UserProfile } from '@project4/contracts';
 import { setActiveLocale, setActiveVoiceLanguage, t, type AppPreferences } from '@project4/i18n';
 import { acceptCurrentConsent, getCurrentProfile, type Session } from '@project4/supabase-client';
+import { shouldClearMedicalCacheForAuthTransition } from '@project4/sync';
 import { useEffect, useState } from 'react';
 
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { loadWebPreferences, saveWebPreferences } from './lib/preferences';
-import { clearPatientOfflineData } from './offline/pendingEntries';
+import { clearAllPatientOfflineData } from './offline/pendingEntries';
 import { StatusMessage } from './components/StatusMessage';
 import { AuthScreen } from './screens/AuthScreen';
 import { ConsentScreen } from './screens/ConsentScreen';
@@ -31,21 +32,71 @@ export function App() {
     if (!supabase) return;
     const client = supabase;
 
-    void client.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setProfile(null);
-      setAuthLoading(false);
-    });
+    let active = true;
+    let authEventReceived = false;
+    let knownUserId: string | null = null;
+    let medicalCacheClearPending = false;
+    let transitionVersion = 0;
 
-    const { data: listener } = client.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
+    function applyAuthSession(nextSession: Session | null) {
+      if (!active) return;
+      const version = ++transitionVersion;
+      const nextUserId = nextSession?.user.id ?? null;
+      const shouldClearCache =
+        medicalCacheClearPending ||
+        shouldClearMedicalCacheForAuthTransition(knownUserId, nextUserId);
+      knownUserId = nextUserId;
+      medicalCacheClearPending ||= shouldClearCache;
+
       setProfile(null);
       setProfileError(false);
-      // Sign-in / sign-out should always land on the default surface, not a prior Settings view.
       setSettingsOpen(false);
+      if (!nextSession) {
+        setSession(null);
+      }
+
+      void (async () => {
+        if (shouldClearCache) {
+          clearAllPatientOfflineData();
+        }
+      })()
+        .then(() => {
+          if (!active || version !== transitionVersion) return;
+          medicalCacheClearPending = false;
+          setSession(nextSession);
+          setAuthLoading(false);
+        })
+        .catch(() => {
+          if (version === transitionVersion) {
+            setSession(null);
+            setAuthLoading(false);
+          }
+        });
+    }
+
+    void client.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!authEventReceived) {
+          applyAuthSession(data.session);
+        }
+      })
+      .catch(() => {
+        if (!authEventReceived) {
+          applyAuthSession(null);
+        }
+      });
+
+    const { data: listener } = client.auth.onAuthStateChange((_event, nextSession) => {
+      authEventReceived = true;
+      applyAuthSession(nextSession);
     });
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      active = false;
+      transitionVersion += 1;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -69,12 +120,13 @@ export function App() {
   }, [profileReloadToken, session?.user.id]);
 
   async function signOut() {
-    const patientId = profile?.role === 'patient' ? profile.id : session?.user.id;
     setSettingsOpen(false);
     try {
-      if (supabase) await supabase.auth.signOut();
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
     } finally {
-      if (patientId) clearPatientOfflineData(patientId);
+      clearAllPatientOfflineData();
     }
   }
 

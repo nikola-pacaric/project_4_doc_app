@@ -26,11 +26,12 @@ values
   ('00000000-0000-4000-8000-000000000262', 'male', 1988, 'Engineer', 82, 182, 'No', now() + interval '3 months')
 on conflict (patient_id) do nothing;
 
-insert into public.patient_entries (id, patient_id, kind, occurred_at, text)
+insert into public.patient_entries (id, patient_id, kind, occurred_at, text, updated_at)
 values
-  ('10000000-0000-4000-8000-000000000262', '00000000-0000-4000-8000-000000000262', 'menstruation', '2026-06-23 09:00:00+02', null),
-  ('10000000-0000-4000-8000-000000000268', '00000000-0000-4000-8000-000000000261', 'daily', '2026-06-23 10:00:00+02', null),
-  ('10000000-0000-4000-8000-000000000269', '00000000-0000-4000-8000-000000000262', 'note', '2026-06-23 11:00:00+02', 'Patient B note')
+  ('10000000-0000-4000-8000-000000000262', '00000000-0000-4000-8000-000000000262', 'menstruation', '2026-06-23 09:00:00+02', null, '2026-06-23 09:00:00+02'),
+  ('10000000-0000-4000-8000-000000000268', '00000000-0000-4000-8000-000000000261', 'daily', '2026-06-23 10:00:00+02', null, '2026-06-23 10:00:00+02'),
+  ('10000000-0000-4000-8000-000000000269', '00000000-0000-4000-8000-000000000262', 'note', '2026-06-23 11:00:00+02', 'Patient B note', '2026-06-23 11:00:00+02'),
+  ('10000000-0000-4000-8000-000000000270', '00000000-0000-4000-8000-000000000261', 'text', '2026-06-23 12:00:00+02', 'Legacy text', '2026-06-23 12:00:00+02')
 on conflict (id) do nothing;
 
 insert into public.menstruation_events (entry_id, flow, pain_level, notes)
@@ -90,6 +91,8 @@ declare
   second_period_id uuid;
   note_row record;
   replayed_note_row record;
+  legacy_text_row record;
+  legacy_updated_before timestamptz;
   period_count integer;
   note_count integer;
   saved_flow text;
@@ -212,6 +215,25 @@ begin
     null
   );
 
+  select updated_at into legacy_updated_before
+  from public.patient_entries
+  where id = '10000000-0000-4000-8000-000000000270';
+
+  select * into legacy_text_row
+  from public.save_patient_note(
+    '10000000-0000-4000-8000-000000000270',
+    '2026-06-23 12:15:00+02',
+    'Updated legacy text',
+    null
+  );
+
+  if legacy_text_row.id <> '10000000-0000-4000-8000-000000000270'
+    or legacy_text_row.kind <> 'text'
+    or legacy_text_row.text <> 'Updated legacy text'
+    or legacy_text_row.updated_at <= legacy_updated_before then
+    raise exception 'legacy text edits must update the same row and timestamp';
+  end if;
+
   begin
     perform public.save_patient_note(
       '10000000-0000-4000-8000-000000000269',
@@ -244,6 +266,7 @@ do $$
 declare
   note_created_audit_count integer;
   note_updated_audit_count integer;
+  legacy_text_audit_count integer;
 begin
   select count(*) into note_created_audit_count
   from public.audit_events
@@ -264,6 +287,18 @@ begin
 
   if note_updated_audit_count <> 1 then
     raise exception 'a note edit must create one update audit event, found %', note_updated_audit_count;
+  end if;
+
+  select count(*) into legacy_text_audit_count
+  from public.audit_events
+  where patient_id = '00000000-0000-4000-8000-000000000261'
+    and event_type = 'patient_note_updated'
+    and metadata ->> 'entry_id' = '10000000-0000-4000-8000-000000000270'
+    and metadata ->> 'previous_text' = 'Legacy text'
+    and metadata ->> 'new_text' = 'Updated legacy text';
+
+  if legacy_text_audit_count <> 1 then
+    raise exception 'a legacy text edit must create one update audit event, found %', legacy_text_audit_count;
   end if;
 end $$;
 

@@ -2,6 +2,7 @@ import type { PatientEntry } from '@project4/contracts';
 import {
   cachedOpenedDayEntries,
   dedupePendingEntries,
+  filterPatientOfflineStorageKeys,
   mergeOpenedDayEntryCache,
   patientOfflineStorageKeys,
   replaceOpenedDayEntryCache,
@@ -23,6 +24,16 @@ function openedDaysCacheKeyForPatient(patientId: string): string {
 
 export function clearPatientOfflineData(patientId: string): void {
   for (const key of patientOfflineStorageKeys(patientId)) {
+    window.localStorage.removeItem(key);
+  }
+}
+
+export function clearAllPatientOfflineData(): void {
+  const storedKeys = Array.from({ length: window.localStorage.length }, (_, index) =>
+    window.localStorage.key(index),
+  ).filter((key): key is string => key !== null);
+
+  for (const key of filterPatientOfflineStorageKeys(storedKeys)) {
     window.localStorage.removeItem(key);
   }
 }

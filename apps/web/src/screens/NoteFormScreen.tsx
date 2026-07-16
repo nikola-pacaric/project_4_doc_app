@@ -35,7 +35,7 @@ function toDatetimeLocal(value: Date): string {
 function createInitialDraft(entryToEdit?: PatientEntry | null): NoteDraft {
   if (entryToEdit) {
     return {
-      entryId: entryToEdit.kind === 'note' ? entryToEdit.id : undefined,
+      entryId: entryToEdit.id,
       text: entryToEdit.text ?? '',
       occurredAt: toDatetimeLocal(new Date(entryToEdit.occurredAt)),
     };

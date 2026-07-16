@@ -2,7 +2,7 @@ import type { PatientEntry } from '@project4/contracts';
 
 import type { AppSupabaseClient } from './index';
 import type { Database } from './database.types';
-import { deleteEntryPhotos, listEntryPhotos } from './patientPhotos';
+import { deleteEntryPhotoObjects, listEntryPhotos } from './patientPhotos';
 
 export type PatientEntryRow = Pick<
   Database['public']['Tables']['patient_entries']['Row'],
@@ -126,7 +126,6 @@ export async function deletePatientEntry(
   entryId: string,
 ): Promise<{ photoCleanupPending: boolean }> {
   const photos = await listEntryPhotos(client, entryId);
-  await deleteEntryPhotos(client, photos);
 
   const { data, error } = await client
     .from('patient_entries')
@@ -143,5 +142,10 @@ export async function deletePatientEntry(
     throw new Error('ENTRY_DELETE_NOT_ALLOWED');
   }
 
-  return { photoCleanupPending: false };
+  try {
+    await deleteEntryPhotoObjects(client, photos);
+    return { photoCleanupPending: false };
+  } catch {
+    return { photoCleanupPending: true };
+  }
 }

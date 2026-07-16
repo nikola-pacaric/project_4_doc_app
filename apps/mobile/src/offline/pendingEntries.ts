@@ -3,6 +3,7 @@ import type { PatientEntry } from '@project4/contracts';
 import {
   cachedOpenedDayEntries,
   dedupePendingEntries,
+  filterPatientOfflineStorageKeys,
   mergeOpenedDayEntryCache,
   patientOfflineStorageKeys,
   replaceOpenedDayEntryCache,
@@ -24,6 +25,13 @@ function openedDaysCacheKeyForPatient(patientId: string): string {
 
 export async function clearPatientOfflineData(patientId: string): Promise<void> {
   await AsyncStorage.multiRemove([...patientOfflineStorageKeys(patientId)]);
+}
+
+export async function clearAllPatientOfflineData(): Promise<void> {
+  const medicalCacheKeys = filterPatientOfflineStorageKeys(await AsyncStorage.getAllKeys());
+  if (medicalCacheKeys.length) {
+    await AsyncStorage.multiRemove(medicalCacheKeys);
+  }
 }
 
 export async function loadPendingEntries(patientId: string): Promise<LocalPendingEntry[]> {

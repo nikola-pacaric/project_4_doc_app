@@ -3,6 +3,25 @@ import type { PatientEntry } from '@project4/contracts';
 export type PendingEntryOperation = 'create_text_entry' | 'update_entry_timestamp' | 'update_note';
 export type OpenedDayEntryCache = Record<string, PatientEntry[]>;
 
+const patientOfflineStorageKeyPrefixes = [
+  'project4:pending-entries:',
+  'project4:recent-entries:',
+  'project4:opened-day-entries:',
+] as const;
+
+export function filterPatientOfflineStorageKeys(keys: readonly string[]): string[] {
+  return keys.filter((key) =>
+    patientOfflineStorageKeyPrefixes.some((prefix) => key.startsWith(prefix)),
+  );
+}
+
+export function shouldClearMedicalCacheForAuthTransition(
+  previousUserId: string | null,
+  nextUserId: string | null,
+): boolean {
+  return nextUserId === null || (previousUserId !== null && previousUserId !== nextUserId);
+}
+
 export function patientOfflineStorageKeys(patientId: string): readonly [string, string, string] {
   return [
     `project4:pending-entries:${patientId}`,
