@@ -1,11 +1,16 @@
-import type { ExportMode, ExportPayload, ExportRange } from '@project4/contracts';
-import type { PatientEntry } from '@project4/contracts';
+import type {
+  ExportMode,
+  ExportPayload,
+  ExportRange,
+  PatientBaselineProfile,
+} from '@project4/contracts';
 import { validateExportPayload } from '@project4/contracts';
 import { PHOTO_BUCKET } from '@project4/photo';
 
 import type { AppSupabaseClient } from './index';
 import type { Database } from './database.types';
-import { listRecentPatientEntries } from './patientEntries';
+import { listDoctorTimelineEntries, type DoctorTimelineEntry } from './doctorTimeline';
+import { getPatientBaseline } from './patientBaseline';
 import { createStoredZipBytes, type ZipFileInput } from './zipBundle';
 
 export interface DoctorInviteCode {
@@ -38,7 +43,8 @@ export interface LinkedPatientSummary {
 
 export interface DoctorLinkedPatientTimeline {
   patient: LinkedPatientSummary;
-  entries: PatientEntry[];
+  baseline: PatientBaselineProfile | null;
+  entries: DoctorTimelineEntry[];
 }
 
 export interface CreateDoctorExportInput {
@@ -208,15 +214,19 @@ export async function getDoctorLinkedPatientTimeline(
   if (accessError) throw accessError;
   if (!accessRow) throw new Error('DOCTOR_PATIENT_ACCESS_REQUIRED');
 
-  const { data: profileRow, error: profileError } = await client
-    .from('user_profiles')
-    .select('id, role, display_name, consent_accepted_at')
-    .eq('id', patientId)
-    .maybeSingle<UserProfileRow>();
+  const [profileResult, baseline, entries] = await Promise.all([
+    client
+      .from('user_profiles')
+      .select('id, role, display_name, consent_accepted_at')
+      .eq('id', patientId)
+      .maybeSingle<UserProfileRow>(),
+    getPatientBaseline(client, patientId),
+    listDoctorTimelineEntries(client, patientId, days),
+  ]);
 
-  if (profileError) throw profileError;
+  if (profileResult.error) throw profileResult.error;
+  const profileRow = profileResult.data;
 
-  const entries = await listRecentPatientEntries(client, patientId, days);
   return {
     patient: {
       accessId: accessRow.id,
@@ -224,6 +234,7 @@ export async function getDoctorLinkedPatientTimeline(
       displayName: profileRow?.display_name ?? null,
       linkedAt: accessRow.created_at,
     },
+    baseline,
     entries,
   };
 }

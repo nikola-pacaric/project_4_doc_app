@@ -3,6 +3,7 @@ import {
   entryKindIconStyle,
   isNoStoolTodayEntry,
   type ExportMode,
+  type PatientBaselineProfile,
   type PatientEntry,
 } from '@project4/contracts';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
@@ -13,9 +14,14 @@ import {
   listEntryPhotos,
   type AppSupabaseClient,
   type LinkedPatientSummary,
+  type DoctorTimelineEntry,
 } from '@project4/supabase-client';
 import { useCallback, useEffect, useState } from 'react';
 
+import {
+  DoctorBaselineDetails,
+  DoctorEntryMedicalDetails,
+} from '../components/DoctorMedicalDetails';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { StatusMessage } from '../components/StatusMessage';
 
@@ -38,6 +44,24 @@ function canHaveTimelinePhotos(entry: PatientEntry): boolean {
 
 function patientTitle(patient: LinkedPatientSummary): string {
   return patient.displayName?.trim() || patient.patientId.slice(0, 8).toUpperCase();
+}
+
+function medicalEntryTitle(
+  locale: ReturnType<typeof getActiveLocale>,
+  entry: DoctorTimelineEntry,
+  fallback: string,
+): string {
+  const details = entry.medicalDetails;
+  if (details.meal?.name) return details.meal.name;
+  if (details.fluid?.name) return details.fluid.name;
+  if (details.medication?.name) return details.medication.name;
+  if (details.exercise?.activity) return details.exercise.activity;
+  if (details.symptom) {
+    return details.symptom.type === 'other' && details.symptom.customType
+      ? details.symptom.customType
+      : t(locale, `symptom.type.${details.symptom.type}` as TranslationKey);
+  }
+  return entry.text?.trim() || fallback;
 }
 
 function formatEntryDate(value: string, locale: string): string {
@@ -83,7 +107,8 @@ export function DoctorLinkedPatientTimelineScreen({
 }: DoctorLinkedPatientTimelineScreenProps) {
   const locale = getActiveLocale();
   const [patient, setPatient] = useState(initialPatient);
-  const [entries, setEntries] = useState<PatientEntry[]>([]);
+  const [baseline, setBaseline] = useState<PatientBaselineProfile | null>(null);
+  const [entries, setEntries] = useState<DoctorTimelineEntry[]>([]);
   const [entryPhotos, setEntryPhotos] = useState<Record<string, TimelineEntryPhoto[]>>({});
   const [lightboxPhoto, setLightboxPhoto] = useState<{ url: string; label: string } | null>(null);
   const [exportMode, setExportMode] = useState<ExportMode>('all_data_with_images');
@@ -98,27 +123,58 @@ export function DoctorLinkedPatientTimelineScreen({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadTimeline = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    setLightboxPhoto(null);
+  const requestTimeline = useCallback(
+    () => getDoctorLinkedPatientTimeline(client, initialPatient.patientId),
+    [client, initialPatient.patientId],
+  );
 
+  const fetchTimeline = useCallback(async () => {
     try {
-      const timeline = await getDoctorLinkedPatientTimeline(client, initialPatient.patientId);
+      const timeline = await requestTimeline();
       setPatient(timeline.patient);
+      setBaseline(timeline.baseline);
       setEntries(timeline.entries);
     } catch {
       setError(t(locale, 'doctor.timelineLoadError'));
+      setBaseline(null);
       setEntries([]);
       setEntryPhotos({});
     } finally {
       setLoading(false);
     }
-  }, [client, initialPatient.patientId, locale]);
+  }, [locale, requestTimeline]);
+
+  const refreshTimeline = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    setLightboxPhoto(null);
+    void fetchTimeline();
+  }, [fetchTimeline]);
 
   useEffect(() => {
-    void loadTimeline();
-  }, [loadTimeline]);
+    let active = true;
+    void requestTimeline()
+      .then((timeline) => {
+        if (!active) return;
+        setPatient(timeline.patient);
+        setBaseline(timeline.baseline);
+        setEntries(timeline.entries);
+      })
+      .catch(() => {
+        if (!active) return;
+        setError(t(locale, 'doctor.timelineLoadError'));
+        setBaseline(null);
+        setEntries([]);
+        setEntryPhotos({});
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [locale, requestTimeline]);
 
   async function handleDownloadExport() {
     setExporting(true);
@@ -202,13 +258,14 @@ export function DoctorLinkedPatientTimelineScreen({
           <button className="secondary-button" onClick={onBack} type="button">
             {t(locale, 'common.back')}
           </button>
-          <button className="secondary-button" onClick={() => void loadTimeline()} type="button">
+          <button className="secondary-button" onClick={refreshTimeline} type="button">
             {t(locale, 'timeline.refresh')}
           </button>
         </div>
       </div>
 
       <p className="doctor-readonly-notice">{t(locale, 'doctor.readOnlyNotice')}</p>
+      <DoctorBaselineDetails baseline={baseline} locale={locale} />
       <section className="doctor-export-panel" aria-labelledby="doctor-export-title">
         <div>
           <h2 id="doctor-export-title">{t(locale, 'doctor.exportTitle')}</h2>
@@ -282,7 +339,7 @@ export function DoctorLinkedPatientTimelineScreen({
       {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading && entries.length === 0 && !error ? (
-        <p className="empty-state">{t(locale, 'entry.empty')}</p>
+        <p className="empty-state">{t(locale, 'doctor.timelineEmpty')}</p>
       ) : null}
 
       <div className="web-recent-list web-timeline-list">
@@ -290,7 +347,7 @@ export function DoctorLinkedPatientTimelineScreen({
           const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
           const title = isNoStoolTodayEntry(entry)
             ? t(locale, 'stool.noStoolToday')
-            : entry.text?.trim() || kindLabel;
+            : medicalEntryTitle(locale, entry, kindLabel);
           const photos = entryPhotos[entry.id] ?? [];
 
           return (
@@ -313,6 +370,7 @@ export function DoctorLinkedPatientTimelineScreen({
                   <small className="web-entry-status complete">{kindLabel}</small>
                 </span>
               </div>
+              <DoctorEntryMedicalDetails entry={entry} locale={locale} />
               {photos.length ? (
                 <div className="timeline-entry-photos">
                   {photos.map((photo) => (

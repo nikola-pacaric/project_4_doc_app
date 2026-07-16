@@ -39,3 +39,4 @@ export * from './patientBaseline';
 export * from './patientDailyForms';
 export * from './profiles';
 export * from './doctorPanel';
+export * from './doctorTimeline';

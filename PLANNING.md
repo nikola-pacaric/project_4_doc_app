@@ -128,6 +128,7 @@ Photo storage:
 - Done: web/mobile boot and import shared packages; env vars are separated for web, mobile, and Supabase.
 
 ### Phase 2 - Supabase Foundation And RLS
+- Progress checkpoint (Codex-verified 2026-07-16): Authenticated Data API roles retain only RLS-scoped reads on doctor invite, doctor-patient access, and export request control tables, with no direct authenticated writes to those tables or `audit_events`. Invite creation/revocation now mutate through private caller-validating functions, guarded public invite/redemption/export RPCs remain available only to authenticated users, and the linked live `rls:core`, `rls:invites`, and `rls:exports` suites passed after the migration was applied.
 - Add migrations for core tables, immutable role behavior, RLS policies, audit events, fixtures, and manual doctor provisioning docs.
 - Done: tests prove patients cannot access other patients, doctors cannot access unlinked patients, and doctors cannot edit/delete patient entries.
 
@@ -167,6 +168,7 @@ Photo storage:
 
 ### Phase 7 - Doctor Linking And Dashboard
 - Cardinality decision (confirmed 2026-07-15): a patient may have only one active doctor; a doctor may have many active patients. Changing a patient's doctor requires operator deactivation/revocation of the existing link because patient revocation UI remains outside V1.
+- Progress checkpoint (Codex-verified 2026-07-16): The linked-doctor read-only timeline now loads and presents the patient's baseline plus structured daily/hydration, meal/fluid, symptom, stool, medication, exercise, and menstruation details on Android and web. Shared client coverage verifies every mapped detail kind, local typecheck/tests/web build passed, and the live core RLS suite confirmed linked-doctor reads remain read-only. Android and browser visual review of the expanded cards remains pending.
 - Progress checkpoint (user/Codex-verified 2026-07-08): Phase 7 is complete for the shared product slice. The web workflow was user-verified: doctor creates an invite code, patient redeems it, the doctor panel marks the code used, and the linked patient appears with a read-only timeline. Codex verified the live Supabase project has one clean redeemed invite mapped to one active doctor-patient access row with no duplicate codes or duplicate active access pairs. Local `npm test` and `npm run typecheck` passed. Live Supabase `npm run rls:core`, `npm run rls:invites`, and `npm run rls:photos` passed. Android/mobile Phase 7 device visual smoke remains deferred to final mobile validation.
 - Implement doctor dashboard, invite creation, unused invite revoke, patient redemption, active linked patient list, linked patient timeline, and read-only doctor views.
 - Done: one code links one patient, a patient cannot add a second active doctor, a doctor can link many patients through separate codes, reuse is rejected, revoked/expired codes fail, and unlinked patients stay hidden.
@@ -181,6 +183,7 @@ Photo storage:
 - Done: core patient/doctor flows work in Serbian/English and light/dark, with no hardcoded core UI strings.
 
 ### Phase 10 - Final Validation
+- Progress checkpoint (Codex-verified 2026-07-16): A fresh debug APK was assembled successfully at `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk` after regenerating stale native autolinking/build metadata. Debug signing and Expo Supabase environment loading passed; installation and interactive Android/device smoke testing remain pending.
 - [x] Re-run final automated checks: typecheck, tests, web build, and relevant Supabase migration, RLS, export, and photo checks.
 - [ ] Run web end-to-end smoke flows: patient timeline/forms/offline note sync, doctor linking/timeline, exports, and settings.
 - [ ] Build a fresh Android APK and smoke-test the same key flows, including voice-button and dark-mode placeholder checks.

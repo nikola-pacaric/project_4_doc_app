@@ -771,6 +771,72 @@ button:focus-visible {
   cursor: default;
 }
 
+.doctor-medical-panel {
+  width: min(920px, 100%);
+  display: grid;
+  gap: 14px;
+  margin: 0 auto 18px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: var(--app-surface);
+  padding: 16px;
+}
+
+.doctor-medical-panel h2,
+.doctor-entry-medical-details h3 {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.doctor-medical-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.doctor-medical-grid > div {
+  min-width: 0;
+  border-top: 1px solid var(--app-border);
+  padding-top: 8px;
+}
+
+.doctor-medical-grid dt {
+  color: var(--app-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.doctor-medical-grid dd {
+  margin: 3px 0 0;
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.doctor-medical-empty {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 14px;
+}
+
+.doctor-entry-medical-details {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--app-border);
+  padding-top: 12px;
+}
+
+.doctor-entry-medical-details h3 {
+  font-size: 14px;
+}
+
 .doctor-export-panel {
   width: min(920px, 100%);
   display: grid;
@@ -780,6 +846,12 @@ button:focus-visible {
   border-radius: 12px;
   background: var(--app-surface);
   padding: 16px;
+}
+
+@media (max-width: 640px) {
+  .doctor-medical-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .doctor-export-panel h2 {

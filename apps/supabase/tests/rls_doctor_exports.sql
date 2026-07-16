@@ -1,5 +1,37 @@
 begin;
 
+do $$
+begin
+  if not has_table_privilege('authenticated', 'public.export_requests', 'SELECT') then
+    raise exception 'authenticated doctors need RLS-scoped export request reads';
+  end if;
+
+  if has_table_privilege('authenticated', 'public.export_requests', 'INSERT')
+    or has_table_privilege('authenticated', 'public.export_requests', 'UPDATE')
+    or has_table_privilege('authenticated', 'public.export_requests', 'DELETE')
+    or has_table_privilege('authenticated', 'public.audit_events', 'INSERT')
+    or has_table_privilege('authenticated', 'public.audit_events', 'UPDATE')
+    or has_table_privilege('authenticated', 'public.audit_events', 'DELETE') then
+    raise exception 'authenticated users must not mutate export/audit control tables directly';
+  end if;
+
+  if has_function_privilege(
+    'anon',
+    'public.export_patient_data(uuid,public.export_mode,public.export_range_type,date,date)',
+    'EXECUTE'
+  ) then
+    raise exception 'anonymous users must not execute patient exports';
+  end if;
+
+  if not has_function_privilege(
+    'authenticated',
+    'public.export_patient_data(uuid,public.export_mode,public.export_range_type,date,date)',
+    'EXECUTE'
+  ) then
+    raise exception 'authenticated users need the guarded patient export function';
+  end if;
+end $$;
+
 insert into auth.users (
   id,
   aud,

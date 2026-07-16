@@ -192,7 +192,7 @@ describe('doctor invite panel client helpers', () => {
     expect(profileIn).toHaveBeenCalledWith('id', ['patient-1']);
   });
 
-  it('loads a selected linked patient timeline through active doctor access', async () => {
+  it('loads a linked patient baseline and structured medical timeline details', async () => {
     const accessMaybeSingle = vi.fn().mockResolvedValue({
       data: {
         id: 'access-1',
@@ -218,15 +218,206 @@ describe('doctor invite panel client helpers', () => {
     const profileEq = vi.fn(() => ({ maybeSingle: profileMaybeSingle }));
     const profileSelect = vi.fn(() => ({ eq: profileEq }));
 
+    const baselineMaybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        patient_id: 'patient-1',
+        sex: 'female',
+        birth_year: 1988,
+        occupation: 'Teacher',
+        chronic_diseases: 'Asthma',
+        chronic_therapy: 'Inhaler',
+        menstrual_history: 'Regular',
+        weight_kg: 68,
+        height_cm: 170,
+        recent_major_weight_change: 'no',
+        weight_reminder_due_at: '2026-10-01T10:00:00.000Z',
+        created_at: '2026-07-01T10:00:00.000Z',
+        updated_at: '2026-07-02T10:00:00.000Z',
+      },
+      error: null,
+    });
+    const baselineEq = vi.fn(() => ({ maybeSingle: baselineMaybeSingle }));
+    const baselineSelect = vi.fn(() => ({ eq: baselineEq }));
+
+    const emptyDetails = {
+      daily_details: null,
+      food_details: null,
+      meal_details: null,
+      fluid_details: [],
+      symptom_details: null,
+      stool_details: null,
+      medication_details: null,
+      exercise_details: null,
+      menstruation_details: null,
+    };
     const entryRows = [
       {
-        id: 'entry-1',
+        ...emptyDetails,
+        id: 'daily-1',
         patient_id: 'patient-1',
-        kind: 'note',
+        kind: 'daily',
         occurred_at: '2026-07-08T11:00:00.000Z',
-        text: 'Readonly note',
+        text: null,
         created_at: '2026-07-08T11:00:00.000Z',
         updated_at: '2026-07-08T11:00:00.000Z',
+        daily_details: {
+          entry_id: 'daily-1',
+          wake_time: '07:30:00',
+          appetite: 'usual',
+          had_physical_activity: true,
+          sleep_notes: '07:15',
+          stress_level: 2,
+          day_description: 'A steady day',
+          took_chronic_therapy: true,
+          took_medication_outside_chronic_therapy: false,
+          medication_outside_chronic_therapy: null,
+          had_menstruation: false,
+          menstruation_notes: null,
+          energy_level: 3,
+          had_naps: false,
+          naps: null,
+          completed_at: '2026-07-08T20:00:00.000Z',
+        },
+        food_details: {
+          entry_id: 'daily-1',
+          water_liters: 2.25,
+          has_other_fluids: true,
+          other_fluids: 'Coffee',
+        },
+      },
+      {
+        ...emptyDetails,
+        id: 'symptom-1',
+        patient_id: 'patient-1',
+        kind: 'symptom',
+        occurred_at: '2026-07-08T10:00:00.000Z',
+        text: null,
+        created_at: '2026-07-08T10:00:00.000Z',
+        updated_at: '2026-07-08T10:00:00.000Z',
+        symptom_details: {
+          entry_id: 'symptom-1',
+          symptom_type: 'pain',
+          custom_type: null,
+          custom_description: 'After breakfast',
+          intake_list: 'Coffee',
+          started_at: '2026-07-08T09:45:00.000Z',
+          ended_at: null,
+          intensity: 2,
+          quality_of_life_effect: 'Paused work',
+          modifying_factors: 'Rest helped',
+          woke_from_sleep: false,
+          pain_location: 'upper_abdomen',
+          pain_location_custom: null,
+          pain_radiates: false,
+          pain_radiation: null,
+          pain_description: 'cramping',
+          pain_description_custom: null,
+        },
+      },
+      {
+        ...emptyDetails,
+        id: 'stool-1',
+        patient_id: 'patient-1',
+        kind: 'stool',
+        occurred_at: '2026-07-08T09:00:00.000Z',
+        text: null,
+        created_at: '2026-07-08T09:00:00.000Z',
+        updated_at: '2026-07-08T09:00:00.000Z',
+        stool_details: {
+          entry_id: 'stool-1',
+          bristol_type: 4,
+          urgency_level: 'mild',
+          pain: false,
+          mucus: false,
+          blood: false,
+          fatty_stool: false,
+          black_stool: false,
+          notes: null,
+        },
+      },
+      {
+        ...emptyDetails,
+        id: 'medication-1',
+        patient_id: 'patient-1',
+        kind: 'medication',
+        occurred_at: '2026-07-08T08:00:00.000Z',
+        text: null,
+        created_at: '2026-07-08T08:00:00.000Z',
+        updated_at: '2026-07-08T08:00:00.000Z',
+        medication_details: {
+          entry_id: 'medication-1',
+          name: 'Vitamin D',
+          dose: '1000 IU',
+          notes: 'With breakfast',
+          is_chronic_therapy: true,
+        },
+      },
+      {
+        ...emptyDetails,
+        id: 'meal-1',
+        patient_id: 'patient-1',
+        kind: 'meal',
+        occurred_at: '2026-07-08T07:45:00.000Z',
+        text: null,
+        created_at: '2026-07-08T07:45:00.000Z',
+        updated_at: '2026-07-08T07:45:00.000Z',
+        meal_details: {
+          entry_id: 'meal-1',
+          meal_type: 'breakfast',
+          name: 'Oatmeal',
+          description: 'With berries',
+        },
+      },
+      {
+        ...emptyDetails,
+        id: 'fluid-1',
+        patient_id: 'patient-1',
+        kind: 'fluid',
+        occurred_at: '2026-07-08T07:30:00.000Z',
+        text: null,
+        created_at: '2026-07-08T07:30:00.000Z',
+        updated_at: '2026-07-08T07:30:00.000Z',
+        fluid_details: [
+          {
+            entry_id: 'fluid-1',
+            daily_entry_id: 'daily-1',
+            occurred_at: '2026-07-08T07:30:00.000Z',
+            name: 'Coffee',
+          },
+        ],
+      },
+      {
+        ...emptyDetails,
+        id: 'exercise-1',
+        patient_id: 'patient-1',
+        kind: 'exercise',
+        occurred_at: '2026-07-08T07:00:00.000Z',
+        text: null,
+        created_at: '2026-07-08T07:00:00.000Z',
+        updated_at: '2026-07-08T07:00:00.000Z',
+        exercise_details: {
+          entry_id: 'exercise-1',
+          activity: 'Walking',
+          duration_minutes: 30,
+          intensity: 'moderate',
+          notes: 'Before breakfast',
+        },
+      },
+      {
+        ...emptyDetails,
+        id: 'menstruation-1',
+        patient_id: 'patient-1',
+        kind: 'menstruation',
+        occurred_at: '2026-07-08T06:30:00.000Z',
+        text: null,
+        created_at: '2026-07-08T06:30:00.000Z',
+        updated_at: '2026-07-08T06:30:00.000Z',
+        menstruation_details: {
+          entry_id: 'menstruation-1',
+          flow: 'moderate',
+          pain_level: 2,
+          notes: 'Morning',
+        },
       },
     ];
     const entryReturns = vi.fn().mockResolvedValue({ data: entryRows, error: null });
@@ -238,6 +429,7 @@ describe('doctor invite panel client helpers', () => {
     const from = vi.fn((table: string) => {
       if (table === 'doctor_patient_access') return { select: accessSelect };
       if (table === 'user_profiles') return { select: profileSelect };
+      if (table === 'patient_baseline_profiles') return { select: baselineSelect };
       if (table === 'patient_entries') return { select: entrySelect };
       throw new Error(`Unexpected table ${table}`);
     });
@@ -249,12 +441,61 @@ describe('doctor invite panel client helpers', () => {
     expect(accessEqActive).toHaveBeenCalledWith('active', true);
     expect(accessIs).toHaveBeenCalledWith('revoked_at', null);
     expect(entryEq).toHaveBeenCalledWith('patient_id', 'patient-1');
+    expect(entrySelect).toHaveBeenCalledWith(
+      expect.stringContaining('daily_details:daily_form_details'),
+    );
+    expect(entrySelect).toHaveBeenCalledWith(
+      expect.stringContaining('symptom_details:symptom_details'),
+    );
     expect(timeline.patient.displayName).toBe('Linked Patient');
-    expect(timeline.entries).toHaveLength(1);
-    expect(timeline.entries[0]).toMatchObject({
-      id: 'entry-1',
+    expect(timeline.baseline).toMatchObject({
       patientId: 'patient-1',
-      text: 'Readonly note',
+      birthYear: 1988,
+      chronicDiseases: 'Asthma',
+    });
+    expect(timeline.entries).toHaveLength(8);
+    expect(timeline.entries[0]?.medicalDetails.daily).toMatchObject({
+      wakeTime: '07:30',
+      sleepDuration: '07:15',
+      appetite: 'usual',
+      stressLevel: 2,
+    });
+    expect(timeline.entries[0]?.medicalDetails.food).toMatchObject({
+      waterLiters: 2.25,
+      otherFluidsDisplay: 'Coffee',
+    });
+    expect(timeline.entries[1]?.medicalDetails.symptom).toMatchObject({
+      type: 'pain',
+      intensity: 2,
+      qualityOfLifeEffect: 'Paused work',
+      painLocation: 'upper_abdomen',
+    });
+    expect(timeline.entries[2]?.medicalDetails.stool).toMatchObject({
+      bristolType: 4,
+      urgencyLevel: 'mild',
+      blood: false,
+    });
+    expect(timeline.entries[3]?.medicalDetails.medication).toMatchObject({
+      name: 'Vitamin D',
+      dose: '1000 IU',
+      isChronicTherapy: true,
+    });
+    expect(timeline.entries[4]?.medicalDetails.meal).toMatchObject({
+      type: 'breakfast',
+      name: 'Oatmeal',
+    });
+    expect(timeline.entries[5]?.medicalDetails.fluid).toMatchObject({
+      dailyEntryId: 'daily-1',
+      name: 'Coffee',
+    });
+    expect(timeline.entries[6]?.medicalDetails.exercise).toMatchObject({
+      activity: 'Walking',
+      durationMinutes: 30,
+      intensity: 'moderate',
+    });
+    expect(timeline.entries[7]?.medicalDetails.menstruation).toMatchObject({
+      flow: 'moderate',
+      painLevel: 2,
     });
   });
 

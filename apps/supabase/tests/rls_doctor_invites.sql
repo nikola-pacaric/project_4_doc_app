@@ -1,5 +1,34 @@
 begin;
 
+do $$
+begin
+  if not has_table_privilege('authenticated', 'public.doctor_invite_codes', 'SELECT')
+    or not has_table_privilege('authenticated', 'public.doctor_patient_access', 'SELECT') then
+    raise exception 'authenticated users need RLS-scoped control-table reads';
+  end if;
+
+  if has_table_privilege('authenticated', 'public.doctor_invite_codes', 'INSERT')
+    or has_table_privilege('authenticated', 'public.doctor_invite_codes', 'UPDATE')
+    or has_table_privilege('authenticated', 'public.doctor_invite_codes', 'DELETE')
+    or has_table_privilege('authenticated', 'public.doctor_patient_access', 'INSERT')
+    or has_table_privilege('authenticated', 'public.doctor_patient_access', 'UPDATE')
+    or has_table_privilege('authenticated', 'public.doctor_patient_access', 'DELETE') then
+    raise exception 'authenticated users must not mutate invite/link control tables directly';
+  end if;
+
+  if has_function_privilege('anon', 'public.create_doctor_invite_code()', 'EXECUTE')
+    or has_function_privilege('anon', 'public.revoke_doctor_invite_code(uuid)', 'EXECUTE')
+    or has_function_privilege('anon', 'public.redeem_doctor_invite_code(text)', 'EXECUTE') then
+    raise exception 'anonymous users must not execute doctor invite functions';
+  end if;
+
+  if not has_function_privilege('authenticated', 'public.create_doctor_invite_code()', 'EXECUTE')
+    or not has_function_privilege('authenticated', 'public.revoke_doctor_invite_code(uuid)', 'EXECUTE')
+    or not has_function_privilege('authenticated', 'public.redeem_doctor_invite_code(text)', 'EXECUTE') then
+    raise exception 'authenticated users need guarded doctor invite functions';
+  end if;
+end $$;
+
 insert into auth.users (
   id,
   aud,
@@ -84,6 +113,13 @@ declare
   visible_invites integer;
   revoked boolean;
 begin
+  begin
+    insert into public.doctor_invite_codes (doctor_id, code)
+    values ('00000000-0000-4000-8000-000000000073', 'DIRECT0073');
+    raise exception 'doctors should not insert invite codes directly';
+  exception when insufficient_privilege then null;
+  end;
+
   select * into created from public.create_doctor_invite_code();
 
   if created.code !~ '^[A-Z0-9]{10}$' then
