@@ -9,6 +9,24 @@ export const PHOTO_THUMBNAIL_TARGET_MAX_BYTES = 60 * 1024;
 export const PHOTO_MIN_VALID_BYTES = 1024;
 export const PHOTO_THUMBNAIL_MIN_VALID_BYTES = 1024;
 
+/** Create an RFC 4122 UUID v4 for the UUID-backed entry_photos.id column. */
+export function createPhotoId(): string {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+
+  const bytes = new Uint8Array(16);
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let index = 0; index < bytes.length; index += 1) {
+      bytes[index] = Math.floor(Math.random() * 256);
+    }
+  }
+  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
+  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 export interface PhotoStoragePaths {
   photoPath: string;
   thumbnailPath: string;
@@ -104,10 +122,7 @@ export function validatePreparedPhotoMetadata(
   } else if (metadata.thumbnail.sizeBytes < PHOTO_THUMBNAIL_MIN_VALID_BYTES) {
     errors.push('THUMBNAIL_SIZE_TOO_SMALL');
   }
-  if (
-    metadata.sizeBytes > PHOTO_TARGET_MAX_BYTES ||
-    metadata.sizeBytes < PHOTO_TARGET_MIN_BYTES
-  ) {
+  if (metadata.sizeBytes > PHOTO_TARGET_MAX_BYTES || metadata.sizeBytes < PHOTO_TARGET_MIN_BYTES) {
     warnings.push('PHOTO_SIZE_OUTSIDE_TARGET');
   }
   if (

@@ -6,7 +6,11 @@ import {
   createPendingTextEntry,
   type LocalPendingEntry,
 } from '@project4/sync';
-import { createPatientNote, type AppSupabaseClient } from '@project4/supabase-client';
+import {
+  createPatientNote,
+  isTransientSupabaseError,
+  type AppSupabaseClient,
+} from '@project4/supabase-client';
 import { useState } from 'react';
 
 import { NoteFormScreen } from './NoteFormScreen';
@@ -65,7 +69,12 @@ export function PatientNoteScreen({
         clientEntryId: pendingCreate?.id,
       });
       onSaved();
-    } catch {
+    } catch (saveError) {
+      if (!isTransientSupabaseError(saveError)) {
+        setError(t(locale, 'note.saveError'));
+        return;
+      }
+
       if (entryToEdit && occurredAt && text) {
         await onPendingSaved(
           createPendingNoteUpdate({

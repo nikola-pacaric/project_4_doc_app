@@ -22,10 +22,11 @@ import {
   uploadPreparedEntryPhoto,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { MealFields, type ClientMealDraft } from '../components/MealFields';
 import { OtherFluidFields, type ClientOtherFluidDraft } from '../components/OtherFluidFields';
+import type { ExistingWebPhoto } from '../components/PhotoUploader';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { StatusMessage } from '../components/StatusMessage';
 
@@ -152,12 +153,6 @@ function normalizeWaterLitersText(value: string): string {
   return parsed === undefined || Number.isNaN(parsed) ? value : String(parsed);
 }
 
-function createPhotoId(): string {
-  return (
-    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
-  );
-}
-
 function sameMinute(dateA: string, dateB: string | null | undefined): boolean {
   if (!dateB) return false;
   const a = new Date(dateA);
@@ -179,12 +174,17 @@ async function withMealPhotoUris(
     mealDrafts.map(async (meal) => {
       if (!meal.entryId) return meal;
       const photos = await listEntryPhotos(client, meal.entryId);
-      const existingPhotoUris = await Promise.all(
+      const existingPhotos: ExistingWebPhoto[] = await Promise.all(
         photos
           .filter((photo) => photo.contextType === 'meal' || photo.contextType === null)
-          .map((photo) => createEntryPhotoSignedUrl(client, photo.thumbnailPath)),
+          .map(async (photo) => ({
+            id: photo.id,
+            photoPath: photo.photoPath,
+            thumbnailPath: photo.thumbnailPath,
+            uri: await createEntryPhotoSignedUrl(client, photo.thumbnailPath),
+          })),
       );
-      return { ...meal, existingPhotoUris };
+      return { ...meal, existingPhotos };
     }),
   );
 }
@@ -198,12 +198,17 @@ async function withFluidPhotoUris(
     fluidDrafts.map(async (fluid) => {
       if (!fluid.entryId) return fluid;
       const photos = await listEntryPhotos(client, fluid.entryId);
-      const existingPhotoUris = await Promise.all(
+      const existingPhotos: ExistingWebPhoto[] = await Promise.all(
         photos
           .filter((photo) => photo.contextType === 'fluid' || photo.contextType === null)
-          .map((photo) => createEntryPhotoSignedUrl(client, photo.thumbnailPath)),
+          .map(async (photo) => ({
+            id: photo.id,
+            photoPath: photo.photoPath,
+            thumbnailPath: photo.thumbnailPath,
+            uri: await createEntryPhotoSignedUrl(client, photo.thumbnailPath),
+          })),
       );
-      return { ...fluid, existingPhotoUris };
+      return { ...fluid, existingPhotos };
     }),
   );
 
@@ -217,35 +222,36 @@ async function withFluidPhotoUris(
   const photosWithUris = await Promise.all(
     photos.map(async (photo) => ({
       label: photo.contextLabel?.trim(),
+      id: photo.id,
+      photoPath: photo.photoPath,
+      thumbnailPath: photo.thumbnailPath,
       uri: await createEntryPhotoSignedUrl(client, photo.thumbnailPath),
     })),
   );
 
-  const matchedUris = new Set<string>();
+  const matchedPhotoIds = new Set<string>();
   const fluidsWithMatchedPhotos = fluidsWithEntryPhotos.map((fluid) => {
     const label = fluid.name?.trim();
-    const existingPhotoUris = label
+    const existingPhotos = label
       ? photosWithUris
           .filter((photo) => photo.label === label)
           .map((photo) => {
-            matchedUris.add(photo.uri);
-            return photo.uri;
+            matchedPhotoIds.add(photo.id);
+            return photo;
           })
       : [];
-    return { ...fluid, existingPhotoUris };
+    return { ...fluid, existingPhotos };
   });
 
-  const unmatchedUris = photosWithUris
-    .filter((photo) => !matchedUris.has(photo.uri))
-    .map((photo) => photo.uri);
+  const unmatchedPhotos = photosWithUris.filter((photo) => !matchedPhotoIds.has(photo.id));
 
-  if (!unmatchedUris.length) return fluidsWithMatchedPhotos;
+  if (!unmatchedPhotos.length) return fluidsWithMatchedPhotos;
 
   return fluidsWithMatchedPhotos.map((fluid, index) => {
     if (index === 0) {
       return {
         ...fluid,
-        existingPhotoUris: [...(fluid.existingPhotoUris ?? []), ...unmatchedUris],
+        existingPhotos: [...(fluid.existingPhotos ?? []), ...unmatchedPhotos],
       };
     }
     return fluid;
@@ -265,6 +271,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const completedPhotoUploadIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
     let active = true;
@@ -305,6 +312,36 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
       active = false;
     };
   }, [client, day, locale, profile.id]);
+
+  async function deleteMealPhoto(localId: string, photo: ExistingWebPhoto) {
+    await deleteEntryPhotos(client, [photo]);
+    setMeals((current) =>
+      current.map((meal) =>
+        (meal.localId ?? meal.entryId) === localId
+          ? {
+              ...meal,
+              existingPhotos: meal.existingPhotos?.filter((candidate) => candidate.id !== photo.id),
+            }
+          : meal,
+      ),
+    );
+  }
+
+  async function deleteFluidPhoto(localId: string, photo: ExistingWebPhoto) {
+    await deleteEntryPhotos(client, [photo]);
+    setOtherFluids((current) =>
+      current.map((fluid) =>
+        (fluid.localId ?? fluid.entryId) === localId
+          ? {
+              ...fluid,
+              existingPhotos: fluid.existingPhotos?.filter(
+                (candidate) => candidate.id !== photo.id,
+              ),
+            }
+          : fluid,
+      ),
+    );
+  }
 
   async function save() {
     const mealsToSave = meals.filter(
@@ -352,6 +389,36 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
       const foodEntryId = foodRecord?.entryId ?? null;
       const fluidRecords = foodEntryId ? await listPatientOtherFluids(client, foodEntryId) : [];
 
+      // Retain the database identities immediately. If a later photo fails, the
+      // next save updates these records instead of replacing their entries.
+      setMeals((current) =>
+        current.map((mealDraft) => {
+          const normalizedMealTime = normalizeMealDateTime(mealDraft.occurredAt);
+          const savedMeal = mealRecords.find(
+            (record) =>
+              record.entryId === mealDraft.entryId ||
+              (sameMinute(record.occurredAt, normalizedMealTime) &&
+                record.type === (mealDraft.type ?? null) &&
+                (record.name?.trim() ?? null) === (mealDraft.name?.trim() || null)),
+          );
+          return savedMeal?.entryId ? { ...mealDraft, entryId: savedMeal.entryId } : mealDraft;
+        }),
+      );
+      setOtherFluids((current) =>
+        current.map((fluidDraft) => {
+          const normalizedFluidTime = normalizeMealDateTime(fluidDraft.occurredAt);
+          const savedFluid = fluidRecords.find(
+            (record) =>
+              record.entryId === fluidDraft.entryId ||
+              (sameMinute(record.occurredAt, normalizedFluidTime) &&
+                (record.name?.trim() ?? null) === (fluidDraft.name?.trim() || null)),
+          );
+          return savedFluid?.entryId
+            ? { ...fluidDraft, entryId: savedFluid.entryId ?? undefined }
+            : fluidDraft;
+        }),
+      );
+
       // Clean up legacy photo records if other fluids were disabled
       if (hydration.hasOtherFluids !== true && foodEntryId) {
         const legacyFluidPhotos = (await listEntryPhotos(client, foodEntryId)).filter(
@@ -364,6 +431,9 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
       for (let i = 0; i < meals.length; i++) {
         const mealDraft = meals[i];
         if (mealDraft && mealDraft.localPhoto) {
+          if (completedPhotoUploadIdsRef.current.has(mealDraft.localPhoto.uploadId)) {
+            continue;
+          }
           const normalizedMealTime = normalizeMealDateTime(mealDraft.occurredAt);
           const savedMeal = mealRecords.find(
             (record) =>
@@ -376,7 +446,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
             throw new Error('Saved meal could not be matched for photo upload.');
           }
 
-          const photoId = createPhotoId();
+          const photoId = mealDraft.localPhoto.uploadId;
           await uploadPreparedEntryPhoto(client, {
             contextLabel: savedMeal.name || undefined,
             contextType: 'meal',
@@ -387,6 +457,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
             thumbnailBody: mealDraft.localPhoto.thumbnailBody,
             metadata: mealDraft.localPhoto.metadata,
           });
+          completedPhotoUploadIdsRef.current.add(photoId);
         }
       }
 
@@ -394,6 +465,9 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
       for (let i = 0; i < otherFluids.length; i++) {
         const fluidDraft = otherFluids[i];
         if (fluidDraft && fluidDraft.localPhoto) {
+          if (completedPhotoUploadIdsRef.current.has(fluidDraft.localPhoto.uploadId)) {
+            continue;
+          }
           const normalizedFluidTime = normalizeMealDateTime(fluidDraft.occurredAt);
           const savedFluid = fluidRecords.find(
             (record) =>
@@ -405,9 +479,9 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
             throw new Error('Saved fluid could not be matched for photo upload.');
           }
 
-          const photoId = createPhotoId();
+          const photoId = fluidDraft.localPhoto.uploadId;
           await uploadPreparedEntryPhoto(client, {
-            contextLabel: fluidDraft.name?.trim() || 'Fluid photo',
+            contextLabel: fluidDraft.name?.trim() || t(locale, 'photo.context.fluid'),
             contextType: 'fluid',
             entryId: savedFluid.entryId,
             patientId: profile.id,
@@ -416,6 +490,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
             thumbnailBody: fluidDraft.localPhoto.thumbnailBody,
             metadata: fluidDraft.localPhoto.metadata,
           });
+          completedPhotoUploadIdsRef.current.add(photoId);
         }
       }
 
@@ -465,7 +540,12 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
       {!loading ? (
         <form className="structured-entry-form food-form">
-          <MealFields createMeal={createEmptyMealDraft} meals={meals} onChange={setMeals} />
+          <MealFields
+            createMeal={createEmptyMealDraft}
+            meals={meals}
+            onChange={setMeals}
+            onDeletePhoto={deleteMealPhoto}
+          />
 
           <fieldset className="structured-fieldset hydration-section">
             <legend>{t(locale, 'food.waterTitle')}</legend>
@@ -517,6 +597,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
               createFluid={createEmptyOtherFluidDraft}
               fluids={otherFluids}
               onChange={setOtherFluids}
+              onDeletePhoto={deleteFluidPhoto}
             />
           ) : null}
 

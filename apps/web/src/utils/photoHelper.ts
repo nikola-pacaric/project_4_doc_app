@@ -2,10 +2,12 @@ import {
   PHOTO_MAX_WIDTH_PX,
   PHOTO_JPEG_QUALITY,
   PHOTO_MIME_TYPE,
+  createPhotoId,
   type PreparedPhotoMetadata,
 } from '@project4/photo';
 
 export interface WebPreparedPhoto {
+  uploadId: string;
   originalFilename: string;
   photoBody: Blob;
   thumbnailBody: Blob;
@@ -46,7 +48,7 @@ export async function prepareWebPhoto(file: File): Promise<WebPreparedPhoto> {
         else reject(new Error('Main photo blob generation failed'));
       },
       PHOTO_MIME_TYPE,
-      PHOTO_JPEG_QUALITY
+      PHOTO_JPEG_QUALITY,
     );
   });
 
@@ -74,7 +76,7 @@ export async function prepareWebPhoto(file: File): Promise<WebPreparedPhoto> {
         else reject(new Error('Thumbnail blob generation failed'));
       },
       PHOTO_MIME_TYPE,
-      0.72 // matching mobile quality
+      0.72, // matching mobile quality
     );
   });
 
@@ -96,6 +98,7 @@ export async function prepareWebPhoto(file: File): Promise<WebPreparedPhoto> {
   URL.revokeObjectURL(image.src);
 
   return {
+    uploadId: createPhotoId(),
     originalFilename: file.name,
     photoBody: photoBlob,
     thumbnailBody: thumbBlob,

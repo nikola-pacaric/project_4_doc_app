@@ -12,6 +12,7 @@ import { PHOTO_MIME_TYPE } from '@project4/photo';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
+import { cleanupPreparedPhoto } from '../lib/preparedPhotos';
 import { colors, sharedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 import { MedicationFormScreen, type ClientMedicationDraft } from './MedicationFormScreen';
@@ -25,12 +26,6 @@ interface PatientMedicationScreenProps {
   onCancelTimeline?: () => void;
   onSaved: () => void;
   profile: UserProfile;
-}
-
-function createPhotoId(): string {
-  return (
-    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
-  );
 }
 
 function toDraft(record: MedicationRecord): ClientMedicationDraft {
@@ -62,6 +57,16 @@ export function PatientMedicationScreen({
   const [existingPhotoUris, setExistingPhotoUris] = useState<string[]>([]);
   const [photoTarget, setPhotoTarget] = useState<ClientMedicationDraft | null>(null);
   const savedEntryIdRef = useRef<string | null>(entryToEdit?.id ?? null);
+  const preparedPhotoRef = useRef<PreparedPhoto | null>(null);
+  const uploadedPhotoIdsRef = useRef(new Set<string>());
+
+  useEffect(
+    () => () => {
+      void cleanupPreparedPhoto(preparedPhotoRef.current);
+      preparedPhotoRef.current = null;
+    },
+    [],
+  );
 
   useEffect(() => {
     savedEntryIdRef.current = entryToEdit?.id ?? null;
@@ -117,29 +122,36 @@ export function PatientMedicationScreen({
       const savedRecord = await createPatientMedication(client, profile.id, activeDraft);
       savedEntryIdRef.current = savedRecord.entryId;
 
-      if (activeDraft.localPhoto && savedRecord.entryId) {
-        const photoId = createPhotoId();
+      const localPhoto = activeDraft.localPhoto;
+      if (localPhoto && savedRecord.entryId && !uploadedPhotoIdsRef.current.has(localPhoto.uploadId)) {
         await uploadPreparedEntryPhoto(client, {
           contextLabel: activeDraft.name?.trim() || undefined,
           contextType: 'medication',
           entryId: savedRecord.entryId,
           patientId: profile.id,
-          photoId,
-          photoBody: activeDraft.localPhoto.photoBytes,
-          thumbnailBody: activeDraft.localPhoto.thumbnailBytes,
+          photoId: localPhoto.uploadId,
+          photoBody: localPhoto.photoBytes,
+          thumbnailBody: localPhoto.thumbnailBytes,
           metadata: {
-            originalFilename: activeDraft.localPhoto.originalFilename,
+            originalFilename: localPhoto.originalFilename,
             mimeType: PHOTO_MIME_TYPE,
-            widthPx: activeDraft.localPhoto.photo.width,
-            heightPx: activeDraft.localPhoto.photo.height,
-            sizeBytes: activeDraft.localPhoto.photoBytes.byteLength,
+            widthPx: localPhoto.photo.width,
+            heightPx: localPhoto.photo.height,
+            sizeBytes: localPhoto.photoBytes.byteLength,
             thumbnail: {
-              widthPx: activeDraft.localPhoto.thumbnail.width,
-              heightPx: activeDraft.localPhoto.thumbnail.height,
-              sizeBytes: activeDraft.localPhoto.thumbnailBytes.byteLength,
+              widthPx: localPhoto.thumbnail.width,
+              heightPx: localPhoto.thumbnail.height,
+              sizeBytes: localPhoto.thumbnailBytes.byteLength,
             },
           },
         });
+        uploadedPhotoIdsRef.current.add(localPhoto.uploadId);
+      }
+      if (localPhoto) {
+        if (preparedPhotoRef.current?.uploadId === localPhoto.uploadId) {
+          preparedPhotoRef.current = null;
+        }
+        await cleanupPreparedPhoto(localPhoto);
       }
       onSaved();
     } catch {
@@ -150,7 +162,19 @@ export function PatientMedicationScreen({
   }
 
   async function handleAddPhoto(draft: ClientMedicationDraft) {
+    const retainedPhoto = preparedPhotoRef.current;
+    if (retainedPhoto && retainedPhoto.uploadId !== draft.localPhoto?.uploadId) {
+      preparedPhotoRef.current = null;
+      await cleanupPreparedPhoto(retainedPhoto);
+    }
     setPhotoTarget(draft);
+  }
+
+  async function leaveForm(callback: (() => void) | undefined) {
+    const retainedPhoto = preparedPhotoRef.current;
+    preparedPhotoRef.current = null;
+    await cleanupPreparedPhoto(retainedPhoto);
+    callback?.();
   }
 
   if (loading) {
@@ -168,12 +192,17 @@ export function PatientMedicationScreen({
         contextLabel={photoTarget.name?.trim() || ''}
         contextType="medication"
         onBack={() => setPhotoTarget(null)}
-        onPhotoPrepared={(preparedPhoto) => {
+        onPhotoPrepared={async (preparedPhoto) => {
+          const previousPhoto = preparedPhotoRef.current;
+          preparedPhotoRef.current = preparedPhoto;
           setInitialDraft({
             ...photoTarget,
             localPhoto: preparedPhoto,
           });
           setPhotoTarget(null);
+          if (previousPhoto?.uploadId !== preparedPhoto.uploadId) {
+            await cleanupPreparedPhoto(previousPhoto);
+          }
         }}
         profile={profile}
       />
@@ -187,9 +216,13 @@ export function PatientMedicationScreen({
       existingPhotoUris={existingPhotoUris}
       initialDraft={initialDraft ?? undefined}
       onAddPhoto={handleAddPhoto}
-      onBack={onBack}
-      onCancelProfile={onCancelProfile}
-      onCancelTimeline={onCancelTimeline}
+      onBack={() => void leaveForm(onBack)}
+      onCancelProfile={
+        onCancelProfile ? () => void leaveForm(onCancelProfile) : undefined
+      }
+      onCancelTimeline={
+        onCancelTimeline ? () => void leaveForm(onCancelTimeline) : undefined
+      }
       onSave={save}
     />
   );

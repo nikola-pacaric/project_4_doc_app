@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PHOTO_MIME_TYPE,
   buildEntryPhotoPaths,
+  createPhotoId,
   validateEntryPhotoPaths,
   validatePreparedPhotoMetadata,
 } from './index';
@@ -79,5 +80,15 @@ describe('prepared photo metadata', () => {
       valid: false,
       errors: ['PHOTO_SIZE_TOO_SMALL', 'THUMBNAIL_SIZE_TOO_SMALL'],
     });
+  });
+});
+
+describe('createPhotoId', () => {
+  it('returns unique RFC 4122 UUID v4 identifiers', () => {
+    const ids = Array.from({ length: 20 }, () => createPhotoId());
+    expect(new Set(ids)).toHaveLength(ids.length);
+    for (const id of ids) {
+      expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    }
   });
 });

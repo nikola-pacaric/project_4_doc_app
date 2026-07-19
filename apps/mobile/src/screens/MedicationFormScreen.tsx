@@ -132,11 +132,7 @@ export function MedicationFormScreen({
           ]}
           palette={palette}
           value={
-            draft.isChronicTherapy === undefined
-              ? undefined
-              : draft.isChronicTherapy
-                ? 'yes'
-                : 'no'
+            draft.isChronicTherapy === undefined ? undefined : draft.isChronicTherapy ? 'yes' : 'no'
           }
         />
         <Text style={[layout.helpText, { color: palette.onSurfaceVariant }]}>

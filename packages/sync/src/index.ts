@@ -52,6 +52,19 @@ export interface LocalPendingEntry {
   operation: PendingEntryOperation;
   createdAt: string;
   payload: PendingTextEntryPayload | PendingTimestampUpdatePayload | PendingNoteUpdatePayload;
+  syncState?: 'pending' | 'failed';
+  lastError?: string;
+}
+
+export function isPendingEntryRetryable(entry: LocalPendingEntry): boolean {
+  return entry.syncState !== 'failed';
+}
+
+export function markPendingEntryFailed(
+  entry: LocalPendingEntry,
+  lastError: string,
+): LocalPendingEntry {
+  return { ...entry, syncState: 'failed', lastError };
 }
 
 export function hasPendingEntries(entries: readonly LocalPendingEntry[]): boolean {

@@ -11,12 +11,13 @@ import {
   listEntryPhotos,
   createEntryPhotoSignedUrl,
   uploadPreparedEntryPhoto,
+  deleteEntryPhotos,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
-import { PhotoUploader } from '../components/PhotoUploader';
+import { PhotoUploader, type ExistingWebPhoto } from '../components/PhotoUploader';
 import { StatusMessage } from '../components/StatusMessage';
 import { VoiceTextField } from '../components/VoiceTextField';
 import { type WebPreparedPhoto } from '../utils/photoHelper';
@@ -30,7 +31,7 @@ interface MedicationFormScreenProps {
 }
 
 export interface ClientMedicationDraft extends MedicationDraft {
-  existingPhotoUris?: string[];
+  existingPhotos?: ExistingWebPhoto[];
   localPhoto?: WebPreparedPhoto | null;
 }
 
@@ -56,12 +57,6 @@ function toDraft(record: MedicationRecord): ClientMedicationDraft {
     reason: record.reason ?? '',
     isChronicTherapy: record.isChronicTherapy ?? undefined,
   };
-}
-
-function createPhotoId(): string {
-  return (
-    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
-  );
 }
 
 export function MedicationFormScreen({
@@ -104,13 +99,18 @@ export function MedicationFormScreen({
         }
 
         const draftData = toDraft(record);
-        const existingPhotoUris = await Promise.all(
+        const existingPhotos: ExistingWebPhoto[] = await Promise.all(
           photos
             .filter((photo) => photo.contextType === 'medication' || photo.contextType === null)
-            .map((photo) => createEntryPhotoSignedUrl(client, photo.thumbnailPath)),
+            .map(async (photo) => ({
+              id: photo.id,
+              photoPath: photo.photoPath,
+              thumbnailPath: photo.thumbnailPath,
+              uri: await createEntryPhotoSignedUrl(client, photo.thumbnailPath),
+            })),
         );
 
-        setDraft({ ...draftData, existingPhotoUris });
+        setDraft({ ...draftData, existingPhotos });
       })
       .catch(() => {
         if (active) setError(t(locale, 'medication.loadError'));
@@ -138,6 +138,14 @@ export function MedicationFormScreen({
     update('takenAt', `${date} ${value}`);
   }
 
+  async function deleteSavedPhoto(photo: ExistingWebPhoto) {
+    await deleteEntryPhotos(client, [photo]);
+    setDraft((current) => ({
+      ...current,
+      existingPhotos: current.existingPhotos?.filter((candidate) => candidate.id !== photo.id),
+    }));
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!normalizeMedicationDateTime(draft.takenAt)) {
@@ -151,7 +159,7 @@ export function MedicationFormScreen({
       const saved = await createPatientMedication(client, profile.id, draft);
       setDraft((current) => ({ ...current, entryId: saved.entryId }));
       if (draft.localPhoto) {
-        const photoId = createPhotoId();
+        const photoId = draft.localPhoto.uploadId;
         await uploadPreparedEntryPhoto(client, {
           contextLabel: saved.name || undefined,
           contextType: 'medication',
@@ -249,9 +257,10 @@ export function MedicationFormScreen({
           <fieldset className="structured-fieldset">
             <legend>{t(locale, 'photo.title')}</legend>
             <PhotoUploader
-              existingPhotoUris={draft.existingPhotoUris}
+              existingPhotos={draft.existingPhotos}
               localPhoto={draft.localPhoto}
               onPhotoSelected={(photo) => update('localPhoto', photo)}
+              onDeleteExistingPhoto={deleteSavedPhoto}
             />
           </fieldset>
 

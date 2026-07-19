@@ -17,6 +17,8 @@ import {
 import { getActiveLocale, t } from '@project4/i18n';
 import {
   isPendingEntryId,
+  isPendingEntryRetryable,
+  markPendingEntryFailed,
   mergePendingTextEntries,
   pendingTimelineEntryIds,
   removePendingEntry,
@@ -29,6 +31,7 @@ import {
   completePatientDailyForm,
   createPatientNote,
   deletePatientEntry,
+  isTransientSupabaseError,
   getPatientBaseline,
   getPatientDailyForm,
   getPatientFoodForm,
@@ -79,8 +82,7 @@ interface LoadEntriesOptions {
 }
 
 const ONLINE_LOAD_TIMEOUT_MS = 2_500;
-const ONLINE_MODE_CHECK_MS = 2_000;
-const OFFLINE_MODE_CHECK_MS = 2_000;
+const OFFLINE_RECONNECT_DELAYS_MS = [15_000, 30_000, 60_000, 120_000, 300_000] as const;
 
 function formatMissingSubmitSections(template: string, sections: string[]): string {
   if (!sections.length) return '';
@@ -131,6 +133,7 @@ export function PatientHomeScreen({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [offlineMode, setOfflineMode] = useState(false);
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const [showBaseline, setShowBaseline] = useState(initialTab === 'profile');
   const [showDailyForm, setShowDailyForm] = useState(false);
   const [dailyEntryId, setDailyEntryId] = useState<string | null>(null);
@@ -244,6 +247,8 @@ export function PatientHomeScreen({
       let remainingEntries = queuedEntries;
 
       for (const pendingEntry of queuedEntries) {
+        if (!isPendingEntryRetryable(pendingEntry)) continue;
+
         try {
           if (pendingEntry.operation === 'create_text_entry') {
             const payload = pendingEntry.payload as PendingTextEntryPayload;
@@ -269,8 +274,28 @@ export function PatientHomeScreen({
           }
           remainingEntries = removePendingEntry(remainingEntries, pendingEntry.id);
           await savePendingEntries(profile.id, remainingEntries);
-        } catch {
-          break;
+        } catch (syncError) {
+          if (isTransientSupabaseError(syncError)) break;
+
+          const errorCode =
+            syncError &&
+            typeof syncError === 'object' &&
+            'code' in syncError &&
+            typeof syncError.code === 'string'
+              ? syncError.code
+              : 'SYNC_REJECTED';
+          remainingEntries = remainingEntries.map((entry) =>
+            entry.id === pendingEntry.id ? markPendingEntryFailed(entry, errorCode) : entry,
+          );
+          await savePendingEntries(profile.id, remainingEntries);
+          setError(
+            t(
+              getActiveLocale(),
+              pendingEntry.operation === 'create_text_entry'
+                ? 'entry.saveError'
+                : 'entry.updateError',
+            ),
+          );
         }
       }
 
@@ -415,6 +440,7 @@ export function PatientHomeScreen({
             ONLINE_LOAD_TIMEOUT_MS,
           );
           setOfflineMode(false);
+          setReconnectAttempt(0);
           setFoodForm(foodFormDetails);
           await saveCachedRecentEntries(profile.id, nextEntries);
           await saveCachedOpenedDayEntries(
@@ -465,6 +491,7 @@ export function PatientHomeScreen({
             ? cachedOpenedDayEntries
             : await loadCachedRecentEntries(profile.id);
           setOfflineMode(true);
+          setReconnectAttempt((current) => current + 1);
           setFoodForm(null);
           if (cachedEntries.length) {
             setEntries(filterPatientTimelineEntries(cachedEntries, null));
@@ -540,22 +567,27 @@ export function PatientHomeScreen({
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void loadEntries();
+      if (state === 'active') {
+        setReconnectAttempt((current) => current + 1);
+        void loadEntries({ showLoading: false });
+      }
     });
 
     return () => subscription.remove();
   }, [loadEntries]);
 
   useEffect(() => {
-    const retryTimer = setInterval(
-      () => {
-        void loadEntries({ showLoading: false });
-      },
-      offlineMode ? OFFLINE_MODE_CHECK_MS : ONLINE_MODE_CHECK_MS,
-    );
+    if (!offlineMode || AppState.currentState !== 'active') return;
+    const retryDelay =
+      OFFLINE_RECONNECT_DELAYS_MS[
+        Math.min(Math.max(reconnectAttempt - 1, 0), OFFLINE_RECONNECT_DELAYS_MS.length - 1)
+      ];
+    const retryTimer = setTimeout(() => {
+      void loadEntries({ showLoading: false });
+    }, retryDelay);
 
-    return () => clearInterval(retryTimer);
-  }, [loadEntries, offlineMode]);
+    return () => clearTimeout(retryTimer);
+  }, [loadEntries, offlineMode, reconnectAttempt]);
 
   if (showBaseline) {
     return (

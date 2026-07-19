@@ -31,7 +31,14 @@ values
   ('10000000-0000-4000-8000-000000000262', '00000000-0000-4000-8000-000000000262', 'menstruation', '2026-06-23 09:00:00+02', null, '2026-06-23 09:00:00+02'),
   ('10000000-0000-4000-8000-000000000268', '00000000-0000-4000-8000-000000000261', 'daily', '2026-06-23 10:00:00+02', null, '2026-06-23 10:00:00+02'),
   ('10000000-0000-4000-8000-000000000269', '00000000-0000-4000-8000-000000000262', 'note', '2026-06-23 11:00:00+02', 'Patient B note', '2026-06-23 11:00:00+02'),
-  ('10000000-0000-4000-8000-000000000270', '00000000-0000-4000-8000-000000000261', 'text', '2026-06-23 12:00:00+02', 'Legacy text', '2026-06-23 12:00:00+02')
+  (
+    '10000000-0000-4000-8000-000000000270',
+    '00000000-0000-4000-8000-000000000261',
+    'text',
+    ((now() at time zone 'Europe/Belgrade')::date + time '12:00') at time zone 'Europe/Belgrade',
+    'Legacy text',
+    now() - interval '1 hour'
+  )
 on conflict (id) do nothing;
 
 insert into public.menstruation_events (entry_id, flow, pain_level, notes)
@@ -96,10 +103,11 @@ declare
   period_count integer;
   note_count integer;
   saved_flow text;
+  belgrade_today date := (now() at time zone 'Europe/Belgrade')::date;
 begin
   first_period_id := public.save_patient_menstruation(
     null,
-    '2026-06-23 08:00:00+02',
+    (belgrade_today + time '08:00') at time zone 'Europe/Belgrade',
     'moderate',
     2,
     ' Mild cramps '
@@ -107,7 +115,7 @@ begin
 
   second_period_id := public.save_patient_menstruation(
     null,
-    '2026-06-23 18:00:00+02',
+    (belgrade_today + time '18:00') at time zone 'Europe/Belgrade',
     'heavy',
     3,
     null
@@ -127,7 +135,7 @@ begin
 
   perform public.save_patient_menstruation(
     first_period_id,
-    '2026-06-23 08:15:00+02',
+    (belgrade_today + time '08:15') at time zone 'Europe/Belgrade',
     'light',
     1,
     'Updated'
@@ -155,7 +163,7 @@ begin
   begin
     perform public.save_patient_menstruation(
       null,
-      '2026-06-23 12:00:00+02',
+      (belgrade_today + time '12:00') at time zone 'Europe/Belgrade',
       'unknown',
       2,
       null
@@ -175,7 +183,7 @@ begin
   into note_row
   from public.save_patient_note(
     null,
-    '2026-06-23 13:00:00+02',
+    (belgrade_today + time '13:00') at time zone 'Europe/Belgrade',
     ' First note ',
     'pending-1782208800000-note01'
   );
@@ -188,7 +196,7 @@ begin
   into replayed_note_row
   from public.save_patient_note(
     null,
-    '2026-06-23 13:00:00+02',
+    (belgrade_today + time '13:00') at time zone 'Europe/Belgrade',
     ' First note ',
     'pending-1782208800000-note01'
   );
@@ -200,7 +208,7 @@ begin
   begin
     perform public.save_patient_note(
       null,
-      '2026-06-23 13:00:00+02',
+      (belgrade_today + time '13:00') at time zone 'Europe/Belgrade',
       'Different content',
       'pending-1782208800000-note01'
     );
@@ -210,7 +218,7 @@ begin
 
   perform public.save_patient_note(
     note_row.id,
-    '2026-06-23 13:15:00+02',
+    (belgrade_today + time '13:15') at time zone 'Europe/Belgrade',
     'Updated note',
     null
   );
@@ -222,7 +230,7 @@ begin
   select * into legacy_text_row
   from public.save_patient_note(
     '10000000-0000-4000-8000-000000000270',
-    '2026-06-23 12:15:00+02',
+    (belgrade_today + time '12:15') at time zone 'Europe/Belgrade',
     'Updated legacy text',
     null
   );
@@ -246,7 +254,12 @@ begin
   end;
 
   begin
-    perform public.save_patient_note(null, '2026-06-23 14:00:00+02', '   ', null);
+    perform public.save_patient_note(
+      null,
+      (belgrade_today + time '14:00') at time zone 'Europe/Belgrade',
+      '   ',
+      null
+    );
     raise exception 'blank note text should fail';
   exception when invalid_parameter_value then null;
   end;

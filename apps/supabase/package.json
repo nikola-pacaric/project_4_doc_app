@@ -5,6 +5,7 @@
   "scripts": {
     "db:push:dry": "npx --yes supabase db push --linked --dry-run",
     "migration:list": "npx --yes supabase migration list --linked",
+    "rls:current-day": "npx --yes supabase db query --linked --file tests/rls_current_day_mutations.sql",
     "rls:core": "npx --yes supabase db query --linked --file tests/rls_core_access.sql",
     "rls:exports": "npx --yes supabase db query --linked --file tests/rls_doctor_exports.sql",
     "rls:invites": "npx --yes supabase db query --linked --file tests/rls_doctor_invites.sql",

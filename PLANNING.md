@@ -183,6 +183,7 @@ Photo storage:
 - Done: core patient/doctor flows work in Serbian/English and light/dark, with no hardcoded core UI strings.
 
 ### Phase 10 - Final Validation
+- Progress checkpoint (Codex-verified 2026-07-19): A follow-up live migration now requires the owning patient's current Europe/Belgrade calendar day for direct structured-detail inserts/deletes and photo metadata/Storage inserts, closing historical mutation paths left by the July 17 update-only hardening. Expanded current-day coverage and the linked `rls:core`, `rls:notes`, and `rls:photos` suites passed. Web timeline loads again have a 2.5-second boundary before cached/offline fallback; its focused tests, local typecheck, all 217 tests, targeted touched-file lint, and the web production build passed. Browser and Android interaction review were not run.
 - Progress checkpoint (Codex-verified 2026-07-16): A fresh debug APK was assembled successfully at `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk` after regenerating stale native autolinking/build metadata. Debug signing and Expo Supabase environment loading passed; installation and interactive Android/device smoke testing remain pending.
 - [x] Re-run final automated checks: typecheck, tests, web build, and relevant Supabase migration, RLS, export, and photo checks.
 - [ ] Run web end-to-end smoke flows: patient timeline/forms/offline note sync, doctor linking/timeline, exports, and settings.

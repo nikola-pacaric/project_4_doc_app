@@ -1,12 +1,12 @@
 import { isMealDraftStarted, type MealDraft, type MealType } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
-import { PhotoUploader } from './PhotoUploader';
+import { PhotoUploader, type ExistingWebPhoto } from './PhotoUploader';
 import { VoiceTextField } from './VoiceTextField';
 import type { WebPreparedPhoto } from '../utils/photoHelper';
 
 export interface ClientMealDraft extends MealDraft {
   localId?: string;
-  existingPhotoUris?: string[];
+  existingPhotos?: ExistingWebPhoto[];
   localPhoto?: WebPreparedPhoto | null;
 }
 
@@ -14,11 +14,12 @@ interface MealFieldsProps {
   createMeal: () => ClientMealDraft;
   meals: ClientMealDraft[];
   onChange: (meals: ClientMealDraft[]) => void;
+  onDeletePhoto: (mealLocalId: string, photo: ExistingWebPhoto) => Promise<void>;
 }
 
 const mealTypes: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack', 'other'];
 
-export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
+export function MealFields({ createMeal, meals, onChange, onDeletePhoto }: MealFieldsProps) {
   const locale = getActiveLocale();
 
   function updateMeal(index: number, update: Partial<ClientMealDraft>) {
@@ -85,10 +86,15 @@ export function MealFields({ createMeal, meals, onChange }: MealFieldsProps) {
               />
 
               <div style={{ marginBottom: '12px' }}>
-                <span className="choice-label" style={{ display: 'block', marginBottom: '6px' }}>{t(locale, 'photo.title')}</span>
+                <span className="choice-label" style={{ display: 'block', marginBottom: '6px' }}>
+                  {t(locale, 'photo.title')}
+                </span>
                 <PhotoUploader
-                  existingPhotoUris={meal.existingPhotoUris}
+                  existingPhotos={meal.existingPhotos}
                   localPhoto={meal.localPhoto}
+                  onDeleteExistingPhoto={(photo) =>
+                    onDeletePhoto(meal.localId ?? meal.entryId ?? '', photo)
+                  }
                   onPhotoSelected={(photo) => updateMeal(index, { localPhoto: photo })}
                 />
               </div>

@@ -25,6 +25,7 @@ import {
 import { AppErrorBoundary } from './src/components/AppErrorBoundary';
 import { PrimaryButton } from './src/components/PrimaryButton';
 import { StatusMessage } from './src/components/StatusMessage';
+import { cleanupAllPreparedPhotos } from './src/lib/preparedPhotos';
 import { isSupabaseConfigured, supabase } from './src/lib/supabase';
 import { clearAllPatientOfflineData } from './src/offline/pendingEntries';
 import { SymptomPreview } from './src/preview/SymptomPreview';
@@ -63,6 +64,10 @@ function MainApp() {
 
     return () => subscription.remove();
   }, [settingsOpen]);
+
+  useEffect(() => {
+    void cleanupAllPreparedPhotos();
+  }, []);
 
   useEffect(() => {
     void loadMobilePreferences()

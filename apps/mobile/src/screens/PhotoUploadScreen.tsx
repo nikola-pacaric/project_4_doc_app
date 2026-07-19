@@ -1,17 +1,27 @@
-import { PHOTO_JPEG_QUALITY, PHOTO_MAX_WIDTH_PX, PHOTO_MIME_TYPE } from '@project4/photo';
+import {
+  createPhotoId,
+  PHOTO_JPEG_QUALITY,
+  PHOTO_MAX_WIDTH_PX,
+  PHOTO_MIME_TYPE,
+} from '@project4/photo';
 import { type UserProfile } from '@project4/contracts';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import { uploadPreparedEntryPhoto, type AppSupabaseClient } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
 import { manipulateAsync, SaveFormat, type ImageResult } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { StatusMessage } from '../components/StatusMessage';
+import {
+  cleanupPreparedPhoto,
+  cleanupPreparedPhotoUris,
+  trackPreparedPhotoUris,
+} from '../lib/preparedPhotos';
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 
 export interface PhotoUploadScreenProps {
@@ -26,6 +36,7 @@ export interface PhotoUploadScreenProps {
 }
 
 export interface PreparedPhoto {
+  uploadId: string;
   originalFilename?: string;
   photo: ImageResult;
   photoBytes: Uint8Array;
@@ -78,12 +89,6 @@ function imageResultBytes(image: ManipulatedImageResult): Uint8Array {
   return base64ToBytes(image.base64);
 }
 
-function createPhotoId(): string {
-  return (
-    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
-  );
-}
-
 function resizeActions(width: number | undefined, targetWidth: number) {
   if (!width || width <= targetWidth) return [];
   return [{ resize: { width: targetWidth } }];
@@ -104,28 +109,65 @@ export function PhotoUploadScreen({
   const [preparing, setPreparing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const preparedPhotoRef = useRef<PreparedPhoto | null>(null);
+  const transferredUploadIdsRef = useRef(new Set<string>());
+  const uploadedUploadIdsRef = useRef(new Set<string>());
+
+  useEffect(
+    () => () => {
+      const retainedPhoto = preparedPhotoRef.current;
+      if (retainedPhoto && !transferredUploadIdsRef.current.has(retainedPhoto.uploadId)) {
+        void cleanupPreparedPhoto(retainedPhoto);
+      }
+    },
+    [],
+  );
 
   async function prepareAsset(asset: ImagePicker.ImagePickerAsset) {
-    const photo = (await manipulateAsync(
-      asset.uri,
-      resizeActions(asset.width, PHOTO_MAX_WIDTH_PX),
-      { base64: true, compress: PHOTO_JPEG_QUALITY, format: SaveFormat.JPEG },
-    )) as ManipulatedImageResult;
-    const thumbnail = (await manipulateAsync(photo.uri, resizeActions(photo.width, 320), {
-      base64: true,
-      compress: 0.72,
-      format: SaveFormat.JPEG,
-    })) as ManipulatedImageResult;
-    const photoBytes = imageResultBytes(photo);
-    const thumbnailBytes = imageResultBytes(thumbnail);
+    let photo: ManipulatedImageResult | null = null;
+    let thumbnail: ManipulatedImageResult | null = null;
 
-    setPreparedPhoto({
-      originalFilename: asset.fileName ?? undefined,
-      photo,
-      photoBytes,
-      thumbnail,
-      thumbnailBytes,
-    });
+    try {
+      photo = (await manipulateAsync(
+        asset.uri,
+        resizeActions(asset.width, PHOTO_MAX_WIDTH_PX),
+        { base64: true, compress: PHOTO_JPEG_QUALITY, format: SaveFormat.JPEG },
+      )) as ManipulatedImageResult;
+      await trackPreparedPhotoUris([photo.uri]);
+      thumbnail = (await manipulateAsync(photo.uri, resizeActions(photo.width, 320), {
+        base64: true,
+        compress: 0.72,
+        format: SaveFormat.JPEG,
+      })) as ManipulatedImageResult;
+      await trackPreparedPhotoUris([thumbnail.uri]);
+
+      const nextPhoto: PreparedPhoto = {
+        uploadId: createPhotoId(),
+        originalFilename: asset.fileName ?? undefined,
+        photo,
+        photoBytes: imageResultBytes(photo),
+        thumbnail,
+        thumbnailBytes: imageResultBytes(thumbnail),
+      };
+      const previousPhoto = preparedPhotoRef.current;
+
+      preparedPhotoRef.current = nextPhoto;
+      setPreparedPhoto(nextPhoto);
+      await cleanupPreparedPhoto(previousPhoto);
+    } catch (prepareError) {
+      await cleanupPreparedPhotoUris(
+        [photo?.uri, thumbnail?.uri].filter((uri): uri is string => Boolean(uri)),
+      );
+      throw prepareError;
+    }
+  }
+
+  async function handleBack() {
+    const retainedPhoto = preparedPhotoRef.current;
+    preparedPhotoRef.current = null;
+    setPreparedPhoto(null);
+    await cleanupPreparedPhoto(retainedPhoto);
+    onBack();
   }
 
   async function pickPhoto() {
@@ -195,8 +237,11 @@ export function PhotoUploadScreen({
     if (onPhotoPrepared) {
       setSaving(true);
       try {
+        transferredUploadIdsRef.current.add(preparedPhoto.uploadId);
         await onPhotoPrepared(preparedPhoto);
+        preparedPhotoRef.current = null;
       } catch {
+        transferredUploadIdsRef.current.delete(preparedPhoto.uploadId);
         setError(t(locale, 'photo.prepareError'));
       } finally {
         setSaving(false);
@@ -212,30 +257,36 @@ export function PhotoUploadScreen({
     setSaving(true);
     setError(null);
     try {
-      await uploadPreparedEntryPhoto(client, {
-        contextLabel,
-        contextType,
-        entryId,
-        patientId: profile.id,
-        photoId: createPhotoId(),
-        photoBody: preparedPhoto.photoBytes,
-        thumbnailBody: preparedPhoto.thumbnailBytes,
-        metadata: {
-          originalFilename: preparedPhoto.originalFilename,
-          mimeType: PHOTO_MIME_TYPE,
-          widthPx: preparedPhoto.photo.width,
-          heightPx: preparedPhoto.photo.height,
-          sizeBytes: preparedPhoto.photoBytes.byteLength,
-          thumbnail: {
-            widthPx: preparedPhoto.thumbnail.width,
-            heightPx: preparedPhoto.thumbnail.height,
-            sizeBytes: preparedPhoto.thumbnailBytes.byteLength,
+      if (!uploadedUploadIdsRef.current.has(preparedPhoto.uploadId)) {
+        await uploadPreparedEntryPhoto(client, {
+          contextLabel,
+          contextType,
+          entryId,
+          patientId: profile.id,
+          photoId: preparedPhoto.uploadId,
+          photoBody: preparedPhoto.photoBytes,
+          thumbnailBody: preparedPhoto.thumbnailBytes,
+          metadata: {
+            originalFilename: preparedPhoto.originalFilename,
+            mimeType: PHOTO_MIME_TYPE,
+            widthPx: preparedPhoto.photo.width,
+            heightPx: preparedPhoto.photo.height,
+            sizeBytes: preparedPhoto.photoBytes.byteLength,
+            thumbnail: {
+              widthPx: preparedPhoto.thumbnail.width,
+              heightPx: preparedPhoto.thumbnail.height,
+              sizeBytes: preparedPhoto.thumbnailBytes.byteLength,
+            },
           },
-        },
-      });
+        });
+        uploadedUploadIdsRef.current.add(preparedPhoto.uploadId);
+      }
       if (onUploaded) {
         await onUploaded();
       }
+      preparedPhotoRef.current = null;
+      setPreparedPhoto(null);
+      await cleanupPreparedPhoto(preparedPhoto);
     } catch {
       setError(t(locale, 'photo.uploadError'));
     } finally {
@@ -291,7 +342,11 @@ export function PhotoUploadScreen({
         {error ? <StatusMessage message={error} style={sharedStyles.error} tone="error" /> : null}
 
         <View style={styles.actions}>
-          <PrimaryButton label={t(locale, 'common.back')} onPress={onBack} variant="secondary" />
+          <PrimaryButton
+            label={t(locale, 'common.back')}
+            onPress={() => void handleBack()}
+            variant="secondary"
+          />
           <PrimaryButton
             busy={preparing}
             disabled={saving}

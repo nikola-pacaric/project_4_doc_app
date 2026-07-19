@@ -8,7 +8,9 @@ import {
   cachedOpenedDayEntries,
   dedupePendingEntries,
   filterPatientOfflineStorageKeys,
+  isPendingEntryRetryable,
   isPendingEntryId,
+  markPendingEntryFailed,
   mergeOpenedDayEntryCache,
   mergePendingTextEntries,
   patientOfflineStorageKeys,
@@ -200,6 +202,23 @@ describe('offline-lite pending text entries', () => {
       second,
       timestampUpdate,
     ]);
+  });
+
+  it('quarantines permanent failures without removing their local display data', () => {
+    const pending = createPendingTextEntry(
+      { patientId: 'patient-1', text: 'Keep me', occurredAt: '2026-07-03T08:00:00.000Z' },
+      new Date('2026-07-03T08:01:00.000Z'),
+    );
+    const failed = markPendingEntryFailed(pending, '42501');
+
+    expect(isPendingEntryRetryable(pending)).toBe(true);
+    expect(isPendingEntryRetryable(failed)).toBe(false);
+    expect(failed).toMatchObject({
+      id: pending.id,
+      syncState: 'failed',
+      lastError: '42501',
+    });
+    expect(pendingTextEntryToPatientEntry(failed)?.text).toBe('Keep me');
   });
 });
 

@@ -1,12 +1,12 @@
 import { isOtherFluidDraftStarted, type OtherFluidDraft } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
-import { PhotoUploader } from './PhotoUploader';
+import { PhotoUploader, type ExistingWebPhoto } from './PhotoUploader';
 import { VoiceTextField } from './VoiceTextField';
 import type { WebPreparedPhoto } from '../utils/photoHelper';
 
 export interface ClientOtherFluidDraft extends OtherFluidDraft {
   localId?: string;
-  existingPhotoUris?: string[];
+  existingPhotos?: ExistingWebPhoto[];
   localPhoto?: WebPreparedPhoto | null;
 }
 
@@ -14,9 +14,15 @@ interface OtherFluidFieldsProps {
   createFluid: () => ClientOtherFluidDraft;
   fluids: ClientOtherFluidDraft[];
   onChange: (fluids: ClientOtherFluidDraft[]) => void;
+  onDeletePhoto: (fluidLocalId: string, photo: ExistingWebPhoto) => Promise<void>;
 }
 
-export function OtherFluidFields({ createFluid, fluids, onChange }: OtherFluidFieldsProps) {
+export function OtherFluidFields({
+  createFluid,
+  fluids,
+  onChange,
+  onDeletePhoto,
+}: OtherFluidFieldsProps) {
   const locale = getActiveLocale();
 
   function updateFluid(index: number, update: Partial<ClientOtherFluidDraft>) {
@@ -58,10 +64,15 @@ export function OtherFluidFields({ createFluid, fluids, onChange }: OtherFluidFi
           />
 
           <div style={{ marginBottom: '12px' }}>
-            <span className="choice-label" style={{ display: 'block', marginBottom: '6px' }}>{t(locale, 'photo.title')}</span>
+            <span className="choice-label" style={{ display: 'block', marginBottom: '6px' }}>
+              {t(locale, 'photo.title')}
+            </span>
             <PhotoUploader
-              existingPhotoUris={fluid.existingPhotoUris}
+              existingPhotos={fluid.existingPhotos}
               localPhoto={fluid.localPhoto}
+              onDeleteExistingPhoto={(photo) =>
+                onDeletePhoto(fluid.localId ?? fluid.entryId ?? '', photo)
+              }
               onPhotoSelected={(photo) => updateFluid(index, { localPhoto: photo })}
             />
           </div>

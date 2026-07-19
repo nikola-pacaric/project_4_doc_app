@@ -4,7 +4,6 @@ import {
   entryKindIconStyle,
   filterPatientTimelineEntries,
   isNoStoolTodayEntry,
-  type EntryKind,
   type PatientEntry,
   type UserProfile,
   type FoodFormRecord,
@@ -20,6 +19,8 @@ import {
 } from '@project4/forms';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
+  isPendingEntryRetryable,
+  markPendingEntryFailed,
   isPendingEntryId,
   mergePendingTextEntries,
   pendingTimelineEntryIds,
@@ -30,6 +31,7 @@ import {
   type PendingTimestampUpdatePayload,
 } from '@project4/sync';
 import {
+  isTransientSupabaseError,
   completePatientDailyForm,
   createPatientNote,
   createEntryPhotoSignedUrl,
@@ -58,6 +60,7 @@ import {
   savePendingEntries,
 } from '../offline/pendingEntries';
 import { StatusMessage } from '../components/StatusMessage';
+import { withRequestTimeout } from '../utils/requestTimeout';
 import { BaselineScreen } from './BaselineScreen';
 import { DailyFormScreen } from './DailyFormScreen';
 import { ExerciseFormScreen } from './ExerciseFormScreen';
@@ -87,16 +90,8 @@ interface TimelineEntryPhoto {
 }
 
 const ONLINE_LOAD_TIMEOUT_MS = 2_500;
-const ONLINE_MODE_CHECK_MS = 2_000;
-const OFFLINE_MODE_CHECK_MS = 2_000;
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timeout = window.setTimeout(() => reject(new Error('Request timed out')), timeoutMs);
-
-    promise.then(resolve, reject).finally(() => window.clearTimeout(timeout));
-  });
-}
+const OFFLINE_RETRY_INITIAL_MS = 5_000;
+const OFFLINE_RETRY_MAX_MS = 60_000;
 
 function localDateValue(value: Date): string {
   const offset = value.getTimezoneOffset() * 60_000;
@@ -253,6 +248,8 @@ export function TimelineScreen({
   const syncPendingPromiseRef = useRef<Promise<LocalPendingEntry[]> | null>(null);
   const loadEntriesPromiseRef = useRef<Promise<void> | null>(null);
   const timelineDayRequestIdRef = useRef(0);
+  const offlineModeRef = useRef(false);
+  const lastLifecycleRefreshAtRef = useRef(0);
 
   const handleActivityAnswerChange = useCallback((answer: boolean | undefined) => {
     setExerciseRequired(answer === true);
@@ -279,6 +276,7 @@ export function TimelineScreen({
 
       for (const pendingEntry of queuedEntries) {
         try {
+          if (!isPendingEntryRetryable(pendingEntry)) continue;
           if (pendingEntry.operation === 'create_text_entry') {
             const payload = pendingEntry.payload as PendingTextEntryPayload;
             await createPatientNote(
@@ -303,12 +301,32 @@ export function TimelineScreen({
           }
           remainingEntries = removePendingEntry(remainingEntries, pendingEntry.id);
           savePendingEntries(profile.id, remainingEntries);
-        } catch {
-          break;
+        } catch (syncError) {
+          if (isTransientSupabaseError(syncError)) break;
+
+          const errorCode =
+            syncError && typeof syncError === 'object' && 'code' in syncError
+              ? String(syncError.code)
+              : 'PERMANENT_SYNC_FAILURE';
+          remainingEntries = remainingEntries.map((entry) =>
+            entry.id === pendingEntry.id ? markPendingEntryFailed(entry, errorCode) : entry,
+          );
+          savePendingEntries(profile.id, remainingEntries);
         }
       }
 
       setPendingEntries(remainingEntries);
+      const failedEntry = remainingEntries.find((entry) => !isPendingEntryRetryable(entry));
+      if (failedEntry) {
+        setError(
+          t(
+            locale,
+            failedEntry.operation === 'update_entry_timestamp'
+              ? 'entry.updateError'
+              : 'entry.saveError',
+          ),
+        );
+      }
       return remainingEntries;
     })();
 
@@ -318,7 +336,7 @@ export function TimelineScreen({
     } finally {
       syncPendingPromiseRef.current = null;
     }
-  }, [client, profile.id]);
+  }, [client, locale, profile.id]);
 
   const entryLocalDay = useCallback(
     (entry: PatientEntry) => localDateValue(new Date(entry.occurredAt)),
@@ -336,9 +354,9 @@ export function TimelineScreen({
       setTimelineError(null);
 
       try {
-        await withTimeout(syncPendingQueue(), ONLINE_LOAD_TIMEOUT_MS);
+        await withRequestTimeout(syncPendingQueue(), ONLINE_LOAD_TIMEOUT_MS);
         const range = dayRange(day);
-        const nextEntries = await withTimeout(
+        const nextEntries = await withRequestTimeout(
           listPatientEntriesInRange(client, profile.id, range.start, range.end),
           ONLINE_LOAD_TIMEOUT_MS,
         );
@@ -350,6 +368,7 @@ export function TimelineScreen({
         );
         setTimelineDayEntries(visible);
         setOfflineMode(false);
+        offlineModeRef.current = false;
         saveCachedOpenedDayEntries(profile.id, visible, entryLocalDay, [day]);
       } catch {
         if (requestId !== timelineDayRequestIdRef.current) return;
@@ -358,6 +377,7 @@ export function TimelineScreen({
         if (requestId !== timelineDayRequestIdRef.current) return;
 
         setOfflineMode(true);
+        offlineModeRef.current = true;
         if (cached.length) {
           setTimelineDayEntries(
             filterPatientTimelineEntries(cached, canTrackMenstruation ? 'female' : null),
@@ -404,9 +424,9 @@ export function TimelineScreen({
         }
         setError(null);
         try {
-          await withTimeout(syncPendingQueue(), ONLINE_LOAD_TIMEOUT_MS);
+          await withRequestTimeout(syncPendingQueue(), ONLINE_LOAD_TIMEOUT_MS);
           const range = dayRange(localDateValue(new Date()));
-          const [nextEntries, baseline, dailyForm, foodFormDetails] = await withTimeout(
+          const [nextEntries, baseline, dailyForm, foodFormDetails] = await withRequestTimeout(
             Promise.all([
               listRecentPatientEntries(client, profile.id),
               getPatientBaseline(client, profile.id),
@@ -416,6 +436,7 @@ export function TimelineScreen({
             ONLINE_LOAD_TIMEOUT_MS,
           );
           setOfflineMode(false);
+          offlineModeRef.current = false;
           setFoodForm(foodFormDetails);
           saveCachedRecentEntries(profile.id, nextEntries);
           saveCachedOpenedDayEntries(
@@ -473,6 +494,7 @@ export function TimelineScreen({
             ? cachedOpenedDayEntries
             : loadCachedRecentEntries(profile.id);
           setOfflineMode(true);
+          offlineModeRef.current = true;
           setFoodForm(null);
           setCompleteMealEntryIds([]);
           setCompleteMedicationEntryIds([]);
@@ -550,13 +572,34 @@ export function TimelineScreen({
   }, [loadEntries, loadPendingQueue]);
 
   useEffect(() => {
-    function handleFocus() {
-      void loadEntries();
+    function refreshOnLifecycleEvent() {
+      if (document.visibilityState === 'hidden') return;
+
+      const now = Date.now();
+      if (now - lastLifecycleRefreshAtRef.current < 1_000) return;
+      lastLifecycleRefreshAtRef.current = now;
+
+      void loadEntries({ showLoading: false });
+      if (showTimelineList) {
+        void loadTimelineDay(timelineDay, { showLoading: false });
+      }
     }
 
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [loadEntries]);
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        refreshOnLifecycleEvent();
+      }
+    }
+
+    window.addEventListener('focus', refreshOnLifecycleEvent);
+    window.addEventListener('online', refreshOnLifecycleEvent);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('focus', refreshOnLifecycleEvent);
+      window.removeEventListener('online', refreshOnLifecycleEvent);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadEntries, loadTimelineDay, showTimelineList, timelineDay]);
 
   useEffect(() => {
     let active = true;
@@ -611,14 +654,27 @@ export function TimelineScreen({
   }, [client, entries, locale, offlineMode, showTimelineList, timelineDayEntries]);
 
   useEffect(() => {
-    const retryTimer = window.setInterval(
-      () => {
-        void loadEntries({ showLoading: false });
-      },
-      offlineMode ? OFFLINE_MODE_CHECK_MS : ONLINE_MODE_CHECK_MS,
-    );
+    if (!offlineMode) return;
 
-    return () => window.clearInterval(retryTimer);
+    let cancelled = false;
+    let retryDelay = OFFLINE_RETRY_INITIAL_MS;
+    let retryTimer: number | undefined;
+
+    function scheduleRetry() {
+      retryTimer = window.setTimeout(() => {
+        void loadEntries({ showLoading: false }).finally(() => {
+          if (cancelled || !offlineModeRef.current) return;
+          retryDelay = Math.min(retryDelay * 2, OFFLINE_RETRY_MAX_MS);
+          scheduleRetry();
+        });
+      }, retryDelay);
+    }
+
+    scheduleRetry();
+    return () => {
+      cancelled = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
   }, [loadEntries, offlineMode]);
 
   function openEntry(entry: PatientEntry) {

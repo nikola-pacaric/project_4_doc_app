@@ -25,18 +25,16 @@ import {
   uploadPreparedEntryPhoto,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { FormField } from '../components/FormField';
+import { cleanupPreparedPhoto } from '../lib/preparedPhotos';
 import { MealFields, type ClientMealDraft } from '../components/MealFields';
 import { OtherFluidFields, type ClientOtherFluidDraft } from '../components/OtherFluidFields';
 import { TactileChoiceRow } from '../components/TactileChoiceRow';
 import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
 import { TactileSectionCard } from '../components/TactileSectionCard';
-import {
-  tactileFieldLabelStyle,
-  tactilePillInputStyle,
-} from '../theme/tactileForm';
+import { tactileFieldLabelStyle, tactilePillInputStyle } from '../theme/tactileForm';
 import { localDayRange, toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 import { PhotoUploadScreen, type PreparedPhoto } from './PhotoUploadScreen';
 
@@ -47,6 +45,17 @@ interface FoodFormScreenProps {
   onCancelTimeline?: () => void;
   onSaved: () => void;
   profile: UserProfile;
+}
+
+function localPreparedPhotos(
+  drafts: { localPhoto?: PreparedPhoto | null }[],
+): PreparedPhoto[] {
+  const photos = drafts.flatMap((draft) => (draft.localPhoto ? [draft.localPhoto] : []));
+  return [...new Map(photos.map((photo) => [photo.uploadId, photo])).values()];
+}
+
+async function cleanupPreparedPhotos(photos: PreparedPhoto[]): Promise<void> {
+  await Promise.all(photos.map((photo) => cleanupPreparedPhoto(photo)));
 }
 
 function toHydrationDraft(details: FoodFormDetails | null): FoodHydrationDraft {
@@ -247,6 +256,39 @@ export function FoodFormScreen({
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [photoTarget, setPhotoTarget] = useState<FoodPhotoTarget | null>(null);
+  const mealsRef = useRef(meals);
+  const otherFluidsRef = useRef(otherFluids);
+  const uploadedPhotoIdsRef = useRef(new Set<string>());
+
+  useEffect(
+    () => () => {
+      void cleanupPreparedPhotos([
+        ...localPreparedPhotos(mealsRef.current),
+        ...localPreparedPhotos(otherFluidsRef.current),
+      ]);
+    },
+    [],
+  );
+
+  function replaceMeals(nextMeals: ClientMealDraft[]) {
+    const retainedIds = new Set(localPreparedPhotos(nextMeals).map((photo) => photo.uploadId));
+    const discarded = localPreparedPhotos(mealsRef.current).filter(
+      (photo) => !retainedIds.has(photo.uploadId),
+    );
+    mealsRef.current = nextMeals;
+    setMeals(nextMeals);
+    void cleanupPreparedPhotos(discarded);
+  }
+
+  function replaceOtherFluids(nextFluids: ClientOtherFluidDraft[]) {
+    const retainedIds = new Set(localPreparedPhotos(nextFluids).map((photo) => photo.uploadId));
+    const discarded = localPreparedPhotos(otherFluidsRef.current).filter(
+      (photo) => !retainedIds.has(photo.uploadId),
+    );
+    otherFluidsRef.current = nextFluids;
+    setOtherFluids(nextFluids);
+    void cleanupPreparedPhotos(discarded);
+  }
 
   useEffect(() => {
     let active = true;
@@ -274,8 +316,8 @@ export function FoodFormScreen({
         if (!active) return;
         setHydration(nextHydration);
         setWaterText(formatWaterLiters(nextHydration.waterLiters));
-        setMeals(nextMeals);
-        setOtherFluids(nextOtherFluids);
+        replaceMeals(nextMeals);
+        replaceOtherFluids(nextOtherFluids);
       })
       .catch(() => active && setError(t(locale, 'food.loadError')))
       .finally(() => active && setLoading(false));
@@ -284,12 +326,6 @@ export function FoodFormScreen({
       active = false;
     };
   }, [client, day, locale, profile.id]);
-
-  function createPhotoId(): string {
-    return (
-      globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
-    );
-  }
 
   async function save() {
     const mealsToSave = meals.filter(
@@ -304,9 +340,10 @@ export function FoodFormScreen({
       ...hydration,
       waterLiters: parsedWaterLiters,
       hasOtherFluids: hydration.hasOtherFluids,
-      otherFluids: hydration.hasOtherFluids === true && fluidsToSave.length > 0
-        ? serializeOtherFluids(fluidsToSave)
-        : undefined,
+      otherFluids:
+        hydration.hasOtherFluids === true && fluidsToSave.length > 0
+          ? serializeOtherFluids(fluidsToSave)
+          : undefined,
     };
 
     setWaterText(normalizedWaterText);
@@ -351,83 +388,96 @@ export function FoodFormScreen({
       for (let i = 0; i < meals.length; i++) {
         const mealDraft = meals[i];
         if (mealDraft && mealDraft.localPhoto) {
+          const localPhoto = mealDraft.localPhoto;
           const normalizedMealTime = normalizeMealDateTime(mealDraft.occurredAt);
           const savedMeal = mealRecords.find(
             (record) =>
               record.entryId === mealDraft.entryId ||
-              (
-                sameMinute(record.occurredAt, normalizedMealTime) &&
+              (sameMinute(record.occurredAt, normalizedMealTime) &&
                 record.type === (mealDraft.type ?? null) &&
-                (record.name?.trim() ?? null) === (mealDraft.name?.trim() || null)
-              ),
+                (record.name?.trim() ?? null) === (mealDraft.name?.trim() || null)),
           );
-          if (savedMeal?.entryId) {
-            const photoId = createPhotoId();
+          if (!savedMeal?.entryId) {
+            throw new Error('Saved meal could not be matched for photo upload.');
+          }
+          if (!uploadedPhotoIdsRef.current.has(localPhoto.uploadId)) {
             await uploadPreparedEntryPhoto(client, {
               contextLabel: savedMeal.name || undefined,
               contextType: 'meal',
               entryId: savedMeal.entryId,
               patientId: profile.id,
-              photoId,
-              photoBody: mealDraft.localPhoto.photoBytes,
-              thumbnailBody: mealDraft.localPhoto.thumbnailBytes,
+              photoId: localPhoto.uploadId,
+              photoBody: localPhoto.photoBytes,
+              thumbnailBody: localPhoto.thumbnailBytes,
               metadata: {
-                originalFilename: mealDraft.localPhoto.originalFilename,
+                originalFilename: localPhoto.originalFilename,
                 mimeType: PHOTO_MIME_TYPE,
-                widthPx: mealDraft.localPhoto.photo.width,
-                heightPx: mealDraft.localPhoto.photo.height,
-                sizeBytes: mealDraft.localPhoto.photoBytes.byteLength,
+                widthPx: localPhoto.photo.width,
+                heightPx: localPhoto.photo.height,
+                sizeBytes: localPhoto.photoBytes.byteLength,
                 thumbnail: {
-                  widthPx: mealDraft.localPhoto.thumbnail.width,
-                  heightPx: mealDraft.localPhoto.thumbnail.height,
-                  sizeBytes: mealDraft.localPhoto.thumbnailBytes.byteLength,
+                  widthPx: localPhoto.thumbnail.width,
+                  heightPx: localPhoto.thumbnail.height,
+                  sizeBytes: localPhoto.thumbnailBytes.byteLength,
                 },
               },
             });
-          } else {
-            throw new Error('Saved meal could not be matched for photo upload.');
+            uploadedPhotoIdsRef.current.add(localPhoto.uploadId);
           }
+          const nextMealDrafts = mealsRef.current.map((draft, index) =>
+            index === i ? { ...draft, entryId: savedMeal.entryId, localPhoto: null } : draft,
+          );
+          replaceMeals(nextMealDrafts);
+          await cleanupPreparedPhoto(localPhoto);
         }
       }
 
       for (let i = 0; i < otherFluids.length; i++) {
         const fluidDraft = otherFluids[i];
         if (fluidDraft && fluidDraft.localPhoto) {
+          const localPhoto = fluidDraft.localPhoto;
           const normalizedFluidTime = normalizeMealDateTime(fluidDraft.occurredAt);
           const savedFluid = fluidRecords.find(
             (record) =>
               record.entryId === fluidDraft.entryId ||
-              (
-                sameMinute(record.occurredAt, normalizedFluidTime) &&
-                (record.name?.trim() ?? null) === (fluidDraft.name?.trim() || null)
-              ),
+              (sameMinute(record.occurredAt, normalizedFluidTime) &&
+                (record.name?.trim() ?? null) === (fluidDraft.name?.trim() || null)),
           );
           if (!savedFluid?.entryId) {
             throw new Error('Saved fluid could not be matched for photo upload.');
           }
 
-          const photoId = createPhotoId();
-          await uploadPreparedEntryPhoto(client, {
-            contextLabel: fluidDraft.name?.trim() || 'Fluid photo',
-            contextType: 'fluid',
-            entryId: savedFluid.entryId,
-            patientId: profile.id,
-            photoId,
-            photoBody: fluidDraft.localPhoto.photoBytes,
-            thumbnailBody: fluidDraft.localPhoto.thumbnailBytes,
-            metadata: {
-              originalFilename: fluidDraft.localPhoto.originalFilename,
-              mimeType: PHOTO_MIME_TYPE,
-              widthPx: fluidDraft.localPhoto.photo.width,
-              heightPx: fluidDraft.localPhoto.photo.height,
-              sizeBytes: fluidDraft.localPhoto.photoBytes.byteLength,
-              thumbnail: {
-                widthPx: fluidDraft.localPhoto.thumbnail.width,
-                heightPx: fluidDraft.localPhoto.thumbnail.height,
-                sizeBytes: fluidDraft.localPhoto.thumbnailBytes.byteLength,
+          if (!uploadedPhotoIdsRef.current.has(localPhoto.uploadId)) {
+            await uploadPreparedEntryPhoto(client, {
+              contextLabel: fluidDraft.name?.trim() || 'Fluid photo',
+              contextType: 'fluid',
+              entryId: savedFluid.entryId,
+              patientId: profile.id,
+              photoId: localPhoto.uploadId,
+              photoBody: localPhoto.photoBytes,
+              thumbnailBody: localPhoto.thumbnailBytes,
+              metadata: {
+                originalFilename: localPhoto.originalFilename,
+                mimeType: PHOTO_MIME_TYPE,
+                widthPx: localPhoto.photo.width,
+                heightPx: localPhoto.photo.height,
+                sizeBytes: localPhoto.photoBytes.byteLength,
+                thumbnail: {
+                  widthPx: localPhoto.thumbnail.width,
+                  heightPx: localPhoto.thumbnail.height,
+                  sizeBytes: localPhoto.thumbnailBytes.byteLength,
+                },
               },
-            },
-          });
+            });
+            uploadedPhotoIdsRef.current.add(localPhoto.uploadId);
+          }
+          const nextFluidDrafts = otherFluidsRef.current.map((draft, index) =>
+            index === i
+              ? { ...draft, entryId: savedFluid.entryId ?? undefined, localPhoto: null }
+              : draft,
+          );
+          replaceOtherFluids(nextFluidDrafts);
+          await cleanupPreparedPhoto(localPhoto);
         }
       }
 
@@ -437,8 +487,8 @@ export function FoodFormScreen({
         withMealPhotoUris(client, nextMeals),
         withFluidPhotoUris(client, nextFoodEntryId, nextOtherFluids),
       ]);
-      setMeals(nextMealsWithPhotos);
-      setOtherFluids(nextOtherFluidsWithPhotos);
+      replaceMeals(nextMealsWithPhotos);
+      replaceOtherFluids(nextOtherFluidsWithPhotos);
       setMessage(t(locale, 'food.saved'));
       onSaved();
     } catch {
@@ -446,6 +496,20 @@ export function FoodFormScreen({
     } finally {
       setSaving(false);
     }
+  }
+
+  async function leaveForm(callback: (() => void) | undefined) {
+    const retainedPhotos = [
+      ...localPreparedPhotos(mealsRef.current),
+      ...localPreparedPhotos(otherFluidsRef.current),
+    ];
+    mealsRef.current = mealsRef.current.map((draft) => ({ ...draft, localPhoto: null }));
+    otherFluidsRef.current = otherFluidsRef.current.map((draft) => ({
+      ...draft,
+      localPhoto: null,
+    }));
+    await cleanupPreparedPhotos(retainedPhotos);
+    callback?.();
   }
 
   if (photoTarget) {
@@ -457,15 +521,15 @@ export function FoodFormScreen({
         onBack={() => setPhotoTarget(null)}
         onPhotoPrepared={(preparedPhoto) => {
           if (photoTarget.contextType === 'meal') {
-            setMeals((current) =>
-              current.map((m, idx) =>
-                idx === photoTarget.index ? { ...m, localPhoto: preparedPhoto } : m,
+            replaceMeals(
+              mealsRef.current.map((meal, index) =>
+                index === photoTarget.index ? { ...meal, localPhoto: preparedPhoto } : meal,
               ),
             );
           } else {
-            setOtherFluids((current) =>
-              current.map((f, idx) =>
-                idx === photoTarget.index ? { ...f, localPhoto: preparedPhoto } : f,
+            replaceOtherFluids(
+              otherFluidsRef.current.map((fluid, index) =>
+                index === photoTarget.index ? { ...fluid, localPhoto: preparedPhoto } : fluid,
               ),
             );
           }
@@ -481,9 +545,13 @@ export function FoodFormScreen({
       error={error}
       loading={loading}
       message={message}
-      onCancelProfile={onCancelProfile}
-      onCancelTimeline={onCancelTimeline}
-      onCancelToday={onBack}
+      onCancelProfile={
+        onCancelProfile ? () => void leaveForm(onCancelProfile) : undefined
+      }
+      onCancelTimeline={
+        onCancelTimeline ? () => void leaveForm(onCancelTimeline) : undefined
+      }
+      onCancelToday={() => void leaveForm(onBack)}
       onSave={() => void save()}
       saveBusy={saving}
       subtitle={t(locale, 'food.subtitle')}
@@ -502,7 +570,7 @@ export function FoodFormScreen({
               index,
             });
           }}
-          onChange={setMeals}
+          onChange={replaceMeals}
         />
       </TactileSectionCard>
 
@@ -526,13 +594,17 @@ export function FoodFormScreen({
         <TactileChoiceRow
           label={t(locale, 'food.otherFluids')}
           mode="segmented"
-          onChange={(value) =>
+          onChange={(value) => {
+            const hasOtherFluids = value === 'yes';
             setHydration((current) => ({
               ...current,
-              hasOtherFluids: value === 'yes',
-              otherFluids: value === 'yes' ? current.otherFluids : '',
-            }))
-          }
+              hasOtherFluids,
+              otherFluids: hasOtherFluids ? current.otherFluids : '',
+            }));
+            if (!hasOtherFluids) {
+              replaceOtherFluids([createEmptyOtherFluidDraft()]);
+            }
+          }}
           options={[
             { value: 'yes', label: t(locale, 'common.yes') },
             { value: 'no', label: t(locale, 'common.no') },
@@ -559,7 +631,7 @@ export function FoodFormScreen({
                 index,
               });
             }}
-            onChange={setOtherFluids}
+            onChange={replaceOtherFluids}
           />
         ) : null}
       </TactileSectionCard>

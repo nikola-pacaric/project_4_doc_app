@@ -25,6 +25,7 @@ export function createAppSupabaseClient(config: SupabaseClientConfig) {
 export type AppSupabaseClient = ReturnType<typeof createAppSupabaseClient>;
 
 export * from './auth';
+export * from './errors';
 export * from './patientEntries';
 export * from './patientExercises';
 export * from './patientFoodForms';

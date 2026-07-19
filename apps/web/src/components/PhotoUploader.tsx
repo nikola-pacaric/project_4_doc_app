@@ -3,15 +3,24 @@ import { useRef, useState } from 'react';
 import { prepareWebPhoto, type WebPreparedPhoto } from '../utils/photoHelper';
 import { StatusMessage } from './StatusMessage';
 
+export interface ExistingWebPhoto {
+  id: string;
+  photoPath: string;
+  thumbnailPath: string;
+  uri: string;
+}
+
 interface PhotoUploaderProps {
-  existingPhotoUris?: string[];
+  existingPhotos?: ExistingWebPhoto[];
   localPhoto?: WebPreparedPhoto | null;
+  onDeleteExistingPhoto?: (photo: ExistingWebPhoto) => Promise<void>;
   onPhotoSelected: (photo: WebPreparedPhoto | null) => void;
 }
 
 export function PhotoUploader({
-  existingPhotoUris = [],
+  existingPhotos = [],
   localPhoto,
+  onDeleteExistingPhoto,
   onPhotoSelected,
 }: PhotoUploaderProps) {
   const locale = getActiveLocale();
@@ -19,6 +28,7 @@ export function PhotoUploader({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -43,6 +53,26 @@ export function PhotoUploader({
 
   function triggerCameraCapture() {
     cameraInputRef.current?.click();
+  }
+
+  async function deleteExistingPhoto(photo: ExistingWebPhoto) {
+    if (
+      !onDeleteExistingPhoto ||
+      deletingPhotoId ||
+      !window.confirm(t(locale, 'photo.deleteConfirm'))
+    ) {
+      return;
+    }
+
+    setError(null);
+    setDeletingPhotoId(photo.id);
+    try {
+      await onDeleteExistingPhoto(photo);
+    } catch {
+      setError(t(locale, 'photo.deleteError'));
+    } finally {
+      setDeletingPhotoId(null);
+    }
   }
 
   function formatSizeSummary(photo: WebPreparedPhoto) {
@@ -90,11 +120,31 @@ export function PhotoUploader({
         </div>
       ) : null}
 
-      {existingPhotoUris.length > 0 ? (
+      {existingPhotos.length > 0 ? (
         <div className="photo-existing-list">
-          {existingPhotoUris.map((uri) => (
-            <div className="photo-thumbnail-container" key={uri}>
-              <img src={uri} alt={t(locale, 'photo.savedPhotos')} className="photo-thumbnail-img" />
+          {existingPhotos.map((photo) => (
+            <div className="photo-thumbnail-container" key={photo.id}>
+              <img
+                src={photo.uri}
+                alt={t(locale, 'photo.savedPhotos')}
+                className="photo-thumbnail-img"
+              />
+              {onDeleteExistingPhoto ? (
+                <button
+                  aria-label={t(locale, 'common.remove')}
+                  className="photo-remove-btn"
+                  disabled={deletingPhotoId !== null}
+                  onClick={() => void deleteExistingPhoto(photo)}
+                  title={
+                    deletingPhotoId === photo.id
+                      ? t(locale, 'photo.deleting')
+                      : t(locale, 'common.remove')
+                  }
+                  type="button"
+                >
+                  &times;
+                </button>
+              ) : null}
             </div>
           ))}
         </div>
