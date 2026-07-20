@@ -109,7 +109,8 @@ values
   ('20000000-0000-4000-8000-000000000084', '00000000-0000-4000-8000-000000000082', 'note', '2026-07-08 11:00:00+00', 'Other patient note', 'export-note-b'),
   ('20000000-0000-4000-8000-000000000085', '00000000-0000-4000-8000-000000000081', 'note', '2026-07-07 21:59:59+00', 'Before Serbia-local day', 'export-before-day'),
   ('20000000-0000-4000-8000-000000000086', '00000000-0000-4000-8000-000000000081', 'note', '2026-07-07 22:00:00+00', 'Start of Serbia-local day', 'export-day-start'),
-  ('20000000-0000-4000-8000-000000000087', '00000000-0000-4000-8000-000000000081', 'note', '2026-07-08 22:00:00+00', 'After Serbia-local day', 'export-day-end');
+  ('20000000-0000-4000-8000-000000000087', '00000000-0000-4000-8000-000000000081', 'note', '2026-07-08 22:00:00+00', 'After Serbia-local day', 'export-day-end'),
+  ('20000000-0000-4000-8000-000000000088', '00000000-0000-4000-8000-000000000081', 'symptom', '2026-07-02 08:00:00+00', null, 'export-symptom-a');
 
 insert into public.medication_details (
   entry_id,
@@ -123,6 +124,29 @@ values (
   'Test medicine',
   '10 mg',
   'Package photo attached',
+  false
+);
+
+insert into public.symptom_details (
+  entry_id,
+  symptom_type,
+  custom_type,
+  custom_description,
+  intake_list,
+  started_at,
+  intensity,
+  quality_of_life_effect,
+  woke_from_sleep
+)
+values (
+  '20000000-0000-4000-8000-000000000088',
+  'other',
+  'Test symptom',
+  'Legacy general description',
+  'Legacy intake list',
+  '2026-07-02 08:00:00+00',
+  2,
+  'Legacy quality-of-life effect',
   false
 );
 
@@ -259,9 +283,32 @@ begin
     raise exception 'all-time export should not retain a selected date or month';
   end if;
 
-  if jsonb_array_length(all_time_payload -> 'entries') <> 6 then
+  if jsonb_array_length(all_time_payload -> 'entries') <> 7 then
     raise exception 'all-time export should include every patient A entry, got %',
       jsonb_array_length(all_time_payload -> 'entries');
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_array_elements(all_time_payload -> 'entries') exported_entry
+    where exported_entry ->> 'id' = '20000000-0000-4000-8000-000000000088'
+      and (
+        exported_entry -> 'details' ? 'intake_list'
+        or exported_entry -> 'details' ? 'quality_of_life_effect'
+        or exported_entry -> 'details' ? 'custom_description'
+      )
+  ) then
+    raise exception 'symptom export must not expose obsolete symptom fields';
+  end if;
+
+  if not exists (
+    select 1
+    from jsonb_array_elements(all_time_payload -> 'entries') exported_entry
+    where exported_entry ->> 'id' = '20000000-0000-4000-8000-000000000088'
+      and exported_entry #>> '{details,symptom_type}' = 'other'
+      and exported_entry #>> '{details,custom_type}' = 'Test symptom'
+  ) then
+    raise exception 'symptom export should preserve supported symptom fields';
   end if;
 
   if all_time_payload::text like '%data:image/%'

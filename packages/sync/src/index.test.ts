@@ -19,6 +19,7 @@ import {
   replaceOpenedDayEntryCache,
   removePendingEntry,
   shouldClearMedicalCacheForAuthTransition,
+  shouldResetUserStateForAuthTransition,
 } from './index';
 
 describe('patientOfflineStorageKeys', () => {
@@ -60,6 +61,22 @@ describe('shouldClearMedicalCacheForAuthTransition', () => {
   it('keeps caches for the same authenticated user', () => {
     expect(shouldClearMedicalCacheForAuthTransition(null, 'patient-1')).toBe(false);
     expect(shouldClearMedicalCacheForAuthTransition('patient-1', 'patient-1')).toBe(false);
+  });
+});
+
+describe('shouldResetUserStateForAuthTransition', () => {
+  it('preserves the loaded profile when auth reconfirms or refreshes the same user', () => {
+    expect(shouldResetUserStateForAuthTransition('patient-1', 'patient-1')).toBe(false);
+  });
+
+  it('resets user-scoped state for sign-in, sign-out, and account changes', () => {
+    expect(shouldResetUserStateForAuthTransition(null, 'patient-1')).toBe(true);
+    expect(shouldResetUserStateForAuthTransition('patient-1', null)).toBe(true);
+    expect(shouldResetUserStateForAuthTransition('patient-1', 'patient-2')).toBe(true);
+  });
+
+  it('does not reset an already signed-out application for duplicate signed-out events', () => {
+    expect(shouldResetUserStateForAuthTransition(null, null)).toBe(false);
   });
 });
 

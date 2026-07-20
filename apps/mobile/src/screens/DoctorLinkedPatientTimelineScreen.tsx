@@ -13,6 +13,8 @@ import {
   getDoctorLinkedPatientTimeline,
   listEntryPhotos,
   type AppSupabaseClient,
+  type DoctorCheckpointStatus,
+  type DoctorDayStatus,
   type DoctorTimelineEntry,
   type LinkedPatientSummary,
 } from '@project4/supabase-client';
@@ -82,6 +84,43 @@ function canHaveTimelinePhotos(entry: PatientEntry): boolean {
 
 function patientTitle(patient: LinkedPatientSummary): string {
   return patient.displayName?.trim() || patient.patientId.slice(0, 8).toUpperCase();
+}
+
+function dayStatusKey(status: DoctorDayStatus): TranslationKey {
+  const keys: Record<DoctorDayStatus, TranslationKey> = {
+    submitted: 'doctor.dayStatus.submitted',
+    in_progress: 'doctor.dayStatus.inProgress',
+    day_ended_incomplete: 'doctor.dayStatus.endedIncomplete',
+    no_activity: 'doctor.dayStatus.noActivity',
+  };
+  return keys[status];
+}
+
+function checkpointLabel(
+  locale: ReturnType<typeof getActiveLocale>,
+  status: DoctorCheckpointStatus,
+  type: 'symptom' | 'stool',
+): string {
+  if (status === 'recorded') return t(locale, 'doctor.checkpoint.recorded');
+  if (status === 'missing') return t(locale, 'doctor.checkpoint.missing');
+  return t(
+    locale,
+    type === 'symptom' ? 'doctor.checkpoint.noneSymptoms' : 'doctor.checkpoint.noneStool',
+  );
+}
+
+function formatAdherenceDate(date: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: 'short',
+    weekday: 'short',
+  }).format(new Date(`${date}T12:00:00.000Z`));
+}
+
+function submittedCount(patient: LinkedPatientSummary, locale: ReturnType<typeof getActiveLocale>) {
+  return t(locale, 'doctor.adherenceSubmittedCount')
+    .replace('{submitted}', String(patient.adherence.submittedDays))
+    .replace('{total}', String(patient.adherence.totalDays));
 }
 
 function medicalEntryTitle(
@@ -281,6 +320,28 @@ export function DoctorLinkedPatientTimelineScreen({
         </View>
 
         <Text style={styles.readOnly}>{t(locale, 'doctor.readOnlyNotice')}</Text>
+        <View style={styles.adherencePanel}>
+          <View style={styles.adherenceHeader}>
+            <Text style={styles.adherenceTitle}>{t(locale, 'doctor.adherenceTitle')}</Text>
+            <Text style={styles.adherenceCount}>{submittedCount(patient, locale)}</Text>
+          </View>
+          {patient.adherence.days.map((day) => (
+            <View key={day.date} style={styles.adherenceDay}>
+              <View style={styles.adherenceDayHeader}>
+                <Text style={styles.adherenceDate}>{formatAdherenceDate(day.date, locale)}</Text>
+                <Text style={styles.adherenceStatus}>{t(locale, dayStatusKey(day.status))}</Text>
+              </View>
+              <Text style={styles.adherenceCheckpoint}>
+                {t(locale, 'doctor.symptomCheckpoint')}:{' '}
+                {checkpointLabel(locale, day.symptomStatus, 'symptom')}
+              </Text>
+              <Text style={styles.adherenceCheckpoint}>
+                {t(locale, 'doctor.stoolCheckpoint')}:{' '}
+                {checkpointLabel(locale, day.stoolStatus, 'stool')}
+              </Text>
+            </View>
+          ))}
+        </View>
         <DoctorBaselineDetails baseline={baseline} locale={locale} />
         <View style={styles.exportPanel}>
           <Text style={styles.exportTitle}>{t(locale, 'doctor.exportTitle')}</Text>
@@ -426,6 +487,38 @@ const styles = createThemedStyles(() =>
       lineHeight: 20,
       padding: spacing.md,
     },
+    adherencePanel: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      gap: spacing.sm,
+      padding: spacing.md,
+    },
+    adherenceHeader: { gap: spacing.xs },
+    adherenceTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
+    adherenceCount: { color: colors.accent, fontSize: 14, fontWeight: '800' },
+    adherenceDay: {
+      borderTopColor: colors.border,
+      borderTopWidth: 1,
+      gap: 3,
+      paddingTop: spacing.sm,
+    },
+    adherenceDayHeader: {
+      alignItems: 'flex-start',
+      flexDirection: 'row',
+      gap: spacing.sm,
+      justifyContent: 'space-between',
+    },
+    adherenceDate: { color: colors.text, fontSize: 14, fontWeight: '800' },
+    adherenceStatus: {
+      color: colors.accent,
+      flex: 1,
+      fontSize: 13,
+      fontWeight: '800',
+      textAlign: 'right',
+    },
+    adherenceCheckpoint: { color: colors.mutedText, fontSize: 13, lineHeight: 18 },
     exportPanel: {
       backgroundColor: colors.surface,
       borderColor: colors.border,

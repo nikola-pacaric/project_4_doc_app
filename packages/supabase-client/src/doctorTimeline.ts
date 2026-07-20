@@ -22,18 +22,12 @@ export interface DoctorOtherFluidDetails {
   name: string | null;
 }
 
-export interface DoctorSymptomDetails extends SymptomRecord {
-  intakeList: string | null;
-  qualityOfLifeEffect: string | null;
-  customDescription: string | null;
-}
-
 export interface DoctorTimelineEntryMedicalDetails {
   daily: DailyFormDetails | null;
   food: FoodFormDetails | null;
   meal: MealRecord | null;
   fluid: DoctorOtherFluidDetails | null;
-  symptom: DoctorSymptomDetails | null;
+  symptom: SymptomRecord | null;
   stool: StoolRecord | null;
   medication: MedicationRecord | null;
   exercise: ExerciseRecord | null;
@@ -104,12 +98,9 @@ const doctorTimelineColumns = `
     entry_id,
     symptom_type,
     custom_type,
-    custom_description,
-    intake_list,
     started_at,
     ended_at,
     intensity,
-    quality_of_life_effect,
     modifying_factors,
     woke_from_sleep,
     pain_location,
@@ -195,12 +186,9 @@ function toDoctorTimelineEntry(row: DoctorTimelineEntryRow): DoctorTimelineEntry
             occurredAt: entry.occurredAt,
             type: symptom.symptom_type as SymptomRecord['type'],
             customType: symptom.custom_type,
-            customDescription: symptom.custom_description,
-            intakeList: symptom.intake_list,
             startedAt: symptom.started_at,
             endedAt: symptom.ended_at,
             intensity: symptom.intensity as SymptomRecord['intensity'],
-            qualityOfLifeEffect: symptom.quality_of_life_effect,
             modifyingFactors: symptom.modifying_factors,
             wokeFromSleep: symptom.woke_from_sleep,
             painLocation: symptom.pain_location as SymptomRecord['painLocation'],

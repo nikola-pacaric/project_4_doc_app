@@ -22,6 +22,41 @@ export function shouldClearMedicalCacheForAuthTransition(
   return nextUserId === null || (previousUserId !== null && previousUserId !== nextUserId);
 }
 
+export function shouldResetUserStateForAuthTransition(
+  previousUserId: string | null,
+  nextUserId: string | null,
+): boolean {
+  return previousUserId !== nextUserId;
+}
+
+export interface AuthSessionTransition {
+  previousUserId: string | null;
+  nextUserId: string | null;
+  shouldClearMedicalCache: boolean;
+  shouldResetUserState: boolean;
+}
+
+export function createAuthSessionTransitionTracker(initialUserId: string | null = null) {
+  let previousUserId = initialUserId;
+
+  return {
+    next(nextUserId: string | null): AuthSessionTransition {
+      const transition = {
+        previousUserId,
+        nextUserId,
+        shouldClearMedicalCache: shouldClearMedicalCacheForAuthTransition(
+          previousUserId,
+          nextUserId,
+        ),
+        shouldResetUserState: shouldResetUserStateForAuthTransition(previousUserId, nextUserId),
+      };
+
+      previousUserId = nextUserId;
+      return transition;
+    },
+  };
+}
+
 export function patientOfflineStorageKeys(patientId: string): readonly [string, string, string] {
   return [
     `project4:pending-entries:${patientId}`,

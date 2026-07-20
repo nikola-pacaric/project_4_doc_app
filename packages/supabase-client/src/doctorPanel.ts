@@ -3,8 +3,9 @@ import type {
   ExportPayload,
   ExportRange,
   PatientBaselineProfile,
+  PatientEntry,
 } from '@project4/contracts';
-import { validateExportPayload } from '@project4/contracts';
+import { NO_STOOL_TODAY_TEXT, validateExportPayload } from '@project4/contracts';
 import { PHOTO_BUCKET } from '@project4/photo';
 
 import type { AppSupabaseClient } from './index';
@@ -39,12 +40,39 @@ export interface LinkedPatientSummary {
   patientId: string;
   displayName: string | null;
   linkedAt: string;
+  adherence: DoctorPatientAdherenceSummary;
 }
 
 export interface DoctorLinkedPatientTimeline {
   patient: LinkedPatientSummary;
   baseline: PatientBaselineProfile | null;
   entries: DoctorTimelineEntry[];
+  adherence: DoctorPatientAdherenceSummary;
+}
+
+export type DoctorDayStatus = 'submitted' | 'in_progress' | 'day_ended_incomplete' | 'no_activity';
+
+export type DoctorCheckpointStatus = 'recorded' | 'none' | 'missing';
+
+export interface DoctorAdherenceDay {
+  date: string;
+  status: DoctorDayStatus;
+  symptomStatus: DoctorCheckpointStatus;
+  stoolStatus: DoctorCheckpointStatus;
+}
+
+export interface DoctorPatientAdherenceSummary {
+  days: DoctorAdherenceDay[];
+  submittedDays: number;
+  totalDays: number;
+}
+
+export interface DoctorAdherenceEvent {
+  occurredAt: string;
+  kind: PatientEntry['kind'];
+  text: string | null;
+  dailyCompletedAt: string | null;
+  symptomType: string | null;
 }
 
 export interface CreateDoctorExportInput {
@@ -73,6 +101,130 @@ type UserProfileRow = Pick<
 
 const inviteColumns =
   'id, code, expires_at, revoked_at, redeemed_by_patient_id, redeemed_at, created_at';
+
+const adherenceTimeZone = 'Europe/Belgrade';
+const adherenceDayCount = 7;
+
+type DoctorAdherenceEntryRow = Pick<
+  Database['public']['Tables']['patient_entries']['Row'],
+  'patient_id' | 'occurred_at' | 'kind' | 'text'
+> & {
+  daily_details: Pick<
+    Database['public']['Tables']['daily_form_details']['Row'],
+    'completed_at'
+  > | null;
+  symptom_details: Pick<
+    Database['public']['Tables']['symptom_details']['Row'],
+    'symptom_type'
+  > | null;
+};
+
+const adherenceEntryColumns = `
+  patient_id,
+  occurred_at,
+  kind,
+  text,
+  daily_details:daily_form_details(completed_at),
+  symptom_details:symptom_details(symptom_type)
+`;
+
+function dateKey(value: Date): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: adherenceTimeZone,
+    year: 'numeric',
+  }).formatToParts(value);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
+function recentDateKeys(now: Date, days: number): string[] {
+  const today = dateKey(now);
+  const cursor = new Date(`${today}T12:00:00.000Z`);
+  return Array.from({ length: days }, (_, index) => {
+    const day = new Date(cursor);
+    day.setUTCDate(cursor.getUTCDate() - index);
+    return day.toISOString().slice(0, 10);
+  });
+}
+
+export function buildDoctorPatientAdherence(
+  events: DoctorAdherenceEvent[],
+  now = new Date(),
+  days = adherenceDayCount,
+): DoctorPatientAdherenceSummary {
+  const dates = recentDateKeys(now, days);
+  const today = dates[0];
+  const dateSet = new Set(dates);
+  const eventsByDate = new Map<string, DoctorAdherenceEvent[]>();
+
+  for (const event of events) {
+    const key = dateKey(new Date(event.occurredAt));
+    if (!dateSet.has(key)) continue;
+    eventsByDate.set(key, [...(eventsByDate.get(key) ?? []), event]);
+  }
+
+  const adherenceDays = dates.map((date): DoctorAdherenceDay => {
+    const dayEvents = eventsByDate.get(date) ?? [];
+    const submitted = dayEvents.some((event) => event.dailyCompletedAt !== null);
+    const symptomTypes = dayEvents
+      .map((event) => event.symptomType)
+      .filter((type): type is string => type !== null);
+    const symptomStatus: DoctorCheckpointStatus = symptomTypes.some((type) => type !== 'none')
+      ? 'recorded'
+      : symptomTypes.includes('none')
+        ? 'none'
+        : 'missing';
+    const stoolStatus: DoctorCheckpointStatus = dayEvents.some((event) => event.kind === 'stool')
+      ? 'recorded'
+      : dayEvents.some(
+            (event) => event.kind === 'note' && event.text?.trim() === NO_STOOL_TODAY_TEXT,
+          )
+        ? 'none'
+        : 'missing';
+
+    return {
+      date,
+      status: submitted
+        ? 'submitted'
+        : dayEvents.length
+          ? date === today
+            ? 'in_progress'
+            : 'day_ended_incomplete'
+          : 'no_activity',
+      symptomStatus,
+      stoolStatus,
+    };
+  });
+
+  return {
+    days: adherenceDays,
+    submittedDays: adherenceDays.filter((day) => day.status === 'submitted').length,
+    totalDays: adherenceDays.length,
+  };
+}
+
+function toAdherenceEvent(row: DoctorAdherenceEntryRow): DoctorAdherenceEvent {
+  return {
+    occurredAt: row.occurred_at,
+    kind: row.kind,
+    text: row.text,
+    dailyCompletedAt: row.daily_details?.completed_at ?? null,
+    symptomType: row.symptom_details?.symptom_type ?? null,
+  };
+}
+
+function timelineAdherenceEvent(entry: DoctorTimelineEntry): DoctorAdherenceEvent {
+  return {
+    occurredAt: entry.occurredAt,
+    kind: entry.kind,
+    text: entry.text,
+    dailyCompletedAt: entry.medicalDetails.daily?.completedAt ?? null,
+    symptomType: entry.medicalDetails.symptom?.type ?? null,
+  };
+}
 
 function toDoctorInviteCode(row: DoctorInviteCodeRow): DoctorInviteCode {
   return {
@@ -168,6 +320,7 @@ export async function getPatientDoctorLink(
 
 export async function listLinkedPatients(
   client: AppSupabaseClient,
+  now = new Date(),
 ): Promise<LinkedPatientSummary[]> {
   const { data: accessRows, error: accessError } = await client
     .from('doctor_patient_access')
@@ -181,20 +334,40 @@ export async function listLinkedPatients(
   if (!accessRows?.length) return [];
 
   const patientIds = accessRows.map((row) => row.patient_id);
-  const { data: profileRows, error: profileError } = await client
-    .from('user_profiles')
-    .select('id, role, display_name, consent_accepted_at')
-    .in('id', patientIds)
-    .returns<UserProfileRow[]>();
+  const queryStart = new Date(now);
+  queryStart.setUTCDate(queryStart.getUTCDate() - (adherenceDayCount + 1));
+  const [profileResult, adherenceResult] = await Promise.all([
+    client
+      .from('user_profiles')
+      .select('id, role, display_name, consent_accepted_at')
+      .in('id', patientIds)
+      .returns<UserProfileRow[]>(),
+    client
+      .from('patient_entries')
+      .select(adherenceEntryColumns)
+      .in('patient_id', patientIds)
+      .gte('occurred_at', queryStart.toISOString())
+      .returns<DoctorAdherenceEntryRow[]>(),
+  ]);
 
-  if (profileError) throw profileError;
+  if (profileResult.error) throw profileResult.error;
+  if (adherenceResult.error) throw adherenceResult.error;
 
-  const profilesById = new Map((profileRows ?? []).map((profile) => [profile.id, profile]));
+  const profilesById = new Map((profileResult.data ?? []).map((profile) => [profile.id, profile]));
+  const adherenceByPatient = new Map<string, DoctorAdherenceEvent[]>();
+  for (const row of adherenceResult.data ?? []) {
+    adherenceByPatient.set(row.patient_id, [
+      ...(adherenceByPatient.get(row.patient_id) ?? []),
+      toAdherenceEvent(row),
+    ]);
+  }
+
   return accessRows.map((access) => ({
     accessId: access.id,
     patientId: access.patient_id,
     displayName: profilesById.get(access.patient_id)?.display_name ?? null,
     linkedAt: access.created_at,
+    adherence: buildDoctorPatientAdherence(adherenceByPatient.get(access.patient_id) ?? [], now),
   }));
 }
 
@@ -202,6 +375,7 @@ export async function getDoctorLinkedPatientTimeline(
   client: AppSupabaseClient,
   patientId: string,
   days = 30,
+  now = new Date(),
 ): Promise<DoctorLinkedPatientTimeline> {
   const { data: accessRow, error: accessError } = await client
     .from('doctor_patient_access')
@@ -227,15 +401,20 @@ export async function getDoctorLinkedPatientTimeline(
   if (profileResult.error) throw profileResult.error;
   const profileRow = profileResult.data;
 
+  const adherence = buildDoctorPatientAdherence(entries.map(timelineAdherenceEvent), now);
+  const patient = {
+    accessId: accessRow.id,
+    patientId: accessRow.patient_id,
+    displayName: profileRow?.display_name ?? null,
+    linkedAt: accessRow.created_at,
+    adherence,
+  };
+
   return {
-    patient: {
-      accessId: accessRow.id,
-      patientId: accessRow.patient_id,
-      displayName: profileRow?.display_name ?? null,
-      linkedAt: accessRow.created_at,
-    },
+    patient,
     baseline,
     entries,
+    adherence,
   };
 }
 

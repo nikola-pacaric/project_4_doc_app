@@ -1,11 +1,13 @@
 import type { UserProfile } from '@project4/contracts';
-import { getActiveLocale, t } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
   createDoctorInviteCode,
   listDoctorInviteCodes,
   listLinkedPatients,
   revokeDoctorInviteCode,
   type AppSupabaseClient,
+  type DoctorCheckpointStatus,
+  type DoctorDayStatus,
   type DoctorInviteCode,
   type LinkedPatientSummary,
 } from '@project4/supabase-client';
@@ -35,6 +37,35 @@ function formatShortDate(value: string): string {
 
 function maskPatientId(patientId: string): string {
   return patientId.slice(0, 8).toUpperCase();
+}
+
+function dayStatusKey(status: DoctorDayStatus): TranslationKey {
+  const keys: Record<DoctorDayStatus, TranslationKey> = {
+    submitted: 'doctor.dayStatus.submitted',
+    in_progress: 'doctor.dayStatus.inProgress',
+    day_ended_incomplete: 'doctor.dayStatus.endedIncomplete',
+    no_activity: 'doctor.dayStatus.noActivity',
+  };
+  return keys[status];
+}
+
+function checkpointLabel(
+  locale: ReturnType<typeof getActiveLocale>,
+  status: DoctorCheckpointStatus,
+  type: 'symptom' | 'stool',
+): string {
+  if (status === 'recorded') return t(locale, 'doctor.checkpoint.recorded');
+  if (status === 'missing') return t(locale, 'doctor.checkpoint.missing');
+  return t(
+    locale,
+    type === 'symptom' ? 'doctor.checkpoint.noneSymptoms' : 'doctor.checkpoint.noneStool',
+  );
+}
+
+function submittedCount(patient: LinkedPatientSummary, locale: ReturnType<typeof getActiveLocale>) {
+  return t(locale, 'doctor.adherenceSubmittedCount')
+    .replace('{submitted}', String(patient.adherence.submittedDays))
+    .replace('{total}', String(patient.adherence.totalDays));
 }
 
 function getInviteStatus(invite: DoctorInviteCode): InviteStatus {
@@ -292,6 +323,24 @@ export function DoctorPendingScreen({
                     )}
                   </small>
                   <span className="doctor-open-patient">{t(locale, 'doctor.openPatient')}</span>
+                  {patient.adherence.days[0] ? (
+                    <div className="doctor-patient-adherence">
+                      <strong>{t(locale, dayStatusKey(patient.adherence.days[0].status))}</strong>
+                      <span>{submittedCount(patient, locale)}</span>
+                      <small>
+                        {t(locale, 'doctor.symptomCheckpoint')}:{' '}
+                        {checkpointLabel(
+                          locale,
+                          patient.adherence.days[0].symptomStatus,
+                          'symptom',
+                        )}
+                      </small>
+                      <small>
+                        {t(locale, 'doctor.stoolCheckpoint')}:{' '}
+                        {checkpointLabel(locale, patient.adherence.days[0].stoolStatus, 'stool')}
+                      </small>
+                    </div>
+                  ) : null}
                 </button>
               ))}
             </div>

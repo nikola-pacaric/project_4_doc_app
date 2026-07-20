@@ -1,7 +1,7 @@
 import type { UserProfile } from '@project4/contracts';
 import { setActiveLocale, setActiveVoiceLanguage, t, type AppPreferences } from '@project4/i18n';
 import { acceptCurrentConsent, getCurrentProfile, type Session } from '@project4/supabase-client';
-import { shouldClearMedicalCacheForAuthTransition } from '@project4/sync';
+import { createAuthSessionTransitionTracker } from '@project4/sync';
 import { useEffect, useState } from 'react';
 
 import { isSupabaseConfigured, supabase } from './lib/supabase';
@@ -34,7 +34,7 @@ export function App() {
 
     let active = true;
     let authEventReceived = false;
-    let knownUserId: string | null = null;
+    const authTransitionTracker = createAuthSessionTransitionTracker();
     let medicalCacheClearPending = false;
     let transitionVersion = 0;
 
@@ -42,15 +42,15 @@ export function App() {
       if (!active) return;
       const version = ++transitionVersion;
       const nextUserId = nextSession?.user.id ?? null;
-      const shouldClearCache =
-        medicalCacheClearPending ||
-        shouldClearMedicalCacheForAuthTransition(knownUserId, nextUserId);
-      knownUserId = nextUserId;
+      const transition = authTransitionTracker.next(nextUserId);
+      const shouldClearCache = medicalCacheClearPending || transition.shouldClearMedicalCache;
       medicalCacheClearPending ||= shouldClearCache;
 
-      setProfile(null);
-      setProfileError(false);
-      setSettingsOpen(false);
+      if (transition.shouldResetUserState) {
+        setProfile(null);
+        setProfileError(false);
+        setSettingsOpen(false);
+      }
       if (!nextSession) {
         setSession(null);
       }

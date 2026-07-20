@@ -755,6 +755,88 @@ button:focus-visible {
   white-space: nowrap;
 }
 
+.doctor-patient-adherence {
+  border-left: 3px solid var(--app-accent);
+  padding-left: 10px;
+}
+
+.doctor-patient-adherence strong {
+  color: var(--app-text);
+}
+
+.doctor-adherence-panel {
+  width: min(920px, 100%);
+  display: grid;
+  gap: 14px;
+  margin: 0 auto 18px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: var(--app-surface);
+  padding: 16px;
+}
+
+.doctor-adherence-panel h2 {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 18px;
+}
+
+.doctor-adherence-days {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.doctor-adherence-day {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--app-border);
+  border-left: 4px solid var(--app-muted);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.doctor-adherence-day.status-submitted {
+  border-left-color: var(--app-success, #2f7d58);
+}
+
+.doctor-adherence-day.status-in_progress {
+  border-left-color: var(--app-accent);
+}
+
+.doctor-adherence-day.status-day_ended_incomplete {
+  border-left-color: var(--app-warning, #a76416);
+}
+
+.doctor-adherence-day > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.doctor-adherence-day strong,
+.doctor-adherence-day span,
+.doctor-adherence-day small {
+  overflow-wrap: anywhere;
+}
+
+.doctor-adherence-day strong {
+  color: var(--app-text);
+  font-size: 14px;
+}
+
+.doctor-adherence-day span {
+  color: var(--app-accent-strong);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.doctor-adherence-day small {
+  color: var(--app-muted);
+  font-size: 13px;
+}
+
 .doctor-readonly-notice {
   border: 1px solid var(--app-border);
   border-radius: 10px;
@@ -849,7 +931,8 @@ button:focus-visible {
 }
 
 @media (max-width: 640px) {
-  .doctor-medical-grid {
+  .doctor-medical-grid,
+  .doctor-adherence-days {
     grid-template-columns: 1fr;
   }
 }

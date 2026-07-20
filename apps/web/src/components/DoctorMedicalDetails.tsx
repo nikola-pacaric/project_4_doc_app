@@ -187,8 +187,6 @@ function entryFields(locale: Locale, entry: DoctorTimelineEntry): DetailField[] 
             ? symptom.customType
             : translatedValue(locale, 'symptom.type', symptom.type),
       },
-      { label: t(locale, 'doctor.customDescription'), value: symptom.customDescription },
-      { label: t(locale, 'doctor.intakeList'), value: symptom.intakeList },
       {
         label: t(locale, 'symptom.startDateTime'),
         value: formatDateTime(locale, symptom.startedAt),
@@ -200,10 +198,6 @@ function entryFields(locale: Locale, entry: DoctorTimelineEntry): DetailField[] 
       {
         label: t(locale, 'symptom.intensity'),
         value: t(locale, `symptom.intensity${symptom.intensity}` as TranslationKey),
-      },
-      {
-        label: t(locale, 'doctor.qualityOfLifeEffect'),
-        value: symptom.qualityOfLifeEffect,
       },
       { label: t(locale, 'symptom.modifyingFactors'), value: symptom.modifyingFactors },
       {

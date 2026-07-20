@@ -3,6 +3,7 @@ import { createClient, type SupabaseClientOptions } from '@supabase/supabase-js'
 import type { Database } from './database';
 
 export type { Session } from '@supabase/supabase-js';
+export { processLock } from '@supabase/supabase-js';
 export type { Database } from './database';
 export type { Database as GeneratedDatabase } from './database.types';
 

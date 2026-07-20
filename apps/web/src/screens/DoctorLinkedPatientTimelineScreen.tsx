@@ -13,6 +13,8 @@ import {
   getDoctorLinkedPatientTimeline,
   listEntryPhotos,
   type AppSupabaseClient,
+  type DoctorCheckpointStatus,
+  type DoctorDayStatus,
   type LinkedPatientSummary,
   type DoctorTimelineEntry,
 } from '@project4/supabase-client';
@@ -44,6 +46,43 @@ function canHaveTimelinePhotos(entry: PatientEntry): boolean {
 
 function patientTitle(patient: LinkedPatientSummary): string {
   return patient.displayName?.trim() || patient.patientId.slice(0, 8).toUpperCase();
+}
+
+function dayStatusKey(status: DoctorDayStatus): TranslationKey {
+  const keys: Record<DoctorDayStatus, TranslationKey> = {
+    submitted: 'doctor.dayStatus.submitted',
+    in_progress: 'doctor.dayStatus.inProgress',
+    day_ended_incomplete: 'doctor.dayStatus.endedIncomplete',
+    no_activity: 'doctor.dayStatus.noActivity',
+  };
+  return keys[status];
+}
+
+function checkpointLabel(
+  locale: ReturnType<typeof getActiveLocale>,
+  status: DoctorCheckpointStatus,
+  type: 'symptom' | 'stool',
+): string {
+  if (status === 'recorded') return t(locale, 'doctor.checkpoint.recorded');
+  if (status === 'missing') return t(locale, 'doctor.checkpoint.missing');
+  return t(
+    locale,
+    type === 'symptom' ? 'doctor.checkpoint.noneSymptoms' : 'doctor.checkpoint.noneStool',
+  );
+}
+
+function formatAdherenceDate(date: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: 'short',
+    weekday: 'short',
+  }).format(new Date(`${date}T12:00:00.000Z`));
+}
+
+function submittedCount(patient: LinkedPatientSummary, locale: ReturnType<typeof getActiveLocale>) {
+  return t(locale, 'doctor.adherenceSubmittedCount')
+    .replace('{submitted}', String(patient.adherence.submittedDays))
+    .replace('{total}', String(patient.adherence.totalDays));
 }
 
 function medicalEntryTitle(
@@ -265,6 +304,30 @@ export function DoctorLinkedPatientTimelineScreen({
       </div>
 
       <p className="doctor-readonly-notice">{t(locale, 'doctor.readOnlyNotice')}</p>
+      <section className="doctor-adherence-panel" aria-labelledby="doctor-adherence-title">
+        <div className="web-section-heading">
+          <h2 id="doctor-adherence-title">{t(locale, 'doctor.adherenceTitle')}</h2>
+          <span className="doctor-count-pill">{submittedCount(patient, locale)}</span>
+        </div>
+        <div className="doctor-adherence-days">
+          {patient.adherence.days.map((day) => (
+            <article className={`doctor-adherence-day status-${day.status}`} key={day.date}>
+              <div>
+                <strong>{formatAdherenceDate(day.date, locale)}</strong>
+                <span>{t(locale, dayStatusKey(day.status))}</span>
+              </div>
+              <small>
+                {t(locale, 'doctor.symptomCheckpoint')}:{' '}
+                {checkpointLabel(locale, day.symptomStatus, 'symptom')}
+              </small>
+              <small>
+                {t(locale, 'doctor.stoolCheckpoint')}:{' '}
+                {checkpointLabel(locale, day.stoolStatus, 'stool')}
+              </small>
+            </article>
+          ))}
+        </div>
+      </section>
       <DoctorBaselineDetails baseline={baseline} locale={locale} />
       <section className="doctor-export-panel" aria-labelledby="doctor-export-title">
         <div>

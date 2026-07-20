@@ -7,7 +7,7 @@ import {
   type AppPreferences,
 } from '@project4/i18n';
 import { acceptCurrentConsent, getCurrentProfile, type Session } from '@project4/supabase-client';
-import { shouldClearMedicalCacheForAuthTransition } from '@project4/sync';
+import { createAuthSessionTransitionTracker } from '@project4/sync';
 import { spacing } from '@project4/ui-tokens';
 import { StatusBar } from 'expo-status-bar';
 import { registerRootComponent } from 'expo';
@@ -26,6 +26,7 @@ import { AppErrorBoundary } from './src/components/AppErrorBoundary';
 import { PrimaryButton } from './src/components/PrimaryButton';
 import { StatusMessage } from './src/components/StatusMessage';
 import { cleanupAllPreparedPhotos } from './src/lib/preparedPhotos';
+import { registerAuthAutoRefreshForAppState } from './src/lib/authRefreshLifecycle';
 import { isSupabaseConfigured, supabase } from './src/lib/supabase';
 import { clearAllPatientOfflineData } from './src/offline/pendingEntries';
 import { SymptomPreview } from './src/preview/SymptomPreview';
@@ -89,7 +90,7 @@ function MainApp() {
 
     let active = true;
     let authEventReceived = false;
-    let knownUserId: string | null = null;
+    const authTransitionTracker = createAuthSessionTransitionTracker();
     let medicalCacheClearPending = false;
     let transitionVersion = 0;
 
@@ -97,16 +98,16 @@ function MainApp() {
       if (!active) return;
       const version = ++transitionVersion;
       const nextUserId = nextSession?.user.id ?? null;
-      const shouldClearCache =
-        medicalCacheClearPending ||
-        shouldClearMedicalCacheForAuthTransition(knownUserId, nextUserId);
-      knownUserId = nextUserId;
+      const transition = authTransitionTracker.next(nextUserId);
+      const shouldClearCache = medicalCacheClearPending || transition.shouldClearMedicalCache;
       medicalCacheClearPending ||= shouldClearCache;
 
-      setProfile(null);
-      setProfileError(false);
-      setSettingsOpen(false);
-      setPatientLandingTab('today');
+      if (transition.shouldResetUserState) {
+        setProfile(null);
+        setProfileError(false);
+        setSettingsOpen(false);
+        setPatientLandingTab('today');
+      }
       if (!nextSession) {
         setSession(null);
       }
@@ -149,19 +150,13 @@ function MainApp() {
       applyAuthSession(nextSession);
     });
 
-    const appStateListener = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        client.auth.startAutoRefresh();
-      } else {
-        client.auth.stopAutoRefresh();
-      }
-    });
+    const unregisterAuthAutoRefresh = registerAuthAutoRefreshForAppState(client.auth, AppState);
 
     return () => {
       active = false;
       transitionVersion += 1;
       listener.subscription.unsubscribe();
-      appStateListener.remove();
+      unregisterAuthAutoRefresh();
     };
   }, []);
 

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { AppSupabaseClient } from './index';
 import {
+  buildDoctorPatientAdherence,
   createDoctorPatientExportBundle,
   createDoctorPatientExport,
   createDoctorInviteCode,
@@ -14,6 +15,90 @@ import {
 } from './doctorPanel';
 
 describe('doctor invite panel client helpers', () => {
+  it('classifies seven-day submission and required checkpoint states', () => {
+    const adherence = buildDoctorPatientAdherence(
+      [
+        {
+          occurredAt: '2026-07-20T08:00:00.000Z',
+          kind: 'daily',
+          text: null,
+          dailyCompletedAt: null,
+          symptomType: null,
+        },
+        {
+          occurredAt: '2026-07-20T09:00:00.000Z',
+          kind: 'symptom',
+          text: null,
+          dailyCompletedAt: null,
+          symptomType: 'none',
+        },
+        {
+          occurredAt: '2026-07-20T09:30:00.000Z',
+          kind: 'note',
+          text: 'No stool today',
+          dailyCompletedAt: null,
+          symptomType: null,
+        },
+        {
+          occurredAt: '2026-07-19T17:00:00.000Z',
+          kind: 'daily',
+          text: null,
+          dailyCompletedAt: '2026-07-19T20:00:00.000Z',
+          symptomType: null,
+        },
+        {
+          occurredAt: '2026-07-19T17:30:00.000Z',
+          kind: 'symptom',
+          text: null,
+          dailyCompletedAt: null,
+          symptomType: 'pain',
+        },
+        {
+          occurredAt: '2026-07-19T18:00:00.000Z',
+          kind: 'stool',
+          text: null,
+          dailyCompletedAt: null,
+          symptomType: null,
+        },
+        {
+          occurredAt: '2026-07-18T08:00:00.000Z',
+          kind: 'meal',
+          text: null,
+          dailyCompletedAt: null,
+          symptomType: null,
+        },
+      ],
+      new Date('2026-07-20T12:00:00.000Z'),
+    );
+
+    expect(adherence.submittedDays).toBe(1);
+    expect(adherence.days.slice(0, 4)).toEqual([
+      {
+        date: '2026-07-20',
+        status: 'in_progress',
+        symptomStatus: 'none',
+        stoolStatus: 'none',
+      },
+      {
+        date: '2026-07-19',
+        status: 'submitted',
+        symptomStatus: 'recorded',
+        stoolStatus: 'recorded',
+      },
+      {
+        date: '2026-07-18',
+        status: 'day_ended_incomplete',
+        symptomStatus: 'missing',
+        stoolStatus: 'missing',
+      },
+      {
+        date: '2026-07-17',
+        status: 'no_activity',
+        symptomStatus: 'missing',
+        stoolStatus: 'missing',
+      },
+    ]);
+  });
   it('lists recent doctor invite codes newest first', async () => {
     const returns = vi.fn().mockResolvedValue({
       data: [
@@ -170,19 +255,77 @@ describe('doctor invite panel client helpers', () => {
     const profileReturns = vi.fn().mockResolvedValue({ data: profileRows, error: null });
     const profileIn = vi.fn(() => ({ returns: profileReturns }));
     const profileSelect = vi.fn(() => ({ in: profileIn }));
+    const adherenceRows = [
+      {
+        patient_id: 'patient-1',
+        occurred_at: '2026-07-20T08:00:00.000Z',
+        kind: 'daily',
+        text: null,
+        daily_details: { completed_at: null },
+        symptom_details: null,
+      },
+      {
+        patient_id: 'patient-1',
+        occurred_at: '2026-07-20T08:30:00.000Z',
+        kind: 'symptom',
+        text: null,
+        daily_details: null,
+        symptom_details: { symptom_type: 'none' },
+      },
+      {
+        patient_id: 'patient-1',
+        occurred_at: '2026-07-20T09:00:00.000Z',
+        kind: 'note',
+        text: 'No stool today',
+        daily_details: null,
+        symptom_details: null,
+      },
+      {
+        patient_id: 'patient-1',
+        occurred_at: '2026-07-19T18:00:00.000Z',
+        kind: 'daily',
+        text: null,
+        daily_details: { completed_at: '2026-07-19T20:00:00.000Z' },
+        symptom_details: null,
+      },
+    ];
+    const adherenceReturns = vi.fn().mockResolvedValue({ data: adherenceRows, error: null });
+    const adherenceGte = vi.fn(() => ({ returns: adherenceReturns }));
+    const adherenceIn = vi.fn(() => ({ gte: adherenceGte }));
+    const adherenceSelect = vi.fn(() => ({ in: adherenceIn }));
     const from = vi.fn((table: string) => {
       if (table === 'doctor_patient_access') return { select: accessSelect };
       if (table === 'user_profiles') return { select: profileSelect };
+      if (table === 'patient_entries') return { select: adherenceSelect };
       throw new Error(`Unexpected table ${table}`);
     });
     const client = { from } as unknown as AppSupabaseClient;
 
-    await expect(listLinkedPatients(client)).resolves.toEqual([
+    const patients = await listLinkedPatients(client, new Date('2026-07-20T12:00:00.000Z'));
+
+    expect(patients).toHaveLength(1);
+    expect(patients[0]).toMatchObject({
+      accessId: 'access-1',
+      patientId: 'patient-1',
+      displayName: 'Linked Patient',
+      linkedAt: '2026-07-08T10:00:00.000Z',
+      adherence: {
+        submittedDays: 1,
+        totalDays: 7,
+      },
+    });
+    expect(patients[0]?.adherence.days.slice(0, 2)).toEqual([
       {
-        accessId: 'access-1',
-        patientId: 'patient-1',
-        displayName: 'Linked Patient',
-        linkedAt: '2026-07-08T10:00:00.000Z',
+        date: '2026-07-20',
+        status: 'in_progress',
+        symptomStatus: 'none',
+        stoolStatus: 'none',
+      },
+      {
+        date: '2026-07-19',
+        status: 'submitted',
+        symptomStatus: 'missing',
+        stoolStatus: 'missing',
       },
     ]);
 
@@ -435,7 +578,12 @@ describe('doctor invite panel client helpers', () => {
     });
     const client = { from } as unknown as AppSupabaseClient;
 
-    const timeline = await getDoctorLinkedPatientTimeline(client, 'patient-1', 14);
+    const timeline = await getDoctorLinkedPatientTimeline(
+      client,
+      'patient-1',
+      14,
+      new Date('2026-07-20T12:00:00.000Z'),
+    );
 
     expect(accessEqPatient).toHaveBeenCalledWith('patient_id', 'patient-1');
     expect(accessEqActive).toHaveBeenCalledWith('active', true);
@@ -467,7 +615,6 @@ describe('doctor invite panel client helpers', () => {
     expect(timeline.entries[1]?.medicalDetails.symptom).toMatchObject({
       type: 'pain',
       intensity: 2,
-      qualityOfLifeEffect: 'Paused work',
       painLocation: 'upper_abdomen',
     });
     expect(timeline.entries[2]?.medicalDetails.stool).toMatchObject({

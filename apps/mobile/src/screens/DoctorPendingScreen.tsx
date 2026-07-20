@@ -1,11 +1,13 @@
 import type { UserProfile } from '@project4/contracts';
-import { getActiveLocale, t } from '@project4/i18n';
+import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
   createDoctorInviteCode,
   listDoctorInviteCodes,
   listLinkedPatients,
   revokeDoctorInviteCode,
   type AppSupabaseClient,
+  type DoctorCheckpointStatus,
+  type DoctorDayStatus,
   type DoctorInviteCode,
   type LinkedPatientSummary,
 } from '@project4/supabase-client';
@@ -56,6 +58,35 @@ function getInviteStatus(invite: DoctorInviteCode): InviteStatus {
 
 function maskPatientId(patientId: string): string {
   return patientId.slice(0, 8).toUpperCase();
+}
+
+function dayStatusKey(status: DoctorDayStatus): TranslationKey {
+  const keys: Record<DoctorDayStatus, TranslationKey> = {
+    submitted: 'doctor.dayStatus.submitted',
+    in_progress: 'doctor.dayStatus.inProgress',
+    day_ended_incomplete: 'doctor.dayStatus.endedIncomplete',
+    no_activity: 'doctor.dayStatus.noActivity',
+  };
+  return keys[status];
+}
+
+function checkpointLabel(
+  locale: ReturnType<typeof getActiveLocale>,
+  status: DoctorCheckpointStatus,
+  type: 'symptom' | 'stool',
+): string {
+  if (status === 'recorded') return t(locale, 'doctor.checkpoint.recorded');
+  if (status === 'missing') return t(locale, 'doctor.checkpoint.missing');
+  return t(
+    locale,
+    type === 'symptom' ? 'doctor.checkpoint.noneSymptoms' : 'doctor.checkpoint.noneStool',
+  );
+}
+
+function submittedCount(patient: LinkedPatientSummary, locale: ReturnType<typeof getActiveLocale>) {
+  return t(locale, 'doctor.adherenceSubmittedCount')
+    .replace('{submitted}', String(patient.adherence.submittedDays))
+    .replace('{total}', String(patient.adherence.totalDays));
 }
 
 export function DoctorPendingScreen({
@@ -309,6 +340,32 @@ export function DoctorPendingScreen({
                         formatShortDate(patient.linkedAt),
                       )}
                     </Text>
+                    {patient.adherence.days[0] ? (
+                      <View style={styles.adherenceSummary}>
+                        <Text style={styles.dayStatus}>
+                          {t(locale, dayStatusKey(patient.adherence.days[0].status))}
+                        </Text>
+                        <Text style={styles.rowMeta}>{submittedCount(patient, locale)}</Text>
+                        <View style={styles.checkpointRow}>
+                          <Text style={styles.checkpointText}>
+                            {t(locale, 'doctor.symptomCheckpoint')}:{' '}
+                            {checkpointLabel(
+                              locale,
+                              patient.adherence.days[0].symptomStatus,
+                              'symptom',
+                            )}
+                          </Text>
+                          <Text style={styles.checkpointText}>
+                            {t(locale, 'doctor.stoolCheckpoint')}:{' '}
+                            {checkpointLabel(
+                              locale,
+                              patient.adherence.days[0].stoolStatus,
+                              'stool',
+                            )}
+                          </Text>
+                        </View>
+                      </View>
+                    ) : null}
                     <Text style={styles.openPatient}>{t(locale, 'doctor.openPatient')}</Text>
                   </Pressable>
                 ))
@@ -455,6 +512,26 @@ const styles = createThemedStyles(() =>
       borderTopWidth: 1,
       borderTopColor: colors.border,
       paddingTop: spacing.md,
+    },
+    adherenceSummary: {
+      gap: spacing.xs,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.accent,
+      marginTop: spacing.xs,
+      paddingLeft: spacing.sm,
+    },
+    dayStatus: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '800',
+    },
+    checkpointRow: {
+      gap: 2,
+    },
+    checkpointText: {
+      color: colors.mutedText,
+      fontSize: 13,
+      lineHeight: 18,
     },
     pressedRow: {
       opacity: 0.74,
