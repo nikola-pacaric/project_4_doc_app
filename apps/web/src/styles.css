@@ -3,7 +3,7 @@
   --app-canvas: #e7e2e5;
   --app-background: #fff7f5;
   --app-surface: #ffffff;
-  --app-surface-alt: #f7f5f6;
+  --app-surface-alt: #f5eff4;
   --app-muted: #8a767d;
   --app-border: #f0dfe1;
   --app-accent: #b33155;
@@ -2425,14 +2425,14 @@ button:focus-visible {
   --app-canvas: #101820;
   --app-background: #101820;
   --app-surface: #172431;
-  --app-surface-alt: #101820;
+  --app-surface-alt: #223140;
   --app-muted: #b7c6d6;
   --app-border: #31465a;
   --app-accent: #5eead4;
-  --app-accent-strong: #5eead4;
+  --app-accent-strong: #2dd4bf;
   --app-accent-soft: #173a43;
   --app-danger: #f97066;
-  --app-on-accent: #101820;
+  --app-on-accent: #0f172a;
   --app-warning: #fbbf24;
   --app-warning-soft: #3a2a12;
   color: var(--app-text);

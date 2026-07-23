@@ -374,7 +374,6 @@ export async function listLinkedPatients(
 export async function getDoctorLinkedPatientTimeline(
   client: AppSupabaseClient,
   patientId: string,
-  days = 30,
   now = new Date(),
 ): Promise<DoctorLinkedPatientTimeline> {
   const { data: accessRow, error: accessError } = await client
@@ -395,7 +394,7 @@ export async function getDoctorLinkedPatientTimeline(
       .eq('id', patientId)
       .maybeSingle<UserProfileRow>(),
     getPatientBaseline(client, patientId),
-    listDoctorTimelineEntries(client, patientId, days),
+    listDoctorTimelineEntries(client, patientId),
   ]);
 
   if (profileResult.error) throw profileResult.error;

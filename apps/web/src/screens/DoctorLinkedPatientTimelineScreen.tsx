@@ -26,6 +26,7 @@ import {
 } from '../components/DoctorMedicalDetails';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { StatusMessage } from '../components/StatusMessage';
+import { toLocalDateInput, toLocalMonthInput } from '../utils/localCalendarInput';
 
 interface DoctorLinkedPatientTimelineScreenProps {
   client: AppSupabaseClient;
@@ -112,14 +113,6 @@ function formatEntryDate(value: string, locale: string): string {
   }).format(new Date(value));
 }
 
-function todayInputValue(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function currentMonthInputValue(): string {
-  return new Date().toISOString().slice(0, 7);
-}
-
 function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -154,8 +147,8 @@ export function DoctorLinkedPatientTimelineScreen({
   const [exportRangeType, setExportRangeType] = useState<
     'selected_day' | 'partial_month' | 'all_time'
   >('selected_day');
-  const [exportDate, setExportDate] = useState(todayInputValue);
-  const [exportMonth, setExportMonth] = useState(currentMonthInputValue);
+  const [exportDate, setExportDate] = useState(() => toLocalDateInput(new Date()));
+  const [exportMonth, setExportMonth] = useState(() => toLocalMonthInput(new Date()));
   const [exporting, setExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);

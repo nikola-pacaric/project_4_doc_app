@@ -8,16 +8,18 @@ import {
 const PREFERENCES_STORAGE_KEY = 'project4.app-preferences.v1';
 
 export async function loadMobilePreferences(): Promise<AppPreferences> {
-  const stored = await AsyncStorage.getItem(PREFERENCES_STORAGE_KEY);
-  if (!stored) return defaultAppPreferences;
-
   try {
-    return normalizeAppPreferences(JSON.parse(stored));
+    const stored = await AsyncStorage.getItem(PREFERENCES_STORAGE_KEY);
+    return stored ? normalizeAppPreferences(JSON.parse(stored)) : defaultAppPreferences;
   } catch {
     return defaultAppPreferences;
   }
 }
 
 export async function saveMobilePreferences(preferences: AppPreferences): Promise<void> {
-  await AsyncStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+  try {
+    await AsyncStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+  } catch {
+    // Preference persistence is best-effort; the current session remains usable.
+  }
 }

@@ -1,5 +1,7 @@
 export const PHOTO_MAX_WIDTH_PX = 1280;
 export const PHOTO_JPEG_QUALITY = 0.8;
+export const PHOTO_THUMBNAIL_MAX_WIDTH_PX = 320;
+export const PHOTO_THUMBNAIL_JPEG_QUALITY = 0.72;
 export const PHOTO_BUCKET = 'patient-entry-photos';
 export const PHOTO_MIME_TYPE = 'image/jpeg';
 export const PHOTO_TARGET_MIN_BYTES = 250 * 1024;
@@ -38,6 +40,11 @@ export interface PreparedPhotoDimensions {
   sizeBytes: number;
 }
 
+export interface PhotoPixelDimensions {
+  widthPx: number;
+  heightPx: number;
+}
+
 export interface PreparedPhotoMetadata extends PreparedPhotoDimensions {
   originalFilename?: string;
   mimeType: typeof PHOTO_MIME_TYPE;
@@ -50,6 +57,36 @@ export interface PhotoValidationResult {
   warnings: string[];
 }
 
+export function constrainPhotoWidth(widthPx: number, maxWidthPx: number): number {
+  if (
+    !Number.isFinite(widthPx) ||
+    !Number.isFinite(maxWidthPx) ||
+    widthPx <= 0 ||
+    maxWidthPx <= 0
+  ) {
+    throw new Error('Photo dimensions must be positive finite numbers.');
+  }
+
+  return Math.min(widthPx, maxWidthPx);
+}
+
+export function constrainPhotoDimensions(
+  widthPx: number,
+  heightPx: number,
+  maxWidthPx: number,
+): PhotoPixelDimensions {
+  if (!Number.isFinite(heightPx) || heightPx <= 0) {
+    throw new Error('Photo dimensions must be positive finite numbers.');
+  }
+
+  const constrainedWidthPx = constrainPhotoWidth(widthPx, maxWidthPx);
+  if (constrainedWidthPx === widthPx) return { widthPx, heightPx };
+
+  return {
+    widthPx: constrainedWidthPx,
+    heightPx: Math.round((heightPx * constrainedWidthPx) / widthPx),
+  };
+}
 export function buildEntryPhotoPaths(
   patientId: string,
   entryId: string,

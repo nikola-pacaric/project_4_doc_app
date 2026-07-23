@@ -54,6 +54,7 @@ import {
   saveCachedRecentEntries,
   savePendingEntries,
 } from '../offline/pendingEntries';
+import { foregroundReconnectDelayMs } from '../lib/foregroundReconnectPolicy';
 import { localDayRange, toLocalDateInput } from '../utils/dateTime';
 import { BaselineScreen } from './BaselineScreen';
 import { DailyProgressHomeScreen } from './DailyProgressHomeScreen';
@@ -82,7 +83,6 @@ interface LoadEntriesOptions {
 }
 
 const ONLINE_LOAD_TIMEOUT_MS = 2_500;
-const OFFLINE_RECONNECT_DELAYS_MS = [15_000, 30_000, 60_000, 120_000, 300_000] as const;
 
 function formatMissingSubmitSections(template: string, sections: string[]): string {
   if (!sections.length) return '';
@@ -578,13 +578,9 @@ export function PatientHomeScreen({
 
   useEffect(() => {
     if (!offlineMode || AppState.currentState !== 'active') return;
-    const retryDelay =
-      OFFLINE_RECONNECT_DELAYS_MS[
-        Math.min(Math.max(reconnectAttempt - 1, 0), OFFLINE_RECONNECT_DELAYS_MS.length - 1)
-      ];
     const retryTimer = setTimeout(() => {
       void loadEntries({ showLoading: false });
-    }, retryDelay);
+    }, foregroundReconnectDelayMs(reconnectAttempt));
 
     return () => clearTimeout(retryTimer);
   }, [loadEntries, offlineMode, reconnectAttempt]);

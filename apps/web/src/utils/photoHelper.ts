@@ -2,6 +2,9 @@ import {
   PHOTO_MAX_WIDTH_PX,
   PHOTO_JPEG_QUALITY,
   PHOTO_MIME_TYPE,
+  PHOTO_THUMBNAIL_JPEG_QUALITY,
+  PHOTO_THUMBNAIL_MAX_WIDTH_PX,
+  constrainPhotoDimensions,
   createPhotoId,
   type PreparedPhotoMetadata,
 } from '@project4/photo';
@@ -25,12 +28,11 @@ export async function prepareWebPhoto(file: File): Promise<WebPreparedPhoto> {
   });
 
   // Calculate main photo dimensions
-  let width = image.width;
-  let height = image.height;
-  if (width > PHOTO_MAX_WIDTH_PX) {
-    height = Math.round((height * PHOTO_MAX_WIDTH_PX) / width);
-    width = PHOTO_MAX_WIDTH_PX;
-  }
+  const { widthPx: width, heightPx: height } = constrainPhotoDimensions(
+    image.width,
+    image.height,
+    PHOTO_MAX_WIDTH_PX,
+  );
 
   // Draw main photo to canvas
   const mainCanvas = document.createElement('canvas');
@@ -53,12 +55,11 @@ export async function prepareWebPhoto(file: File): Promise<WebPreparedPhoto> {
   });
 
   // Calculate thumbnail dimensions (max width 320)
-  let thumbWidth = width;
-  let thumbHeight = height;
-  if (thumbWidth > 320) {
-    thumbHeight = Math.round((thumbHeight * 320) / thumbWidth);
-    thumbWidth = 320;
-  }
+  const { widthPx: thumbWidth, heightPx: thumbHeight } = constrainPhotoDimensions(
+    width,
+    height,
+    PHOTO_THUMBNAIL_MAX_WIDTH_PX,
+  );
 
   // Draw thumbnail to canvas
   const thumbCanvas = document.createElement('canvas');
@@ -76,7 +77,7 @@ export async function prepareWebPhoto(file: File): Promise<WebPreparedPhoto> {
         else reject(new Error('Thumbnail blob generation failed'));
       },
       PHOTO_MIME_TYPE,
-      0.72, // matching mobile quality
+      PHOTO_THUMBNAIL_JPEG_QUALITY,
     );
   });
 

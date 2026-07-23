@@ -165,7 +165,13 @@ export function App() {
       </main>
     );
   } else if (!session) {
-    content = <AuthScreen client={supabase} />;
+    content = (
+      <AuthScreen
+        client={supabase}
+        locale={locale}
+        onChangeLocale={(nextLocale) => updatePreferences({ locale: nextLocale })}
+      />
+    );
   } else if (profileError || !profile) {
     content = (
       <main className="status-screen">

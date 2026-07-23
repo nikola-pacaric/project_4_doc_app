@@ -13,6 +13,7 @@ import {
   redeemDoctorInviteCode,
   revokeDoctorInviteCode,
 } from './doctorPanel';
+import { listDoctorTimelineEntries } from './doctorTimeline';
 
 describe('doctor invite panel client helpers', () => {
   it('classifies seven-day submission and required checkpoint states', () => {
@@ -335,7 +336,7 @@ describe('doctor invite panel client helpers', () => {
     expect(profileIn).toHaveBeenCalledWith('id', ['patient-1']);
   });
 
-  it('loads a linked patient baseline and structured medical timeline details', async () => {
+  it('loads a linked patient baseline and all-time structured medical timeline details', async () => {
     const accessMaybeSingle = vi.fn().mockResolvedValue({
       data: {
         id: 'access-1',
@@ -564,9 +565,10 @@ describe('doctor invite panel client helpers', () => {
       },
     ];
     const entryReturns = vi.fn().mockResolvedValue({ data: entryRows, error: null });
-    const entryOrder = vi.fn(() => ({ returns: entryReturns }));
-    const entryGte = vi.fn(() => ({ order: entryOrder }));
-    const entryEq = vi.fn(() => ({ gte: entryGte }));
+    const entryRange = vi.fn(() => ({ returns: entryReturns }));
+    const entryOrderById = vi.fn(() => ({ range: entryRange }));
+    const entryOrder = vi.fn(() => ({ order: entryOrderById }));
+    const entryEq = vi.fn(() => ({ order: entryOrder }));
     const entrySelect = vi.fn(() => ({ eq: entryEq }));
 
     const from = vi.fn((table: string) => {
@@ -581,7 +583,6 @@ describe('doctor invite panel client helpers', () => {
     const timeline = await getDoctorLinkedPatientTimeline(
       client,
       'patient-1',
-      14,
       new Date('2026-07-20T12:00:00.000Z'),
     );
 
@@ -589,6 +590,9 @@ describe('doctor invite panel client helpers', () => {
     expect(accessEqActive).toHaveBeenCalledWith('active', true);
     expect(accessIs).toHaveBeenCalledWith('revoked_at', null);
     expect(entryEq).toHaveBeenCalledWith('patient_id', 'patient-1');
+    expect(entryOrder).toHaveBeenCalledWith('occurred_at', { ascending: false });
+    expect(entryOrderById).toHaveBeenCalledWith('id', { ascending: false });
+    expect(entryRange).toHaveBeenCalledWith(0, 499);
     expect(entrySelect).toHaveBeenCalledWith(
       expect.stringContaining('daily_details:daily_form_details'),
     );
@@ -644,6 +648,59 @@ describe('doctor invite panel client helpers', () => {
       flow: 'moderate',
       painLevel: 2,
     });
+  });
+
+  it('paginates through the complete linked-patient timeline', async () => {
+    const emptyDetails = {
+      daily_details: null,
+      food_details: null,
+      meal_details: null,
+      fluid_details: [],
+      symptom_details: null,
+      stool_details: null,
+      medication_details: null,
+      exercise_details: null,
+      menstruation_details: null,
+    };
+    const baseRow = {
+      ...emptyDetails,
+      patient_id: 'patient-1',
+      kind: 'note',
+      occurred_at: '2026-04-01T08:00:00.000Z',
+      text: 'Historical note',
+      created_at: '2026-04-01T08:00:00.000Z',
+      updated_at: '2026-04-01T08:00:00.000Z',
+    };
+    const firstPage = Array.from({ length: 500 }, (_, index) => ({
+      ...baseRow,
+      id: `entry-${index}`,
+    }));
+    const secondPage = [{ ...baseRow, id: 'entry-500' }];
+    const returns = vi
+      .fn()
+      .mockResolvedValueOnce({ data: firstPage, error: null })
+      .mockResolvedValueOnce({ data: secondPage, error: null });
+    const range = vi.fn(() => ({ returns }));
+    const orderById = vi.fn(() => ({ range }));
+    const orderByOccurredAt = vi.fn(() => ({ order: orderById }));
+    const eq = vi.fn(() => ({ order: orderByOccurredAt }));
+    const select = vi.fn(() => ({ eq }));
+    const from = vi.fn(() => ({ select }));
+    const client = { from } as unknown as AppSupabaseClient;
+
+    const entries = await listDoctorTimelineEntries(client, 'patient-1');
+
+    expect(entries).toHaveLength(501);
+    expect(entries.at(-1)).toMatchObject({
+      id: 'entry-500',
+      occurredAt: '2026-04-01T08:00:00.000Z',
+    });
+    expect(eq).toHaveBeenCalledTimes(2);
+    expect(eq).toHaveBeenCalledWith('patient_id', 'patient-1');
+    expect(orderByOccurredAt).toHaveBeenCalledWith('occurred_at', { ascending: false });
+    expect(orderById).toHaveBeenCalledWith('id', { ascending: false });
+    expect(range).toHaveBeenNthCalledWith(1, 0, 499);
+    expect(range).toHaveBeenNthCalledWith(2, 500, 999);
   });
 
   it('rejects selected patient timeline loads without active doctor access', async () => {

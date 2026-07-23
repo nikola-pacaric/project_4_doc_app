@@ -125,6 +125,7 @@ const doctorTimelineColumns = `
   exercise_details:exercise_details(entry_id, activity, duration_minutes, intensity, notes),
   menstruation_details:menstruation_events(entry_id, flow, pain_level, notes)
 `;
+const doctorTimelinePageSize = 500;
 
 function toDoctorTimelineEntry(row: DoctorTimelineEntryRow): DoctorTimelineEntry {
   const entry = toPatientEntry(row);
@@ -249,19 +250,27 @@ function toDoctorTimelineEntry(row: DoctorTimelineEntryRow): DoctorTimelineEntry
 export async function listDoctorTimelineEntries(
   client: AppSupabaseClient,
   patientId: string,
-  days: number,
 ): Promise<DoctorTimelineEntry[]> {
-  const since = new Date();
-  since.setDate(since.getDate() - Math.max(1, days));
+  const rows: DoctorTimelineEntryRow[] = [];
+  let offset = 0;
 
-  const { data, error } = await client
-    .from('patient_entries')
-    .select(doctorTimelineColumns)
-    .eq('patient_id', patientId)
-    .gte('occurred_at', since.toISOString())
-    .order('occurred_at', { ascending: false })
-    .returns<DoctorTimelineEntryRow[]>();
+  while (true) {
+    const { data, error } = await client
+      .from('patient_entries')
+      .select(doctorTimelineColumns)
+      .eq('patient_id', patientId)
+      .order('occurred_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(offset, offset + doctorTimelinePageSize - 1)
+      .returns<DoctorTimelineEntryRow[]>();
 
-  if (error) throw error;
-  return data.map(toDoctorTimelineEntry);
+    if (error) throw error;
+
+    rows.push(...data);
+    if (data.length < doctorTimelinePageSize) break;
+
+    offset += data.length;
+  }
+
+  return rows.map(toDoctorTimelineEntry);
 }

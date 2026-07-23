@@ -1,8 +1,11 @@
 import {
   createPhotoId,
+  constrainPhotoWidth,
   PHOTO_JPEG_QUALITY,
   PHOTO_MAX_WIDTH_PX,
   PHOTO_MIME_TYPE,
+  PHOTO_THUMBNAIL_JPEG_QUALITY,
+  PHOTO_THUMBNAIL_MAX_WIDTH_PX,
 } from '@project4/photo';
 import { type UserProfile } from '@project4/contracts';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
@@ -90,8 +93,11 @@ function imageResultBytes(image: ManipulatedImageResult): Uint8Array {
 }
 
 function resizeActions(width: number | undefined, targetWidth: number) {
-  if (!width || width <= targetWidth) return [];
-  return [{ resize: { width: targetWidth } }];
+  if (!width) return [];
+  const constrainedWidth = constrainPhotoWidth(width, targetWidth);
+  if (constrainedWidth === width) return [];
+
+  return [{ resize: { width: constrainedWidth } }];
 }
 
 export function PhotoUploadScreen({
@@ -128,17 +134,21 @@ export function PhotoUploadScreen({
     let thumbnail: ManipulatedImageResult | null = null;
 
     try {
-      photo = (await manipulateAsync(
-        asset.uri,
-        resizeActions(asset.width, PHOTO_MAX_WIDTH_PX),
-        { base64: true, compress: PHOTO_JPEG_QUALITY, format: SaveFormat.JPEG },
-      )) as ManipulatedImageResult;
-      await trackPreparedPhotoUris([photo.uri]);
-      thumbnail = (await manipulateAsync(photo.uri, resizeActions(photo.width, 320), {
+      photo = (await manipulateAsync(asset.uri, resizeActions(asset.width, PHOTO_MAX_WIDTH_PX), {
         base64: true,
-        compress: 0.72,
+        compress: PHOTO_JPEG_QUALITY,
         format: SaveFormat.JPEG,
       })) as ManipulatedImageResult;
+      await trackPreparedPhotoUris([photo.uri]);
+      thumbnail = (await manipulateAsync(
+        photo.uri,
+        resizeActions(photo.width, PHOTO_THUMBNAIL_MAX_WIDTH_PX),
+        {
+          base64: true,
+          compress: PHOTO_THUMBNAIL_JPEG_QUALITY,
+          format: SaveFormat.JPEG,
+        },
+      )) as ManipulatedImageResult;
       await trackPreparedPhotoUris([thumbnail.uri]);
 
       const nextPhoto: PreparedPhoto = {

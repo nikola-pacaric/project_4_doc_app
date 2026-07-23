@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
-import { lightTheme } from './colors';
+import { darkTheme, lightTheme } from './colors';
 
 function channelToLinear(channel: number): number {
   const normalized = channel / 255;
@@ -34,5 +36,49 @@ describe('light theme accessibility', () => {
     expect(
       contrastRatio(lightTheme.colors.onAccent, lightTheme.colors.accent),
     ).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+const webThemeVariableNames = {
+  text: '--app-text',
+  background: '--app-background',
+  surface: '--app-surface',
+  surfaceAlt: '--app-surface-alt',
+  mutedText: '--app-muted',
+  border: '--app-border',
+  accent: '--app-accent',
+  accentStrong: '--app-accent-strong',
+  onAccent: '--app-on-accent',
+  danger: '--app-danger',
+} as const;
+
+function cssVariables(block: string): Record<string, string> {
+  const variables: Record<string, string> = {};
+
+  for (const [, name, value] of block.matchAll(/(--[\w-]+):\s*([^;]+);/g)) {
+    if (name && value) variables[name] = value.trim();
+  }
+
+  return variables;
+}
+
+function webThemeValues(
+  variables: Record<string, string>,
+): Record<keyof typeof webThemeVariableNames, string | undefined> {
+  return Object.fromEntries(
+    Object.entries(webThemeVariableNames).map(([token, variable]) => [token, variables[variable]]),
+  ) as Record<keyof typeof webThemeVariableNames, string | undefined>;
+}
+
+describe('web theme parity', () => {
+  it('keeps companion-web light and dark CSS values aligned with shared tokens', () => {
+    const css = readFileSync(new URL('../../../apps/web/src/styles.css', import.meta.url), 'utf8');
+    const rootBlock = css.match(/:root\s*\{([\s\S]*?)\}/)?.[1];
+    const darkBlock = css.match(/\.web-app-shell\[data-theme='dark'\]\s*\{([\s\S]*?)\}/)?.[1];
+
+    expect(rootBlock).toBeDefined();
+    expect(darkBlock).toBeDefined();
+    expect(webThemeValues(cssVariables(rootBlock ?? ''))).toEqual(lightTheme.colors);
+    expect(webThemeValues(cssVariables(darkBlock ?? ''))).toEqual(darkTheme.colors);
   });
 });

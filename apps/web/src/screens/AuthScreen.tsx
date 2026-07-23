@@ -1,5 +1,5 @@
 import type { UserRole } from '@project4/contracts';
-import { getActiveLocale, t } from '@project4/i18n';
+import { t, type Locale } from '@project4/i18n';
 import { signInForRole, signUpPatient, type AppSupabaseClient } from '@project4/supabase-client';
 import { useState, type FormEvent } from 'react';
 
@@ -11,14 +11,15 @@ type AuthMode = 'patient-login' | 'patient-signup' | 'doctor-login';
 
 interface AuthScreenProps {
   client: AppSupabaseClient;
+  locale: Locale;
+  onChangeLocale: (locale: Locale) => void;
 }
 
 function expectedRole(mode: AuthMode): UserRole {
   return mode === 'doctor-login' ? 'doctor' : 'patient';
 }
 
-export function AuthScreen({ client }: AuthScreenProps) {
-  const locale = getActiveLocale();
+export function AuthScreen({ client, locale, onChangeLocale }: AuthScreenProps) {
   const [mode, setMode] = useState<AuthMode>('patient-login');
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -71,6 +72,31 @@ export function AuthScreen({ client }: AuthScreenProps) {
           title={t(locale, mode === 'patient-signup' ? 'auth.patientSignup' : 'auth.signIn')}
           subtitle={t(locale, 'app.subtitle')}
         />
+        <div
+          aria-label={t(locale, 'settings.language')}
+          className="segmented-control"
+          role="group"
+          style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}
+        >
+          <button
+            aria-pressed={locale === 'en'}
+            className={locale === 'en' ? 'selected' : ''}
+            lang="en"
+            onClick={() => onChangeLocale('en')}
+            type="button"
+          >
+            EN
+          </button>
+          <button
+            aria-pressed={locale === 'sr'}
+            className={locale === 'sr' ? 'selected' : ''}
+            lang="sr"
+            onClick={() => onChangeLocale('sr')}
+            type="button"
+          >
+            SR
+          </button>
+        </div>
         <div aria-label={t(locale, 'auth.signIn')} className="segmented-control" role="tablist">
           {modes.map((item) => (
             <button

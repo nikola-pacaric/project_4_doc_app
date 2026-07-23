@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  PHOTO_JPEG_QUALITY,
+  PHOTO_MAX_WIDTH_PX,
   PHOTO_MIME_TYPE,
+  PHOTO_THUMBNAIL_JPEG_QUALITY,
+  PHOTO_THUMBNAIL_MAX_WIDTH_PX,
   buildEntryPhotoPaths,
+  constrainPhotoDimensions,
+  constrainPhotoWidth,
   createPhotoId,
   validateEntryPhotoPaths,
   validatePreparedPhotoMetadata,
@@ -90,5 +96,43 @@ describe('createPhotoId', () => {
     for (const id of ids) {
       expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
     }
+  });
+});
+
+describe('shared photo preprocessing constraints', () => {
+  it('exposes the same main and thumbnail limits for browser and mobile consumers', () => {
+    expect({
+      main: { maxWidthPx: PHOTO_MAX_WIDTH_PX, jpegQuality: PHOTO_JPEG_QUALITY },
+      thumbnail: {
+        maxWidthPx: PHOTO_THUMBNAIL_MAX_WIDTH_PX,
+        jpegQuality: PHOTO_THUMBNAIL_JPEG_QUALITY,
+      },
+    }).toEqual({
+      main: { maxWidthPx: 1280, jpegQuality: 0.8 },
+      thumbnail: { maxWidthPx: 320, jpegQuality: 0.72 },
+    });
+  });
+
+  it('preserves aspect ratio without upscaling either output', () => {
+    expect(constrainPhotoWidth(4032, PHOTO_MAX_WIDTH_PX)).toBe(1280);
+    expect(constrainPhotoWidth(240, PHOTO_THUMBNAIL_MAX_WIDTH_PX)).toBe(240);
+    expect(constrainPhotoDimensions(4032, 3024, PHOTO_MAX_WIDTH_PX)).toEqual({
+      widthPx: 1280,
+      heightPx: 960,
+    });
+    expect(constrainPhotoDimensions(1280, 960, PHOTO_THUMBNAIL_MAX_WIDTH_PX)).toEqual({
+      widthPx: 320,
+      heightPx: 240,
+    });
+    expect(constrainPhotoDimensions(240, 320, PHOTO_THUMBNAIL_MAX_WIDTH_PX)).toEqual({
+      widthPx: 240,
+      heightPx: 320,
+    });
+  });
+
+  it('rejects invalid source dimensions', () => {
+    expect(() => constrainPhotoDimensions(0, 960, PHOTO_MAX_WIDTH_PX)).toThrow(
+      'Photo dimensions must be positive finite numbers.',
+    );
   });
 });
