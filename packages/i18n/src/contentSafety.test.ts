@@ -22,6 +22,15 @@ describe('product trust copy', () => {
     expect(dictionaries.sr['web.privateWorkspace']).toMatch(/[ćčšžđ]/i);
   });
 
+  it('localizes every doctor bottom-navigation destination', () => {
+    for (const locale of ['en', 'sr'] as const) {
+      expect(dictionaries[locale]['doctor.nav.dashboard']).toBeTruthy();
+      expect(dictionaries[locale]['doctor.nav.patientsExports']).toBeTruthy();
+      expect(dictionaries[locale]['doctor.nav.generateCode']).toBeTruthy();
+      expect(dictionaries[locale]['settings.title']).toBeTruthy();
+    }
+  });
+
   it('localizes fatal-error and unsaved-form recovery copy', () => {
     for (const locale of ['en', 'sr'] as const) {
       expect(dictionaries[locale]['app.fatalErrorTitle']).toBeTruthy();

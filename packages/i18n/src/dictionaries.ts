@@ -344,6 +344,7 @@ export const dictionaries = {
     'photo.deleteConfirm': 'Delete this saved photo? This cannot be undone.',
     'photo.deleteError': 'The saved photo could not be deleted. Please try again online.',
     'photo.deleting': 'Deleting photo...',
+    'photo.loadError': 'Saved photos could not be loaded. Please try again online.',
     'photo.entryFallback': 'Selected entry',
     'photo.eyebrow': 'Private photo',
     'photo.fluidFallback': 'Fluid {number}',
@@ -424,6 +425,12 @@ export const dictionaries = {
     'doctor.createInvite': 'Create invite code',
     'doctor.dashboardSubtitle': 'Create patient invite codes and review active linked patients.',
     'doctor.dashboardTitle': 'Doctor panel',
+    'doctor.nav.dashboard': 'Dashboard',
+    'doctor.nav.patientsExports': 'Patients / exports',
+    'doctor.nav.generateCode': 'Generate code',
+    'doctor.patientsExportsSubtitle':
+      'Choose a linked patient to review their timeline and create an export.',
+    'doctor.generateCodeSubtitle': 'Create a patient invite code or revoke an unused code.',
     'doctor.exportAllData': 'All data',
     'doctor.exportAllDataWithImages': 'All data with images',
     'doctor.exportAllTime': 'All time',
@@ -979,6 +986,7 @@ export const dictionaries = {
     'photo.deleteConfirm': 'Obrisati ovu sacuvanu fotografiju? Radnja se ne moze ponistiti.',
     'photo.deleteError': 'Sacuvanu fotografiju nije moguce obrisati. Pokusajte ponovo na mrezi.',
     'photo.deleting': 'Brisanje fotografije...',
+    'photo.loadError': 'Sačuvane fotografije nije moguće učitati. Pokušajte ponovo na mreži.',
     'photo.eyebrow': 'Privatna fotografija',
     'photo.fluidFallback': 'Tecnost {number}',
     'photo.mealFallback': 'Obrok {number}',
@@ -1061,6 +1069,13 @@ export const dictionaries = {
     'doctor.dashboardSubtitle':
       'Kreirajte pozivne kodove za pacijente i pregledajte aktivne povezane pacijente.',
     'doctor.dashboardTitle': 'Panel lekara',
+    'doctor.nav.dashboard': 'Kontrolna tabla',
+    'doctor.nav.patientsExports': 'Pacijenti / izvozi',
+    'doctor.nav.generateCode': 'Napravi kod',
+    'doctor.patientsExportsSubtitle':
+      'Izaberite povezanog pacijenta da pregledate vremensku liniju i napravite izvoz.',
+    'doctor.generateCodeSubtitle':
+      'Napravite pozivni kod za pacijenta ili opozovite neiskorišćen kod.',
     'doctor.exportAllData': 'Svi podaci',
     'doctor.exportAllDataWithImages': 'Svi podaci sa fotografijama',
     'doctor.exportAllTime': 'Sve vreme',

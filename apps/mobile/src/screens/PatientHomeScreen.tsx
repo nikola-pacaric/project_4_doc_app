@@ -804,6 +804,7 @@ export function PatientHomeScreen({
     );
     return (
       <PatientTimelineScreen
+        client={client}
         deletingEntryId={deletingEntryId}
         entries={dayEntries}
         error={timelineError}

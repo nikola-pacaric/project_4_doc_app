@@ -14,22 +14,32 @@ import { FormField } from './FormField';
 import { SelectField } from './SelectField';
 import { TimePickerField } from './TimePickerField';
 import { type PreparedPhoto } from '../screens/PhotoUploadScreen';
+import { type PersistedEntryPhoto } from '../lib/persistedPhotos';
 
 export interface ClientMealDraft extends MealDraft {
-  existingPhotoUris?: string[];
+  existingPhotos?: PersistedEntryPhoto[];
   localPhoto?: PreparedPhoto | null;
 }
 
 interface MealFieldsProps {
   createMeal: () => ClientMealDraft;
+  deletingPhotoIds?: ReadonlySet<string>;
   meals: ClientMealDraft[];
   onAddPhoto?: (meal: ClientMealDraft, index: number) => void;
   onChange: (meals: ClientMealDraft[]) => void;
+  onDeletePhoto?: (photo: PersistedEntryPhoto, index: number) => void;
 }
 
 const mealTypes: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack', 'other'];
 
-export function MealFields({ createMeal, meals, onAddPhoto, onChange }: MealFieldsProps) {
+export function MealFields({
+  createMeal,
+  deletingPhotoIds = new Set<string>(),
+  meals,
+  onAddPhoto,
+  onChange,
+  onDeletePhoto,
+}: MealFieldsProps) {
   const locale = getActiveLocale();
   const palette = getTactilePalette();
   // White controls on the soft meal card so fields stay visible.
@@ -164,14 +174,35 @@ export function MealFields({ createMeal, meals, onAddPhoto, onChange }: MealFiel
                 </Pressable>
               ) : null}
 
-              {meal.existingPhotoUris?.length ? (
+              {meal.existingPhotos?.length ? (
                 <View style={styles.savedPhotos}>
                   <Text style={[layout.helpText, { color: palette.onSurface, fontWeight: '700' }]}>
                     {t(locale, 'photo.savedPhotos')}
                   </Text>
                   <View style={styles.photoList}>
-                    {meal.existingPhotoUris.map((uri) => (
-                      <Image key={uri} source={{ uri }} style={styles.photo} />
+                    {meal.existingPhotos.map((photo) => (
+                      <View key={photo.id} style={styles.savedPhoto}>
+                        <Image source={{ uri: photo.uri }} style={styles.photo} />
+                        {onDeletePhoto ? (
+                          <Pressable
+                            accessibilityRole="button"
+                            disabled={deletingPhotoIds.has(photo.id)}
+                            onPress={() => onDeletePhoto(photo, index)}
+                            style={({ pressed }) => [
+                              styles.deletePhotoButton,
+                              { borderColor: palette.error },
+                              pressed && layout.pressed,
+                            ]}
+                          >
+                            <Text style={[styles.deletePhotoLabel, { color: palette.error }]}>
+                              {t(
+                                locale,
+                                deletingPhotoIds.has(photo.id) ? 'photo.deleting' : 'common.delete',
+                              )}
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
                     ))}
                   </View>
                 </View>
@@ -256,5 +287,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  savedPhoto: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  deletePhotoButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    minHeight: 32,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  deletePhotoLabel: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

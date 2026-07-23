@@ -15,7 +15,6 @@ import {
 import { getActiveLocale, t } from '@project4/i18n';
 import { PHOTO_MIME_TYPE } from '@project4/photo';
 import {
-  createEntryPhotoSignedUrl,
   deleteEntryPhotos,
   getPatientFoodForm,
   listEntryPhotos,
@@ -26,9 +25,11 @@ import {
   type AppSupabaseClient,
 } from '@project4/supabase-client';
 import { useEffect, useRef, useState } from 'react';
+import { Alert } from 'react-native';
 
 import { FormField } from '../components/FormField';
 import { cleanupPreparedPhoto } from '../lib/preparedPhotos';
+import { type PersistedEntryPhoto, withSignedThumbnailUris } from '../lib/persistedPhotos';
 import { MealFields, type ClientMealDraft } from '../components/MealFields';
 import { OtherFluidFields, type ClientOtherFluidDraft } from '../components/OtherFluidFields';
 import { TactileChoiceRow } from '../components/TactileChoiceRow';
@@ -47,9 +48,7 @@ interface FoodFormScreenProps {
   profile: UserProfile;
 }
 
-function localPreparedPhotos(
-  drafts: { localPhoto?: PreparedPhoto | null }[],
-): PreparedPhoto[] {
+function localPreparedPhotos(drafts: { localPhoto?: PreparedPhoto | null }[]): PreparedPhoto[] {
   const photos = drafts.flatMap((draft) => (draft.localPhoto ? [draft.localPhoto] : []));
   return [...new Map(photos.map((photo) => [photo.uploadId, photo])).values()];
 }
@@ -80,25 +79,22 @@ function toMealDrafts(records: Awaited<ReturnType<typeof listPatientMeals>>): Me
     : [createEmptyMealDraft()];
 }
 
-async function withMealPhotoUris(
+async function withMealPhotos(
   client: AppSupabaseClient,
   mealDrafts: ClientMealDraft[],
 ): Promise<ClientMealDraft[]> {
   return Promise.all(
     mealDrafts.map(async (meal) => {
       if (!meal.entryId) return meal;
-      const photos = await listEntryPhotos(client, meal.entryId);
-      const existingPhotoUris = await Promise.all(
-        photos
-          .filter((photo) => photo.contextType === 'meal' || photo.contextType === null)
-          .map((photo) => createEntryPhotoSignedUrl(client, photo.thumbnailPath)),
+      const photos = (await listEntryPhotos(client, meal.entryId)).filter(
+        (photo) => photo.contextType === 'meal' || photo.contextType === null,
       );
-      return { ...meal, existingPhotoUris };
+      return { ...meal, existingPhotos: await withSignedThumbnailUris(client, photos) };
     }),
   );
 }
 
-async function withFluidPhotoUris(
+async function withFluidPhotos(
   client: AppSupabaseClient,
   foodEntryId: string | null,
   fluidDrafts: ClientOtherFluidDraft[],
@@ -106,13 +102,10 @@ async function withFluidPhotoUris(
   const fluidsWithEntryPhotos = await Promise.all(
     fluidDrafts.map(async (fluid) => {
       if (!fluid.entryId) return fluid;
-      const photos = await listEntryPhotos(client, fluid.entryId);
-      const existingPhotoUris = await Promise.all(
-        photos
-          .filter((photo) => photo.contextType === 'fluid' || photo.contextType === null)
-          .map((photo) => createEntryPhotoSignedUrl(client, photo.thumbnailPath)),
+      const photos = (await listEntryPhotos(client, fluid.entryId)).filter(
+        (photo) => photo.contextType === 'fluid' || photo.contextType === null,
       );
-      return { ...fluid, existingPhotoUris };
+      return { ...fluid, existingPhotos: await withSignedThumbnailUris(client, photos) };
     }),
   );
 
@@ -123,36 +116,32 @@ async function withFluidPhotoUris(
   );
   if (!photos.length) return fluidsWithEntryPhotos;
 
-  const photosWithUris = await Promise.all(
-    photos.map(async (photo) => ({
-      label: photo.contextLabel?.trim(),
-      uri: await createEntryPhotoSignedUrl(client, photo.thumbnailPath),
-    })),
-  );
-
-  const matchedUris = new Set<string>();
+  const persistedPhotos = await withSignedThumbnailUris(client, photos);
+  const photosWithLabels = photos.map((photo, index) => ({
+    label: photo.contextLabel?.trim(),
+    photo: persistedPhotos[index]!,
+  }));
+  const matchedIds = new Set<string>();
   const fluidsWithMatchedPhotos = fluidsWithEntryPhotos.map((fluid) => {
     const label = fluid.name?.trim();
-    const existingPhotoUris = label
-      ? photosWithUris
-          .filter((photo) => photo.label === label)
-          .map((photo) => {
-            matchedUris.add(photo.uri);
-            return photo.uri;
+    const existingPhotos = label
+      ? photosWithLabels
+          .filter((item) => item.label === label)
+          .map((item) => {
+            matchedIds.add(item.photo.id);
+            return item.photo;
           })
       : [];
-    return { ...fluid, existingPhotoUris };
+    return { ...fluid, existingPhotos };
   });
+  const unmatchedPhotos = photosWithLabels
+    .filter((item) => !matchedIds.has(item.photo.id))
+    .map((item) => item.photo);
 
-  const unmatchedUris = photosWithUris
-    .filter((photo) => !matchedUris.has(photo.uri))
-    .map((photo) => photo.uri);
-
-  if (!unmatchedUris.length) return fluidsWithMatchedPhotos;
-
+  if (!unmatchedPhotos.length) return fluidsWithMatchedPhotos;
   return fluidsWithMatchedPhotos.map((fluid, index) =>
     index === 0
-      ? { ...fluid, existingPhotoUris: [...(fluid.existingPhotoUris ?? []), ...unmatchedUris] }
+      ? { ...fluid, existingPhotos: [...(fluid.existingPhotos ?? []), ...unmatchedPhotos] }
       : fluid,
   );
 }
@@ -255,6 +244,7 @@ export function FoodFormScreen({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [deletingPhotoIds, setDeletingPhotoIds] = useState(new Set<string>());
   const [photoTarget, setPhotoTarget] = useState<FoodPhotoTarget | null>(null);
   const mealsRef = useRef(meals);
   const otherFluidsRef = useRef(otherFluids);
@@ -290,6 +280,62 @@ export function FoodFormScreen({
     void cleanupPreparedPhotos(discarded);
   }
 
+  function confirmDeletePhoto(
+    photo: PersistedEntryPhoto,
+    contextType: 'meal' | 'fluid',
+    index: number,
+  ) {
+    Alert.alert(t(locale, 'common.delete'), t(locale, 'photo.deleteConfirm'), [
+      { style: 'cancel', text: t(locale, 'common.cancel') },
+      {
+        style: 'destructive',
+        text: t(locale, 'common.delete'),
+        onPress: () => {
+          setDeletingPhotoIds((current) => new Set(current).add(photo.id));
+          setError(null);
+          void deleteEntryPhotos(client, [photo])
+            .then(() => {
+              if (contextType === 'meal') {
+                replaceMeals(
+                  mealsRef.current.map((meal, mealIndex) =>
+                    mealIndex === index
+                      ? {
+                          ...meal,
+                          existingPhotos: meal.existingPhotos?.filter(
+                            (item) => item.id !== photo.id,
+                          ),
+                        }
+                      : meal,
+                  ),
+                );
+              } else {
+                replaceOtherFluids(
+                  otherFluidsRef.current.map((fluid, fluidIndex) =>
+                    fluidIndex === index
+                      ? {
+                          ...fluid,
+                          existingPhotos: fluid.existingPhotos?.filter(
+                            (item) => item.id !== photo.id,
+                          ),
+                        }
+                      : fluid,
+                  ),
+                );
+              }
+            })
+            .catch(() => setError(t(locale, 'photo.deleteError')))
+            .finally(() =>
+              setDeletingPhotoIds((current) => {
+                const next = new Set(current);
+                next.delete(photo.id);
+                return next;
+              }),
+            );
+        },
+      },
+    ]);
+  }
+
   useEffect(() => {
     let active = true;
     const range = localDayRange(day);
@@ -306,8 +352,8 @@ export function FoodFormScreen({
           ? await listPatientOtherFluids(client, nextFoodEntryId)
           : [];
         const [nextMeals, nextOtherFluids] = await Promise.all([
-          withMealPhotoUris(client, toMealDrafts(mealRecords)),
-          withFluidPhotoUris(
+          withMealPhotos(client, toMealDrafts(mealRecords)),
+          withFluidPhotos(
             client,
             nextFoodEntryId,
             toOtherFluidDrafts(fluidRecords, nextHydration.otherFluids),
@@ -484,8 +530,8 @@ export function FoodFormScreen({
       setHydration(nextHydration);
       setWaterText(formatWaterLiters(nextHydration.waterLiters));
       const [nextMealsWithPhotos, nextOtherFluidsWithPhotos] = await Promise.all([
-        withMealPhotoUris(client, nextMeals),
-        withFluidPhotoUris(client, nextFoodEntryId, nextOtherFluids),
+        withMealPhotos(client, nextMeals),
+        withFluidPhotos(client, nextFoodEntryId, nextOtherFluids),
       ]);
       replaceMeals(nextMealsWithPhotos);
       replaceOtherFluids(nextOtherFluidsWithPhotos);
@@ -545,12 +591,8 @@ export function FoodFormScreen({
       error={error}
       loading={loading}
       message={message}
-      onCancelProfile={
-        onCancelProfile ? () => void leaveForm(onCancelProfile) : undefined
-      }
-      onCancelTimeline={
-        onCancelTimeline ? () => void leaveForm(onCancelTimeline) : undefined
-      }
+      onCancelProfile={onCancelProfile ? () => void leaveForm(onCancelProfile) : undefined}
+      onCancelTimeline={onCancelTimeline ? () => void leaveForm(onCancelTimeline) : undefined}
       onCancelToday={() => void leaveForm(onBack)}
       onSave={() => void save()}
       saveBusy={saving}
@@ -560,6 +602,7 @@ export function FoodFormScreen({
       <TactileSectionCard icon="🍽" palette={palette} title={t(locale, 'food.title')}>
         <MealFields
           createMeal={createEmptyMealDraft}
+          deletingPhotoIds={deletingPhotoIds}
           meals={meals}
           onAddPhoto={(meal, index) => {
             setPhotoTarget({
@@ -571,6 +614,7 @@ export function FoodFormScreen({
             });
           }}
           onChange={replaceMeals}
+          onDeletePhoto={(photo, index) => confirmDeletePhoto(photo, 'meal', index)}
         />
       </TactileSectionCard>
 
@@ -621,6 +665,7 @@ export function FoodFormScreen({
         {hydration.hasOtherFluids ? (
           <OtherFluidFields
             createFluid={createEmptyOtherFluidDraft}
+            deletingPhotoIds={deletingPhotoIds}
             fluids={otherFluids}
             onAddPhoto={(fluid, index) => {
               setPhotoTarget({
@@ -632,6 +677,7 @@ export function FoodFormScreen({
               });
             }}
             onChange={replaceOtherFluids}
+            onDeletePhoto={(photo, index) => confirmDeletePhoto(photo, 'fluid', index)}
           />
         ) : null}
       </TactileSectionCard>

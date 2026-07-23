@@ -32,7 +32,7 @@ import { clearAllPatientOfflineData } from './src/offline/pendingEntries';
 import { SymptomPreview } from './src/preview/SymptomPreview';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { ConsentScreen } from './src/screens/ConsentScreen';
-import { DoctorPendingScreen } from './src/screens/DoctorPendingScreen';
+import { DoctorPendingScreen, type DoctorLandingTab } from './src/screens/DoctorPendingScreen';
 import { PatientHomeScreen, type PatientHomeTab } from './src/screens/PatientHomeScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { loadMobilePreferences, saveMobilePreferences } from './src/lib/preferences';
@@ -46,6 +46,7 @@ function MainApp() {
   const [preferencesLoading, setPreferencesLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [patientLandingTab, setPatientLandingTab] = useState<PatientHomeTab>('today');
+  const [doctorLandingTab, setDoctorLandingTab] = useState<DoctorLandingTab>('dashboard');
   const [profileError, setProfileError] = useState(false);
   const [profileReloadToken, setProfileReloadToken] = useState(0);
 
@@ -107,6 +108,7 @@ function MainApp() {
         setProfileError(false);
         setSettingsOpen(false);
         setPatientLandingTab('today');
+        setDoctorLandingTab('dashboard');
       }
       if (!nextSession) {
         setSession(null);
@@ -188,6 +190,7 @@ function MainApp() {
   async function signOut() {
     setSettingsOpen(false);
     setPatientLandingTab('today');
+    setDoctorLandingTab('dashboard');
     try {
       if (supabase) {
         await supabase.auth.signOut();
@@ -275,7 +278,27 @@ function MainApp() {
     content = (
       <SettingsScreen
         client={profile.role === 'patient' ? supabase : undefined}
-        onBack={() => closeSettingsTo('today')}
+        doctorNavigation={
+          profile.role === 'doctor'
+            ? {
+                onDashboard: () => {
+                  setDoctorLandingTab('dashboard');
+                  setSettingsOpen(false);
+                },
+                onGenerateCode: () => {
+                  setDoctorLandingTab('invite');
+                  setSettingsOpen(false);
+                },
+                onPatients: () => {
+                  setDoctorLandingTab('patients');
+                  setSettingsOpen(false);
+                },
+              }
+            : undefined
+        }
+        onBack={() =>
+          profile.role === 'patient' ? closeSettingsTo('today') : setSettingsOpen(false)
+        }
         onChange={updatePreferences}
         onProfile={profile.role === 'patient' ? () => closeSettingsTo('profile') : undefined}
         onSignOut={signOut}
@@ -289,8 +312,9 @@ function MainApp() {
     content = (
       <DoctorPendingScreen
         client={supabase}
+        initialTab={doctorLandingTab}
         onOpenSettings={() => setSettingsOpen(true)}
-        onSignOut={signOut}
+        onTabChange={setDoctorLandingTab}
         profile={profile}
       />
     );

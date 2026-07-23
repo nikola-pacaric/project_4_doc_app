@@ -20,6 +20,7 @@ import {
 } from '../theme/tactileForm';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 import { type PreparedPhoto } from './PhotoUploadScreen';
+import { type PersistedEntryPhoto } from '../lib/persistedPhotos';
 
 export interface ClientMedicationDraft extends MedicationDraft {
   localPhoto?: PreparedPhoto | null;
@@ -27,10 +28,12 @@ export interface ClientMedicationDraft extends MedicationDraft {
 
 interface MedicationFormScreenProps {
   busy?: boolean;
+  deletingPhotoIds?: ReadonlySet<string>;
   error?: string | null;
-  existingPhotoUris?: string[];
+  existingPhotos?: PersistedEntryPhoto[];
   initialDraft?: ClientMedicationDraft;
   onAddPhoto?: (draft: ClientMedicationDraft) => void;
+  onDeletePhoto?: (photo: PersistedEntryPhoto) => void;
   onBack: () => void;
   onCancelProfile?: () => void;
   onCancelTimeline?: () => void;
@@ -47,10 +50,12 @@ function createInitialDraft(): ClientMedicationDraft {
 
 export function MedicationFormScreen({
   busy = false,
+  deletingPhotoIds = new Set<string>(),
   error,
-  existingPhotoUris = [],
+  existingPhotos = [],
   initialDraft,
   onAddPhoto,
+  onDeletePhoto,
   onBack,
   onCancelProfile,
   onCancelTimeline,
@@ -191,14 +196,35 @@ export function MedicationFormScreen({
           </Pressable>
         ) : null}
 
-        {existingPhotoUris.length ? (
+        {existingPhotos.length ? (
           <View style={styles.savedPhotos}>
             <Text style={[layout.helpText, { color: palette.onSurface, fontWeight: '700' }]}>
               {t(locale, 'photo.savedPhotos')}
             </Text>
             <View style={styles.photoList}>
-              {existingPhotoUris.map((uri) => (
-                <Image key={uri} source={{ uri }} style={styles.photo} />
+              {existingPhotos.map((photo) => (
+                <View key={photo.id} style={styles.savedPhoto}>
+                  <Image source={{ uri: photo.uri }} style={styles.photo} />
+                  {onDeletePhoto ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={deletingPhotoIds.has(photo.id)}
+                      onPress={() => onDeletePhoto(photo)}
+                      style={({ pressed }) => [
+                        styles.deletePhotoButton,
+                        { borderColor: palette.error },
+                        pressed && layout.pressed,
+                      ]}
+                    >
+                      <Text style={[styles.deletePhotoLabel, { color: palette.error }]}>
+                        {t(
+                          locale,
+                          deletingPhotoIds.has(photo.id) ? 'photo.deleting' : 'common.delete',
+                        )}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               ))}
             </View>
           </View>
@@ -225,5 +251,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
+  },
+  savedPhoto: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  deletePhotoButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    minHeight: 32,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  deletePhotoLabel: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

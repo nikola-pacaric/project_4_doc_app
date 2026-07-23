@@ -24,6 +24,7 @@ import {
   View,
 } from 'react-native';
 
+import { DoctorBottomNav, type DoctorNavTab } from '../components/DoctorBottomNav';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -31,10 +32,13 @@ import { StatusMessage } from '../components/StatusMessage';
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { DoctorLinkedPatientTimelineScreen } from './DoctorLinkedPatientTimelineScreen';
 
+export type DoctorLandingTab = Exclude<DoctorNavTab, 'settings'>;
+
 interface DoctorPendingScreenProps {
   client: AppSupabaseClient;
+  initialTab?: DoctorLandingTab;
   onOpenSettings: () => void;
-  onSignOut: () => Promise<void>;
+  onTabChange?: (tab: DoctorLandingTab) => void;
   profile: UserProfile;
 }
 
@@ -91,8 +95,9 @@ function submittedCount(patient: LinkedPatientSummary, locale: ReturnType<typeof
 
 export function DoctorPendingScreen({
   client,
+  initialTab = 'dashboard',
   onOpenSettings,
-  onSignOut,
+  onTabChange,
   profile,
 }: DoctorPendingScreenProps) {
   const locale = getActiveLocale();
@@ -105,6 +110,7 @@ export function DoctorPendingScreen({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<LinkedPatientSummary | null>(null);
+  const [activeTab, setActiveTab] = useState<DoctorLandingTab>(initialTab);
 
   const activeInvite = useMemo(
     () => invites.find((invite) => getInviteStatus(invite) === 'active') ?? null,
@@ -195,6 +201,25 @@ export function DoctorPendingScreen({
       )
     : t(locale, 'doctor.noActiveInvite');
 
+  function selectTab(tab: DoctorLandingTab) {
+    setSelectedPatient(null);
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  }
+
+  const headerTitle =
+    activeTab === 'dashboard'
+      ? t(locale, 'doctor.dashboardTitle')
+      : activeTab === 'patients'
+        ? t(locale, 'doctor.nav.patientsExports')
+        : t(locale, 'doctor.nav.generateCode');
+  const headerSubtitle =
+    activeTab === 'dashboard'
+      ? t(locale, 'doctor.dashboardSubtitle')
+      : activeTab === 'patients'
+        ? t(locale, 'doctor.patientsExportsSubtitle')
+        : t(locale, 'doctor.generateCodeSubtitle');
+
   if (selectedPatient) {
     return (
       <DoctorLinkedPatientTimelineScreen
@@ -210,7 +235,7 @@ export function DoctorPendingScreen({
       <KeyboardAwareScrollView
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={sharedStyles.formScrollContent}
+        contentContainerStyle={[sharedStyles.formScrollContent, styles.scrollContent]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -221,28 +246,30 @@ export function DoctorPendingScreen({
       >
         <ScreenHeader
           eyebrow={t(locale, 'role.doctor')}
-          title={t(locale, 'doctor.dashboardTitle')}
-          subtitle={t(locale, 'doctor.dashboardSubtitle')}
+          title={headerTitle}
+          subtitle={headerSubtitle}
         />
 
-        <View style={styles.profileCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{t(locale, 'doctor.profileTitle')}</Text>
-            <Text style={styles.statusPill}>{t(locale, 'doctor.accountReady')}</Text>
-          </View>
-          <View style={styles.profileRows}>
-            <View style={styles.profileRow}>
-              <Text style={styles.profileLabel}>{t(locale, 'auth.displayName')}</Text>
-              <Text style={styles.profileValue}>
-                {profile.displayName || t(locale, 'role.doctor')}
-              </Text>
+        {activeTab === 'dashboard' ? (
+          <View style={styles.profileCard}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{t(locale, 'doctor.profileTitle')}</Text>
+              <Text style={styles.statusPill}>{t(locale, 'doctor.accountReady')}</Text>
             </View>
-            <View style={styles.profileRow}>
-              <Text style={styles.profileLabel}>{t(locale, 'doctor.accessStatus')}</Text>
-              <Text style={styles.profileValue}>{t(locale, 'doctor.patientAccessReady')}</Text>
+            <View style={styles.profileRows}>
+              <View style={styles.profileRow}>
+                <Text style={styles.profileLabel}>{t(locale, 'auth.displayName')}</Text>
+                <Text style={styles.profileValue}>
+                  {profile.displayName || t(locale, 'role.doctor')}
+                </Text>
+              </View>
+              <View style={styles.profileRow}>
+                <Text style={styles.profileLabel}>{t(locale, 'doctor.accessStatus')}</Text>
+                <Text style={styles.profileValue}>{t(locale, 'doctor.patientAccessReady')}</Text>
+              </View>
             </View>
           </View>
-        </View>
+        ) : null}
 
         {loading ? (
           <View style={styles.loadingPanel}>
@@ -251,131 +278,139 @@ export function DoctorPendingScreen({
           </View>
         ) : (
           <>
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{t(locale, 'doctor.inviteTitle')}</Text>
-                <Text style={styles.sectionMeta}>{activeInviteHelp}</Text>
-              </View>
+            {activeTab === 'invite' ? (
+              <>
+                <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>{t(locale, 'doctor.inviteTitle')}</Text>
+                    <Text style={styles.sectionMeta}>{activeInviteHelp}</Text>
+                  </View>
 
-              {activeInvite ? (
-                <View style={styles.inviteCodeBox}>
-                  <Text selectable style={styles.inviteCode}>
-                    {activeInvite.code}
-                  </Text>
-                  <Text style={styles.inviteMeta}>
-                    {t(locale, 'doctor.inviteExpires').replace(
-                      '{date}',
-                      formatShortDate(activeInvite.expiresAt),
-                    )}
-                  </Text>
-                </View>
-              ) : null}
-
-              <PrimaryButton
-                busy={creating}
-                label={t(locale, 'doctor.createInvite')}
-                onPress={() => void createInvite()}
-              />
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{t(locale, 'doctor.recentInvites')}</Text>
-              {invites.length ? (
-                invites.map((invite) => {
-                  const status = getInviteStatus(invite);
-                  const canRevoke = status === 'active';
-                  return (
-                    <View key={invite.id} style={styles.row}>
-                      <View style={styles.rowText}>
-                        <Text selectable style={styles.rowTitle}>
-                          {invite.code}
-                        </Text>
-                        <Text style={styles.rowMeta}>
-                          {t(locale, `doctor.inviteStatus.${status}`)}
-                        </Text>
-                      </View>
-                      {canRevoke ? (
-                        <PrimaryButton
-                          busy={revokingId === invite.id}
-                          label={t(locale, 'doctor.revokeInvite')}
-                          onPress={() => void revokeInvite(invite.id)}
-                          variant="danger"
-                        />
-                      ) : null}
+                  {activeInvite ? (
+                    <View style={styles.inviteCodeBox}>
+                      <Text selectable style={styles.inviteCode}>
+                        {activeInvite.code}
+                      </Text>
+                      <Text style={styles.inviteMeta}>
+                        {t(locale, 'doctor.inviteExpires').replace(
+                          '{date}',
+                          formatShortDate(activeInvite.expiresAt),
+                        )}
+                      </Text>
                     </View>
-                  );
-                })
-              ) : (
-                <Text style={sharedStyles.body}>{t(locale, 'doctor.noInvites')}</Text>
-              )}
-            </View>
+                  ) : null}
 
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{t(locale, 'doctor.linkedPatients')}</Text>
-                <Text style={styles.sectionMeta}>
-                  {t(locale, 'doctor.patientCount').replace('{count}', String(patients.length))}
-                </Text>
-              </View>
-              {patients.length ? (
-                patients.map((patient) => (
-                  <Pressable
-                    accessibilityRole="button"
-                    key={patient.accessId}
-                    onPress={() => setSelectedPatient(patient)}
-                    style={({ pressed }) => [styles.patientRow, pressed && styles.pressedRow]}
-                  >
-                    <Text style={styles.rowTitle}>
-                      {patient.displayName || t(locale, 'doctor.unnamedPatient')}
-                    </Text>
-                    <Text style={styles.rowMeta}>
-                      {t(locale, 'doctor.patientCode').replace(
-                        '{code}',
-                        maskPatientId(patient.patientId),
-                      )}
-                    </Text>
-                    <Text style={styles.rowMeta}>
-                      {t(locale, 'doctor.linkedAt').replace(
-                        '{date}',
-                        formatShortDate(patient.linkedAt),
-                      )}
-                    </Text>
-                    {patient.adherence.days[0] ? (
-                      <View style={styles.adherenceSummary}>
-                        <Text style={styles.dayStatus}>
-                          {t(locale, dayStatusKey(patient.adherence.days[0].status))}
-                        </Text>
-                        <Text style={styles.rowMeta}>{submittedCount(patient, locale)}</Text>
-                        <View style={styles.checkpointRow}>
-                          <Text style={styles.checkpointText}>
-                            {t(locale, 'doctor.symptomCheckpoint')}:{' '}
-                            {checkpointLabel(
-                              locale,
-                              patient.adherence.days[0].symptomStatus,
-                              'symptom',
-                            )}
-                          </Text>
-                          <Text style={styles.checkpointText}>
-                            {t(locale, 'doctor.stoolCheckpoint')}:{' '}
-                            {checkpointLabel(
-                              locale,
-                              patient.adherence.days[0].stoolStatus,
-                              'stool',
-                            )}
-                          </Text>
-                        </View>
-                      </View>
-                    ) : null}
-                    <Text style={styles.openPatient}>{t(locale, 'doctor.openPatient')}</Text>
-                  </Pressable>
-                ))
-              ) : (
-                <View style={styles.emptyState}>
-                  <Text style={styles.rowTitle}>{t(locale, 'doctor.noLinkedPatients')}</Text>
-                  <Text style={sharedStyles.body}>{t(locale, 'doctor.noLinkedPatientsHelp')}</Text>
+                  <PrimaryButton
+                    busy={creating}
+                    label={t(locale, 'doctor.createInvite')}
+                    onPress={() => void createInvite()}
+                  />
                 </View>
-              )}
-            </View>
+
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>{t(locale, 'doctor.recentInvites')}</Text>
+                  {invites.length ? (
+                    invites.map((invite) => {
+                      const status = getInviteStatus(invite);
+                      const canRevoke = status === 'active';
+                      return (
+                        <View key={invite.id} style={styles.row}>
+                          <View style={styles.rowText}>
+                            <Text selectable style={styles.rowTitle}>
+                              {invite.code}
+                            </Text>
+                            <Text style={styles.rowMeta}>
+                              {t(locale, `doctor.inviteStatus.${status}`)}
+                            </Text>
+                          </View>
+                          {canRevoke ? (
+                            <PrimaryButton
+                              busy={revokingId === invite.id}
+                              label={t(locale, 'doctor.revokeInvite')}
+                              onPress={() => void revokeInvite(invite.id)}
+                              variant="danger"
+                            />
+                          ) : null}
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <Text style={sharedStyles.body}>{t(locale, 'doctor.noInvites')}</Text>
+                  )}
+                </View>
+              </>
+            ) : null}
+
+            {activeTab !== 'invite' ? (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>{t(locale, 'doctor.linkedPatients')}</Text>
+                  <Text style={styles.sectionMeta}>
+                    {t(locale, 'doctor.patientCount').replace('{count}', String(patients.length))}
+                  </Text>
+                </View>
+                {patients.length ? (
+                  patients.map((patient) => (
+                    <Pressable
+                      accessibilityRole="button"
+                      key={patient.accessId}
+                      onPress={() => setSelectedPatient(patient)}
+                      style={({ pressed }) => [styles.patientRow, pressed && styles.pressedRow]}
+                    >
+                      <Text style={styles.rowTitle}>
+                        {patient.displayName || t(locale, 'doctor.unnamedPatient')}
+                      </Text>
+                      <Text style={styles.rowMeta}>
+                        {t(locale, 'doctor.patientCode').replace(
+                          '{code}',
+                          maskPatientId(patient.patientId),
+                        )}
+                      </Text>
+                      <Text style={styles.rowMeta}>
+                        {t(locale, 'doctor.linkedAt').replace(
+                          '{date}',
+                          formatShortDate(patient.linkedAt),
+                        )}
+                      </Text>
+                      {patient.adherence.days[0] ? (
+                        <View style={styles.adherenceSummary}>
+                          <Text style={styles.dayStatus}>
+                            {t(locale, dayStatusKey(patient.adherence.days[0].status))}
+                          </Text>
+                          <Text style={styles.rowMeta}>{submittedCount(patient, locale)}</Text>
+                          <View style={styles.checkpointRow}>
+                            <Text style={styles.checkpointText}>
+                              {t(locale, 'doctor.symptomCheckpoint')}:{' '}
+                              {checkpointLabel(
+                                locale,
+                                patient.adherence.days[0].symptomStatus,
+                                'symptom',
+                              )}
+                            </Text>
+                            <Text style={styles.checkpointText}>
+                              {t(locale, 'doctor.stoolCheckpoint')}:{' '}
+                              {checkpointLabel(
+                                locale,
+                                patient.adherence.days[0].stoolStatus,
+                                'stool',
+                              )}
+                            </Text>
+                          </View>
+                        </View>
+                      ) : null}
+                      <Text style={styles.openPatient}>{t(locale, 'doctor.openPatient')}</Text>
+                    </Pressable>
+                  ))
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.rowTitle}>{t(locale, 'doctor.noLinkedPatients')}</Text>
+                    <Text style={sharedStyles.body}>
+                      {t(locale, 'doctor.noLinkedPatientsHelp')}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ) : null}
           </>
         )}
 
@@ -389,23 +424,30 @@ export function DoctorPendingScreen({
           onPress={() => void loadDashboard(true)}
           variant="secondary"
         />
-        <PrimaryButton
-          label={t(locale, 'settings.title')}
-          onPress={onOpenSettings}
-          variant="secondary"
-        />
-        <PrimaryButton
-          label={t(locale, 'auth.signOut')}
-          onPress={() => void onSignOut()}
-          variant="secondary"
-        />
       </KeyboardAwareScrollView>
+      <DoctorBottomNav
+        active={activeTab}
+        onDashboard={() => selectTab('dashboard')}
+        onGenerateCode={() => selectTab('invite')}
+        onPatients={() => selectTab('patients')}
+        onSettings={onOpenSettings}
+        palette={{
+          background: colors.surface,
+          onPrimaryContainer: colors.onAccent,
+          onSurfaceVariant: colors.mutedText,
+          primaryContainer: colors.accent,
+          shadow: colors.border,
+        }}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = createThemedStyles(() =>
   StyleSheet.create({
+    scrollContent: {
+      paddingBottom: 140,
+    },
     loadingPanel: {
       alignItems: 'center',
       gap: spacing.sm,

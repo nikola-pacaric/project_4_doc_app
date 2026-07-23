@@ -13,16 +13,9 @@ import {
 } from '@project4/supabase-client';
 import { darkTheme } from '@project4/ui-tokens';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Platform,
-  Pressable,
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Platform, Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
 
+import { DoctorBottomNav } from '../components/DoctorBottomNav';
 import { FormField } from '../components/FormField';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PatientBottomNav } from '../components/PatientBottomNav';
@@ -58,6 +51,11 @@ const APP_VERSION = '0.1.0';
 
 interface SettingsScreenProps {
   preferences: AppPreferences;
+  doctorNavigation?: {
+    onDashboard: () => void;
+    onGenerateCode: () => void;
+    onPatients: () => void;
+  };
   /** When set, shows patient doctor-link controls under voice settings. */
   client?: AppSupabaseClient;
   patientId?: string;
@@ -76,6 +74,7 @@ function isDarkThemeActive(): boolean {
 
 export function SettingsScreen({
   preferences,
+  doctorNavigation,
   client,
   patientId,
   onBack,
@@ -221,9 +220,7 @@ export function SettingsScreen({
             ]}
           >
             <View style={styles.cardLeft}>
-              <View
-                style={[styles.iconBubble, { backgroundColor: palette.secondaryContainer }]}
-              >
+              <View style={[styles.iconBubble, { backgroundColor: palette.secondaryContainer }]}>
                 <Text style={[styles.iconGlyph, { color: palette.primary }]}>🌐</Text>
               </View>
               <View style={styles.cardCopy}>
@@ -303,9 +300,7 @@ export function SettingsScreen({
             ]}
           >
             <View style={styles.cardLeft}>
-              <View
-                style={[styles.iconBubble, { backgroundColor: palette.secondaryContainer }]}
-              >
+              <View style={[styles.iconBubble, { backgroundColor: palette.secondaryContainer }]}>
                 <Text style={[styles.iconGlyph, { color: palette.primary }]}>🎨</Text>
               </View>
               <View style={styles.cardCopy}>
@@ -317,7 +312,13 @@ export function SettingsScreen({
                 </Text>
               </View>
             </View>
-            <View style={[styles.segment, styles.themeSegment, { backgroundColor: palette.surfaceContainer }]}>
+            <View
+              style={[
+                styles.segment,
+                styles.themeSegment,
+                { backgroundColor: palette.surfaceContainer },
+              ]}
+            >
               <Pressable
                 accessibilityLabel={t(locale, 'settings.light')}
                 accessibilityRole="button"
@@ -420,9 +421,7 @@ export function SettingsScreen({
               style={({ pressed }) => [
                 styles.voiceChip,
                 {
-                  backgroundColor: dark
-                    ? palette.surfaceContainer
-                    : 'rgba(255, 217, 222, 0.35)',
+                  backgroundColor: dark ? palette.surfaceContainer : 'rgba(255, 217, 222, 0.35)',
                 },
                 pressed && styles.pressed,
               ]}
@@ -501,9 +500,7 @@ export function SettingsScreen({
                   <PrimaryButton
                     busy={doctorInviteRedeeming}
                     disabled={
-                      doctorLinkOffline ||
-                      doctorInviteRedeeming ||
-                      !doctorInviteCode.trim()
+                      doctorLinkOffline || doctorInviteRedeeming || !doctorInviteCode.trim()
                     }
                     label={t(locale, 'patientInvite.redeem')}
                     onPress={() => void redeemDoctorInvite()}
@@ -538,9 +535,7 @@ export function SettingsScreen({
                 style={[
                   styles.iconBubble,
                   {
-                    backgroundColor: dark
-                      ? palette.errorContainer
-                      : 'rgba(255, 218, 214, 0.35)',
+                    backgroundColor: dark ? palette.errorContainer : 'rgba(255, 218, 214, 0.35)',
                   },
                 ]}
               >
@@ -562,20 +557,37 @@ export function SettingsScreen({
         </View>
       </KeyboardAwareScrollView>
 
-      <PatientBottomNav
-        active="settings"
-        onProfile={goProfile}
-        onSettings={() => undefined}
-        onTimeline={goTimeline}
-        onToday={goToday}
-        palette={{
-          background: dark ? colors.surface : 'rgba(241, 236, 242, 0.92)',
-          onPrimaryContainer: dark ? palette.onPrimaryContainer : stitch.onPrimaryContainer,
-          onSurfaceVariant: palette.onSurfaceVariant,
-          primaryContainer: dark ? palette.primaryContainer : stitch.primaryContainer,
-          shadow: palette.shadow,
-        }}
-      />
+      {doctorNavigation ? (
+        <DoctorBottomNav
+          active="settings"
+          onDashboard={doctorNavigation.onDashboard}
+          onGenerateCode={doctorNavigation.onGenerateCode}
+          onPatients={doctorNavigation.onPatients}
+          onSettings={() => undefined}
+          palette={{
+            background: dark ? colors.surface : 'rgba(241, 236, 242, 0.92)',
+            onPrimaryContainer: dark ? palette.onPrimaryContainer : stitch.onPrimaryContainer,
+            onSurfaceVariant: palette.onSurfaceVariant,
+            primaryContainer: dark ? palette.primaryContainer : stitch.primaryContainer,
+            shadow: palette.shadow,
+          }}
+        />
+      ) : (
+        <PatientBottomNav
+          active="settings"
+          onProfile={goProfile}
+          onSettings={() => undefined}
+          onTimeline={goTimeline}
+          onToday={goToday}
+          palette={{
+            background: dark ? colors.surface : 'rgba(241, 236, 242, 0.92)',
+            onPrimaryContainer: dark ? palette.onPrimaryContainer : stitch.onPrimaryContainer,
+            onSurfaceVariant: palette.onSurfaceVariant,
+            primaryContainer: dark ? palette.primaryContainer : stitch.primaryContainer,
+            shadow: palette.shadow,
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }

@@ -9,10 +9,18 @@ import {
   type PatientEntry,
 } from '@project4/contracts';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
+import {
+  createEntryPhotoSignedUrl,
+  listEntryPhotos,
+  type AppSupabaseClient,
+} from '@project4/supabase-client';
 import { darkTheme } from '@project4/ui-tokens';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
+  Modal,
   Platform,
   Pressable,
   SafeAreaView,
@@ -62,6 +70,7 @@ const stitch = {
 } as const;
 
 interface PatientTimelineScreenProps {
+  client: AppSupabaseClient;
   entries: PatientEntry[];
   error: string | null;
   loading: boolean;
@@ -78,6 +87,13 @@ interface PatientTimelineScreenProps {
   pendingEntryIds?: string[];
   deletingEntryId?: string | null;
   selectedDay: string;
+}
+
+interface TimelineEntryPhoto {
+  id: string;
+  label: string;
+  photoUrl: string;
+  thumbnailUrl: string;
 }
 
 function isDarkThemeActive(): boolean {
@@ -101,6 +117,7 @@ function daySectionLabel(day: string, locale: 'en' | 'sr'): string {
 }
 
 export function PatientTimelineScreen({
+  client,
   entries,
   error,
   loading,
@@ -118,6 +135,12 @@ export function PatientTimelineScreen({
   selectedDay,
 }: PatientTimelineScreenProps) {
   const locale = getActiveLocale();
+  const [entryPhotos, setEntryPhotos] = useState<Record<string, TimelineEntryPhoto[]>>({});
+  const [photoError, setPhotoError] = useState(false);
+  const [photosLoading, setPhotosLoading] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<TimelineEntryPhoto | null>(null);
+  const [selectedPhotoError, setSelectedPhotoError] = useState(false);
+  const [selectedPhotoLoading, setSelectedPhotoLoading] = useState(false);
   const dark = isDarkThemeActive();
   const palette = dark
     ? {
@@ -149,6 +172,84 @@ export function PatientTimelineScreen({
   const canEditSelectedDay = selectedDay === today && Boolean(onOpenEntry);
   const sectionLabel = daySectionLabel(selectedDay, locale);
 
+  useEffect(() => {
+    let active = true;
+    const pendingIdsForPhotos = new Set(pendingEntryIds);
+    const photoEntries = entries.filter(
+      (entry) =>
+        (entry.kind === 'meal' || entry.kind === 'fluid' || entry.kind === 'medication') &&
+        !pendingIdsForPhotos.has(entry.id),
+    );
+
+    void (async () => {
+      if (active) {
+        setSelectedPhoto(null);
+        setSelectedPhotoError(false);
+      }
+
+      if (offlineMode || !photoEntries.length) {
+        if (active) {
+          setEntryPhotos({});
+          setPhotoError(false);
+          setPhotosLoading(false);
+        }
+        return;
+      }
+
+      if (active) {
+        setEntryPhotos({});
+        setPhotoError(false);
+        setPhotosLoading(true);
+      }
+
+      try {
+        const nextPhotos: Record<string, TimelineEntryPhoto[]> = {};
+        await Promise.all(
+          photoEntries.map(async (entry) => {
+            const photos = (await listEntryPhotos(client, entry.id)).filter(
+              (photo) => photo.contextType === entry.kind || photo.contextType === null,
+            );
+            const signedPhotos = await Promise.all(
+              photos.map(async (photo) => ({
+                id: photo.id,
+                label:
+                  photo.contextLabel?.trim() ||
+                  t(locale, `entry.kind.${entry.kind}` as TranslationKey),
+                photoUrl: await createEntryPhotoSignedUrl(client, photo.photoPath),
+                thumbnailUrl: await createEntryPhotoSignedUrl(client, photo.thumbnailPath),
+              })),
+            );
+
+            if (signedPhotos.length) nextPhotos[entry.id] = signedPhotos;
+          }),
+        );
+
+        if (active) setEntryPhotos(nextPhotos);
+      } catch {
+        if (active) {
+          setEntryPhotos({});
+          setPhotoError(true);
+        }
+      } finally {
+        if (active) setPhotosLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [client, entries, locale, offlineMode, pendingEntryIds]);
+  function openPhoto(photo: TimelineEntryPhoto) {
+    setSelectedPhotoError(false);
+    setSelectedPhotoLoading(true);
+    setSelectedPhoto(photo);
+  }
+
+  function closePhoto() {
+    setSelectedPhoto(null);
+    setSelectedPhotoError(false);
+    setSelectedPhotoLoading(false);
+  }
   function confirmDelete(entry: PatientEntry) {
     if (!onDeleteEntry) return;
 
@@ -259,6 +360,25 @@ export function PatientTimelineScreen({
           </Text>
         ) : null}
 
+        {photosLoading ? (
+          <View
+            accessibilityLabel={t(locale, 'app.loading')}
+            accessibilityRole="progressbar"
+            style={styles.photoLoadState}
+          >
+            <ActivityIndicator color={palette.primary} size="small" />
+            <Text style={[styles.photoLoadText, { color: palette.onSurfaceVariant }]}>
+              {t(locale, 'app.loading')}
+            </Text>
+          </View>
+        ) : null}
+        {photoError ? (
+          <StatusMessage
+            message={t(locale, 'photo.loadError')}
+            style={[styles.statusError, { color: palette.error }]}
+            tone="error"
+          />
+        ) : null}
         <View style={styles.list}>
           {entries.map((entry) => {
             const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
@@ -273,6 +393,7 @@ export function PatientTimelineScreen({
             const canShowDelete = selectedDay === today && !pending && Boolean(onDeleteEntry);
             const deleting = deletingEntryId === entry.id;
             const timeLabel = formatEntryTime(entry.occurredAt, locale);
+            const photos = entryPhotos[entry.id] ?? [];
             const cardBody = (
               <>
                 {pending ? (
@@ -363,18 +484,50 @@ export function PatientTimelineScreen({
                   offlineDisabled && styles.disabled,
                 ]}
               >
-                {canOpen ? (
-                  <Pressable
-                    accessibilityHint={t(locale, 'home.entryOpenHint')}
-                    accessibilityRole="button"
-                    onPress={() => onOpenEntry?.(entry)}
-                    style={({ pressed }) => [styles.cardMain, pressed && styles.pressed]}
-                  >
-                    {cardBody}
-                  </Pressable>
-                ) : (
-                  <View style={styles.cardMain}>{cardBody}</View>
-                )}
+                <View style={styles.cardContent}>
+                  {canOpen ? (
+                    <Pressable
+                      accessibilityHint={t(locale, 'home.entryOpenHint')}
+                      accessibilityRole="button"
+                      onPress={() => onOpenEntry?.(entry)}
+                      style={({ pressed }) => [styles.cardMain, pressed && styles.pressed]}
+                    >
+                      {cardBody}
+                    </Pressable>
+                  ) : (
+                    <View style={styles.cardMain}>{cardBody}</View>
+                  )}
+                  {photos.length ? (
+                    <View style={styles.photos}>
+                      <Text style={[styles.photosTitle, { color: palette.onSurfaceVariant }]}>
+                        {t(locale, 'photo.savedPhotos')}
+                      </Text>
+                      <View style={styles.photoList}>
+                        {photos.map((photo) => (
+                          <Pressable
+                            accessibilityLabel={photo.label}
+                            accessibilityRole="button"
+                            key={photo.id}
+                            onPress={() => openPhoto(photo)}
+                            style={({ pressed }) => [
+                              styles.photoButton,
+                              { borderColor: palette.outlineVariant },
+                              pressed && styles.pressed,
+                            ]}
+                          >
+                            <Image
+                              accessibilityIgnoresInvertColors
+                              accessibilityLabel={photo.label}
+                              onError={() => setPhotoError(true)}
+                              source={{ uri: photo.thumbnailUrl }}
+                              style={styles.thumbnail}
+                            />
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  ) : null}
+                </View>
                 {canShowDelete ? (
                   <Pressable
                     accessibilityLabel={t(locale, 'entry.deleteTitle')}
@@ -399,6 +552,77 @@ export function PatientTimelineScreen({
         </View>
       </KeyboardAwareScrollView>
 
+      <Modal
+        animationType="fade"
+        onRequestClose={closePhoto}
+        statusBarTranslucent
+        transparent
+        visible={selectedPhoto !== null}
+      >
+        <SafeAreaView
+          accessibilityViewIsModal
+          style={[styles.photoModal, { backgroundColor: palette.background }]}
+        >
+          <View style={styles.photoModalHeader}>
+            <Text numberOfLines={2} style={[styles.photoModalTitle, { color: palette.onSurface }]}>
+              {selectedPhoto?.label ?? t(locale, 'photo.savedPhotos')}
+            </Text>
+            <Pressable
+              accessibilityLabel={t(locale, 'common.close')}
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={closePhoto}
+              style={({ pressed }) => [
+                styles.photoCloseButton,
+                { backgroundColor: palette.surfaceContainer },
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={[styles.photoCloseText, { color: palette.onSurface }]}>×</Text>
+            </Pressable>
+          </View>
+          <View
+            style={[
+              styles.selectedPhotoFrame,
+              {
+                backgroundColor: palette.surfaceContainer,
+                borderColor: palette.outlineVariant,
+              },
+            ]}
+          >
+            {selectedPhoto ? (
+              <Image
+                accessibilityIgnoresInvertColors
+                accessibilityLabel={selectedPhoto.label}
+                onError={() => {
+                  setSelectedPhotoError(true);
+                  setSelectedPhotoLoading(false);
+                }}
+                onLoadEnd={() => setSelectedPhotoLoading(false)}
+                onLoadStart={() => setSelectedPhotoLoading(true)}
+                resizeMode="contain"
+                source={{ uri: selectedPhoto.photoUrl }}
+                style={styles.selectedPhoto}
+              />
+            ) : null}
+            {selectedPhotoLoading ? (
+              <ActivityIndicator
+                accessibilityLabel={t(locale, 'app.loading')}
+                color={palette.primary}
+                size="large"
+                style={styles.selectedPhotoLoader}
+              />
+            ) : null}
+            {selectedPhotoError ? (
+              <StatusMessage
+                message={t(locale, 'photo.loadError')}
+                style={[styles.selectedPhotoError, { color: palette.error }]}
+                tone="error"
+              />
+            ) : null}
+          </View>
+        </SafeAreaView>
+      </Modal>
       <PatientBottomNav
         active="timeline"
         onProfile={onOpenBaseline ?? onBack}
@@ -499,6 +723,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 18,
   },
+  cardContent: {
+    flex: 1,
+  },
   cardMain: {
     alignItems: 'center',
     flex: 1,
@@ -577,5 +804,88 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
+  },
+  photoLoadState: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  photoLoadText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  photos: {
+    gap: 8,
+    paddingBottom: 16,
+    paddingHorizontal: 18,
+  },
+  photosTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  photoList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  photoButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  thumbnail: {
+    height: 76,
+    width: 76,
+  },
+  photoModal: {
+    flex: 1,
+    gap: 16,
+    padding: 20,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) + 20 : 20,
+  },
+  photoModalHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  photoModalTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  photoCloseButton: {
+    alignItems: 'center',
+    borderRadius: 22,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  photoCloseText: {
+    fontSize: 28,
+    fontWeight: '500',
+    lineHeight: 30,
+  },
+  selectedPhotoFrame: {
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  selectedPhoto: {
+    height: '100%',
+    width: '100%',
+  },
+  selectedPhotoLoader: {
+    position: 'absolute',
+  },
+  selectedPhotoError: {
+    padding: 20,
+    position: 'absolute',
+    textAlign: 'center',
   },
 });
