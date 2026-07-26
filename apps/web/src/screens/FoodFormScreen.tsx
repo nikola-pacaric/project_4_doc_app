@@ -11,6 +11,7 @@ import {
   type FoodHydrationDraft,
 } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
+import { mergeExistingPhotosByEntryId } from '@project4/photo';
 import {
   getPatientFoodForm,
   listPatientMeals,
@@ -35,6 +36,12 @@ interface FoodFormScreenProps {
   onBack: () => void;
   onSaved: () => void;
   profile: UserProfile;
+}
+
+interface FoodPhotoLoadInput {
+  foodEntryId: string | null;
+  meals: ClientMealDraft[];
+  otherFluids: ClientOtherFluidDraft[];
 }
 
 function localDateValue(date: Date): string {
@@ -269,6 +276,12 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
   ]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [photoLoadInput, setPhotoLoadInput] = useState<FoodPhotoLoadInput | null>(null);
+  const [photoLoadAttempt, setPhotoLoadAttempt] = useState(0);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const completedPhotoUploadIdsRef = useRef(new Set<string>());
@@ -286,23 +299,20 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
         const nextHydration = toHydrationDraft(foodRecord?.details ?? null);
         const foodEntryId = foodRecord?.entryId ?? null;
         const fluidRecords = foodEntryId ? await listPatientOtherFluids(client, foodEntryId) : [];
-
-        setHydration(nextHydration);
-        setWaterText(formatWaterLiters(nextHydration.waterLiters));
-
         const baseMeals = toMealDrafts(mealRecords);
         const baseOtherFluids = toOtherFluidDrafts(fluidRecords, nextHydration.otherFluids);
 
-        const [mealsWithPhotos, fluidsWithPhotos] = await Promise.all([
-          withMealPhotoUris(client, baseMeals),
-          withFluidPhotoUris(client, foodEntryId, baseOtherFluids),
-        ]);
-
-        setMeals(mealsWithPhotos);
-        setOtherFluids(fluidsWithPhotos);
+        setHydration(nextHydration);
+        setWaterText(formatWaterLiters(nextHydration.waterLiters));
+        setMeals(baseMeals);
+        setOtherFluids(baseOtherFluids);
+        setPhotoLoadInput({ foodEntryId, meals: baseMeals, otherFluids: baseOtherFluids });
       })
       .catch(() => {
-        if (active) setError(t(locale, 'food.loadError'));
+        if (active) {
+          setLoadFailed(true);
+          setError(t(locale, 'food.loadError'));
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -311,7 +321,32 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
     return () => {
       active = false;
     };
-  }, [client, day, locale, profile.id]);
+  }, [client, day, loadAttempt, locale, profile.id]);
+
+  useEffect(() => {
+    if (!photoLoadInput) return;
+    let active = true;
+    void Promise.all([
+      withMealPhotoUris(client, photoLoadInput.meals),
+      withFluidPhotoUris(client, photoLoadInput.foodEntryId, photoLoadInput.otherFluids),
+    ])
+      .then(([mealsWithPhotos, fluidsWithPhotos]) => {
+        if (!active) return;
+        setMeals((current) => mergeExistingPhotosByEntryId(current, mealsWithPhotos));
+        setOtherFluids((current) => mergeExistingPhotosByEntryId(current, fluidsWithPhotos));
+        setPhotoLoadFailed(false);
+      })
+      .catch(() => {
+        if (active) setPhotoLoadFailed(true);
+      })
+      .finally(() => {
+        if (active) setPhotoLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [client, photoLoadAttempt, photoLoadInput]);
 
   async function deleteMealPhoto(localId: string, photo: ExistingWebPhoto) {
     await deleteEntryPhotos(client, [photo]);
@@ -494,7 +529,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
         }
       }
 
-      // Re-fetch and update state with saved record & URLs
+      // Re-fetch required medical data; optional photos are enriched independently.
       const [updatedFoodRecord, updatedMealRecords] = await Promise.all([
         getPatientFoodForm(client, profile.id, range.start, range.end),
         listPatientMeals(client, profile.id, range.start, range.end),
@@ -507,20 +542,19 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
 
       setHydration(finalHydration);
       setWaterText(formatWaterLiters(finalHydration.waterLiters));
-
       const finalBaseMeals = toMealDrafts(updatedMealRecords);
       const finalBaseOtherFluids = toOtherFluidDrafts(
         finalFluidRecords,
         finalHydration.otherFluids,
       );
-
-      const [finalMealsWithPhotos, finalFluidsWithPhotos] = await Promise.all([
-        withMealPhotoUris(client, finalBaseMeals),
-        withFluidPhotoUris(client, finalFoodEntryId, finalBaseOtherFluids),
-      ]);
-
-      setMeals(finalMealsWithPhotos);
-      setOtherFluids(finalFluidsWithPhotos);
+      setMeals(finalBaseMeals);
+      setOtherFluids(finalBaseOtherFluids);
+      setPhotoLoadFailed(false);
+      setPhotoLoadInput({
+        foodEntryId: finalFoodEntryId,
+        meals: finalBaseMeals,
+        otherFluids: finalBaseOtherFluids,
+      });
       setMessage(t(locale, 'food.saved'));
       onSaved();
     } catch {
@@ -538,7 +572,32 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
       </div>
 
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
-      {!loading ? (
+      {!loading && loadFailed ? (
+        <section className="structured-entry-form">
+          <StatusMessage tone="error">{error ?? t(locale, 'food.loadError')}</StatusMessage>
+          <div className="form-actions form-actions-row">
+            <button
+              className="primary-button"
+              onClick={() => {
+                setLoading(true);
+                setLoadFailed(false);
+                setError(null);
+                setMessage(null);
+                setPhotoLoadInput(null);
+                setPhotoLoadFailed(false);
+                setLoadAttempt((current) => current + 1);
+              }}
+              type="button"
+            >
+              {t(locale, 'common.retry')}
+            </button>
+            <button className="secondary-button" onClick={onBack} type="button">
+              {t(locale, 'common.back')}
+            </button>
+          </div>
+        </section>
+      ) : null}
+      {!loading && !loadFailed ? (
         <form className="structured-entry-form food-form">
           <MealFields
             createMeal={createEmptyMealDraft}
@@ -599,6 +658,23 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
               onChange={setOtherFluids}
               onDeletePhoto={deleteFluidPhoto}
             />
+          ) : null}
+
+          {photoLoadFailed ? (
+            <div className="form-actions form-actions-row">
+              <StatusMessage tone="error">{t(locale, 'photo.loadError')}</StatusMessage>
+              <button
+                className="secondary-button"
+                disabled={photoLoading}
+                onClick={() => {
+                  setPhotoLoading(true);
+                  setPhotoLoadAttempt((current) => current + 1);
+                }}
+                type="button"
+              >
+                {photoLoading ? t(locale, 'app.loading') : t(locale, 'common.retry')}
+              </button>
+            </div>
           ) : null}
 
           <div className="form-actions form-actions-row">

@@ -11,6 +11,31 @@ export const PHOTO_THUMBNAIL_TARGET_MAX_BYTES = 60 * 1024;
 export const PHOTO_MIN_VALID_BYTES = 1024;
 export const PHOTO_THUMBNAIL_MIN_VALID_BYTES = 1024;
 
+interface DraftWithEntryPhotos<Photo> {
+  entryId?: string | null;
+  existingPhotos?: Photo[];
+}
+
+/**
+ * Apply asynchronously loaded photos without replacing medical fields that may
+ * have been edited while the optional photo request was still in flight.
+ */
+export function mergeExistingPhotosByEntryId<Photo, Draft extends DraftWithEntryPhotos<Photo>>(
+  currentDrafts: Draft[],
+  photoDrafts: Draft[],
+): Draft[] {
+  const photosByEntryId = new Map(
+    photoDrafts.flatMap((draft) =>
+      draft.entryId ? [[draft.entryId, draft.existingPhotos ?? []] as const] : [],
+    ),
+  );
+
+  return currentDrafts.map((draft) => {
+    if (!draft.entryId || !photosByEntryId.has(draft.entryId)) return draft;
+    return { ...draft, existingPhotos: photosByEntryId.get(draft.entryId) };
+  });
+}
+
 /** Create an RFC 4122 UUID v4 for the UUID-backed entry_photos.id column. */
 export function createPhotoId(): string {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();

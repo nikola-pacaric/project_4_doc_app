@@ -10,6 +10,7 @@ import {
   constrainPhotoDimensions,
   constrainPhotoWidth,
   createPhotoId,
+  mergeExistingPhotosByEntryId,
   validateEntryPhotoPaths,
   validatePreparedPhotoMetadata,
 } from './index';
@@ -134,5 +135,38 @@ describe('shared photo preprocessing constraints', () => {
     expect(() => constrainPhotoDimensions(0, 960, PHOTO_MAX_WIDTH_PX)).toThrow(
       'Photo dimensions must be positive finite numbers.',
     );
+  });
+});
+
+describe('optional photo enrichment', () => {
+  it('merges photo fields without overwriting medical edits made while photos load', () => {
+    const current = [
+      { entryId: 'meal-1', name: 'Edited meal', existingPhotos: undefined as string[] | undefined },
+      { entryId: 'meal-2', name: 'Removed photo', existingPhotos: ['old-photo'] },
+      { name: 'New unsaved meal', existingPhotos: undefined as string[] | undefined },
+    ];
+
+    expect(
+      mergeExistingPhotosByEntryId(current, [
+        { entryId: 'meal-1', name: 'Stale server name', existingPhotos: ['photo-1'] },
+        { entryId: 'meal-2', name: 'Stale server name', existingPhotos: [] },
+      ]),
+    ).toEqual([
+      { entryId: 'meal-1', name: 'Edited meal', existingPhotos: ['photo-1'] },
+      { entryId: 'meal-2', name: 'Removed photo', existingPhotos: [] },
+      { name: 'New unsaved meal', existingPhotos: undefined },
+    ]);
+  });
+
+  it('does not re-add a medical draft removed before optional photos finish loading', () => {
+    expect(
+      mergeExistingPhotosByEntryId(
+        [{ entryId: 'meal-2', name: 'Still present' }],
+        [
+          { entryId: 'meal-1', name: 'Removed', existingPhotos: ['photo-1'] },
+          { entryId: 'meal-2', name: 'Still present', existingPhotos: ['photo-2'] },
+        ],
+      ),
+    ).toEqual([{ entryId: 'meal-2', name: 'Still present', existingPhotos: ['photo-2'] }]);
   });
 });

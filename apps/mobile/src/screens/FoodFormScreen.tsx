@@ -13,7 +13,7 @@ import {
   type OtherFluidDraft,
 } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
-import { PHOTO_MIME_TYPE } from '@project4/photo';
+import { mergeExistingPhotosByEntryId, PHOTO_MIME_TYPE } from '@project4/photo';
 import {
   deleteEntryPhotos,
   getPatientFoodForm,
@@ -32,6 +32,7 @@ import { cleanupPreparedPhoto } from '../lib/preparedPhotos';
 import { type PersistedEntryPhoto, withSignedThumbnailUris } from '../lib/persistedPhotos';
 import { MealFields, type ClientMealDraft } from '../components/MealFields';
 import { OtherFluidFields, type ClientOtherFluidDraft } from '../components/OtherFluidFields';
+import { PrimaryButton } from '../components/PrimaryButton';
 import { TactileChoiceRow } from '../components/TactileChoiceRow';
 import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
 import { TactileSectionCard } from '../components/TactileSectionCard';
@@ -46,6 +47,12 @@ interface FoodFormScreenProps {
   onCancelTimeline?: () => void;
   onSaved: () => void;
   profile: UserProfile;
+}
+
+interface FoodPhotoLoadInput {
+  foodEntryId: string | null;
+  meals: ClientMealDraft[];
+  otherFluids: ClientOtherFluidDraft[];
 }
 
 function localPreparedPhotos(drafts: { localPhoto?: PreparedPhoto | null }[]): PreparedPhoto[] {
@@ -242,6 +249,12 @@ export function FoodFormScreen({
   ]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [photoLoadInput, setPhotoLoadInput] = useState<FoodPhotoLoadInput | null>(null);
+  const [photoLoadAttempt, setPhotoLoadAttempt] = useState(0);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [deletingPhotoIds, setDeletingPhotoIds] = useState(new Set<string>());
@@ -351,27 +364,66 @@ export function FoodFormScreen({
         const fluidRecords = nextFoodEntryId
           ? await listPatientOtherFluids(client, nextFoodEntryId)
           : [];
-        const [nextMeals, nextOtherFluids] = await Promise.all([
-          withMealPhotos(client, toMealDrafts(mealRecords)),
-          withFluidPhotos(
-            client,
-            nextFoodEntryId,
-            toOtherFluidDrafts(fluidRecords, nextHydration.otherFluids),
-          ),
-        ]);
+        const baseMeals = toMealDrafts(mealRecords);
+        const baseOtherFluids = toOtherFluidDrafts(fluidRecords, nextHydration.otherFluids);
         if (!active) return;
         setHydration(nextHydration);
         setWaterText(formatWaterLiters(nextHydration.waterLiters));
-        replaceMeals(nextMeals);
-        replaceOtherFluids(nextOtherFluids);
+        mealsRef.current = baseMeals;
+        otherFluidsRef.current = baseOtherFluids;
+        setMeals(baseMeals);
+        setOtherFluids(baseOtherFluids);
+        setPhotoLoadInput({
+          foodEntryId: nextFoodEntryId,
+          meals: baseMeals,
+          otherFluids: baseOtherFluids,
+        });
       })
-      .catch(() => active && setError(t(locale, 'food.loadError')))
+      .catch(() => {
+        if (active) {
+          setLoadFailed(true);
+          setError(t(locale, 'food.loadError'));
+        }
+      })
       .finally(() => active && setLoading(false));
 
     return () => {
       active = false;
     };
-  }, [client, day, locale, profile.id]);
+  }, [client, day, loadAttempt, locale, profile.id]);
+
+  useEffect(() => {
+    if (!photoLoadInput) return;
+    let active = true;
+    void Promise.all([
+      withMealPhotos(client, photoLoadInput.meals),
+      withFluidPhotos(client, photoLoadInput.foodEntryId, photoLoadInput.otherFluids),
+    ])
+      .then(([mealsWithPhotos, fluidsWithPhotos]) => {
+        if (!active) return;
+        setMeals((current) => {
+          const next = mergeExistingPhotosByEntryId(current, mealsWithPhotos);
+          mealsRef.current = next;
+          return next;
+        });
+        setOtherFluids((current) => {
+          const next = mergeExistingPhotosByEntryId(current, fluidsWithPhotos);
+          otherFluidsRef.current = next;
+          return next;
+        });
+        setPhotoLoadFailed(false);
+      })
+      .catch(() => {
+        if (active) setPhotoLoadFailed(true);
+      })
+      .finally(() => {
+        if (active) setPhotoLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [client, photoLoadAttempt, photoLoadInput]);
 
   async function save() {
     const mealsToSave = meals.filter(
@@ -529,12 +581,16 @@ export function FoodFormScreen({
 
       setHydration(nextHydration);
       setWaterText(formatWaterLiters(nextHydration.waterLiters));
-      const [nextMealsWithPhotos, nextOtherFluidsWithPhotos] = await Promise.all([
-        withMealPhotos(client, nextMeals),
-        withFluidPhotos(client, nextFoodEntryId, nextOtherFluids),
-      ]);
-      replaceMeals(nextMealsWithPhotos);
-      replaceOtherFluids(nextOtherFluidsWithPhotos);
+      mealsRef.current = nextMeals;
+      otherFluidsRef.current = nextOtherFluids;
+      setMeals(nextMeals);
+      setOtherFluids(nextOtherFluids);
+      setPhotoLoadFailed(false);
+      setPhotoLoadInput({
+        foodEntryId: nextFoodEntryId,
+        meals: nextMeals,
+        otherFluids: nextOtherFluids,
+      });
       setMessage(t(locale, 'food.saved'));
       onSaved();
     } catch {
@@ -556,6 +612,33 @@ export function FoodFormScreen({
     }));
     await cleanupPreparedPhotos(retainedPhotos);
     callback?.();
+  }
+
+  if (!loading && loadFailed) {
+    return (
+      <TactileFormShell
+        error={error ?? t(locale, 'food.loadError')}
+        guardUnsavedChanges={false}
+        hideNav
+        onCancelToday={onBack}
+        subtitle={t(locale, 'food.subtitle')}
+        title={t(locale, 'food.title')}
+      >
+        <PrimaryButton
+          label={t(locale, 'common.retry')}
+          onPress={() => {
+            setLoading(true);
+            setLoadFailed(false);
+            setError(null);
+            setMessage(null);
+            setPhotoLoadInput(null);
+            setPhotoLoadFailed(false);
+            setLoadAttempt((current) => current + 1);
+          }}
+        />
+        <PrimaryButton label={t(locale, 'common.back')} onPress={onBack} variant="secondary" />
+      </TactileFormShell>
+    );
   }
 
   if (photoTarget) {
@@ -589,6 +672,21 @@ export function FoodFormScreen({
   return (
     <TactileFormShell
       error={error}
+      footer={
+        photoLoadFailed ? (
+          <TactileSectionCard icon="⚠️" palette={palette} title={t(locale, 'photo.loadError')}>
+            <PrimaryButton
+              busy={photoLoading}
+              label={t(locale, 'common.retry')}
+              onPress={() => {
+                setPhotoLoading(true);
+                setPhotoLoadAttempt((current) => current + 1);
+              }}
+              variant="secondary"
+            />
+          </TactileSectionCard>
+        ) : undefined
+      }
       loading={loading}
       message={message}
       onCancelProfile={onCancelProfile ? () => void leaveForm(onCancelProfile) : undefined}
