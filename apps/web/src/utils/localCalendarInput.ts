@@ -9,3 +9,11 @@ export function toLocalDateInput(value: Date): string {
 export function toLocalMonthInput(value: Date): string {
   return `${value.getFullYear()}-${pad(value.getMonth() + 1)}`;
 }
+
+export function isFutureLocalDateInput(value: string, now: Date = new Date()): boolean {
+  return value > toLocalDateInput(now);
+}
+
+export function isFutureLocalMonthInput(value: string, now: Date = new Date()): boolean {
+  return value > toLocalMonthInput(now);
+}

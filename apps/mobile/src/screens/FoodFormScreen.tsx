@@ -28,6 +28,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { FormField } from '../components/FormField';
+import { fluidPhotoContextLabel } from '../lib/photoContextLabel';
 import { cleanupPreparedPhoto } from '../lib/preparedPhotos';
 import { type PersistedEntryPhoto, withSignedThumbnailUris } from '../lib/persistedPhotos';
 import { MealFields, type ClientMealDraft } from '../components/MealFields';
@@ -547,7 +548,7 @@ export function FoodFormScreen({
 
           if (!uploadedPhotoIdsRef.current.has(localPhoto.uploadId)) {
             await uploadPreparedEntryPhoto(client, {
-              contextLabel: fluidDraft.name?.trim() || 'Fluid photo',
+              contextLabel: fluidPhotoContextLabel(locale, fluidDraft.name),
               contextType: 'fluid',
               entryId: savedFluid.entryId,
               patientId: profile.id,

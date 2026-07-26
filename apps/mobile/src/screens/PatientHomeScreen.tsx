@@ -688,7 +688,6 @@ export function PatientHomeScreen({
         onCancelProfile={() => cancelFormToProfile(closeStool)}
         onCancelTimeline={() => cancelFormToTimeline(closeStool)}
         onSaved={() => {
-          setShowStoolForm(false);
           setStoolEntryToEdit(null);
           void loadEntries();
         }}
@@ -734,7 +733,6 @@ export function PatientHomeScreen({
         onCancelTimeline={() => cancelFormToTimeline(closeExercise)}
         onSaved={() => {
           setExerciseCompleted(true);
-          setShowExerciseForm(false);
           setExerciseEntryToEdit(null);
           void loadEntries();
         }}

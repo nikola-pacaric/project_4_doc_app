@@ -182,6 +182,9 @@ export function PatientStoolScreen({
             onPress={() => {
               setSavedStool(null);
               setSavedNoStool(false);
+              setInitialDraft(null);
+              setOccurredAt(undefined);
+              setError(null);
               setFormVersion((current) => current + 1);
             }}
           />

@@ -26,7 +26,12 @@ import {
 } from '../components/DoctorMedicalDetails';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { StatusMessage } from '../components/StatusMessage';
-import { toLocalDateInput, toLocalMonthInput } from '../utils/localCalendarInput';
+import {
+  isFutureLocalDateInput,
+  isFutureLocalMonthInput,
+  toLocalDateInput,
+  toLocalMonthInput,
+} from '../utils/localCalendarInput';
 
 interface DoctorLinkedPatientTimelineScreenProps {
   client: AppSupabaseClient;
@@ -154,6 +159,8 @@ export function DoctorLinkedPatientTimelineScreen({
   const [exportError, setExportError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const exportMaximumDate = toLocalDateInput(new Date());
+  const exportMaximumMonth = toLocalMonthInput(new Date());
 
   const requestTimeline = useCallback(
     () => getDoctorLinkedPatientTimeline(client, initialPatient.patientId),
@@ -209,6 +216,15 @@ export function DoctorLinkedPatientTimelineScreen({
   }, [locale, requestTimeline]);
 
   async function handleDownloadExport() {
+    const hasFutureRange =
+      (exportRangeType === 'selected_day' && isFutureLocalDateInput(exportDate)) ||
+      (exportRangeType === 'partial_month' && isFutureLocalMonthInput(exportMonth));
+    if (hasFutureRange) {
+      setExportStatus(null);
+      setExportError(t(locale, 'doctor.exportError'));
+      return;
+    }
+
     setExporting(true);
     setExportError(null);
     setExportStatus(t(locale, 'doctor.exportPreparing'));
@@ -361,6 +377,7 @@ export function DoctorLinkedPatientTimelineScreen({
             <label>
               <span>{t(locale, 'doctor.exportDate')}</span>
               <input
+                max={exportMaximumDate}
                 onChange={(event) => setExportDate(event.target.value)}
                 type="date"
                 value={exportDate}
@@ -370,6 +387,7 @@ export function DoctorLinkedPatientTimelineScreen({
             <label>
               <span>{t(locale, 'doctor.exportMonth')}</span>
               <input
+                max={exportMaximumMonth}
                 onChange={(event) => setExportMonth(event.target.value)}
                 type="month"
                 value={exportMonth}

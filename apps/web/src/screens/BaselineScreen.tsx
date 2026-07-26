@@ -16,6 +16,12 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { StatusMessage } from '../components/StatusMessage';
 import { VoiceTextField } from '../components/VoiceTextField';
+import {
+  confirmBaselineDiscard,
+  hasUnsavedBaselineChanges,
+  type BaselineEditorState,
+  type ChronicTherapyInput,
+} from './baselineDiscard';
 
 interface BaselineScreenProps {
   client: AppSupabaseClient;
@@ -47,11 +53,6 @@ function toDraft(current: PatientBaselineProfile | null): BaselineProfileDraft {
 
 function optionalNumber(value: string): number | undefined {
   return value.trim() === '' ? undefined : Number(value.replace(',', '.'));
-}
-
-interface ChronicTherapyInput {
-  name: string;
-  dose: string;
 }
 
 function parseDiseaseNames(value: string | null | undefined): string[] {
@@ -100,6 +101,18 @@ function savedYesNoFromText(
   return Boolean(value?.trim());
 }
 
+function savedBaselineEditorState(
+  current: PatientBaselineProfile | null,
+): BaselineEditorState {
+  return {
+    draft: toDraft(current),
+    hasChronicDiseases: savedYesNoFromText(current, current?.chronicDiseases),
+    hasChronicTherapy: savedYesNoFromText(current, current?.chronicTherapy),
+    chronicDiseaseNames: parseDiseaseNames(current?.chronicDiseases),
+    chronicTherapies: parseChronicTherapies(current?.chronicTherapy),
+  };
+}
+
 export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps) {
   const locale = getActiveLocale();
   const [current, setCurrent] = useState<PatientBaselineProfile | null>(null);
@@ -114,6 +127,19 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
   const [chronicTherapies, setChronicTherapies] = useState<ChronicTherapyInput[]>([
     { name: '', dose: '' },
   ]);
+
+  const hasUnsavedChanges =
+    !loading &&
+    hasUnsavedBaselineChanges(
+      {
+        draft,
+        hasChronicDiseases,
+        hasChronicTherapy,
+        chronicDiseaseNames,
+        chronicTherapies,
+      },
+      savedBaselineEditorState(current),
+    );
 
   useEffect(() => {
     let active = true;
@@ -165,6 +191,10 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
     } finally {
       setSaving(false);
     }
+  }
+
+  function cancel() {
+    confirmBaselineDiscard({ hasUnsavedChanges, saving, locale, onDiscard: onBack });
   }
 
   return (
@@ -478,7 +508,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
             </fieldset>
           ) : null}
           <div className="button-row form-actions-row">
-            <button className="secondary-button" onClick={onBack} type="button">
+            <button className="secondary-button" onClick={cancel} type="button">
               {t(locale, 'common.cancel')}
             </button>
             <button className="primary-button" disabled={saving} type="submit">

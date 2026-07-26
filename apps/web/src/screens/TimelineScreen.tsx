@@ -59,6 +59,7 @@ import {
   saveCachedRecentEntries,
   savePendingEntries,
 } from '../offline/pendingEntries';
+import { pendingSyncErrorKey } from '../offline/pendingSyncError';
 import { StatusMessage } from '../components/StatusMessage';
 import { withRequestTimeout } from '../utils/requestTimeout';
 import { BaselineScreen } from './BaselineScreen';
@@ -318,14 +319,7 @@ export function TimelineScreen({
       setPendingEntries(remainingEntries);
       const failedEntry = remainingEntries.find((entry) => !isPendingEntryRetryable(entry));
       if (failedEntry) {
-        setError(
-          t(
-            locale,
-            failedEntry.operation === 'update_entry_timestamp'
-              ? 'entry.updateError'
-              : 'entry.saveError',
-          ),
-        );
+        setError(t(locale, pendingSyncErrorKey(failedEntry.operation)));
       }
       return remainingEntries;
     })();

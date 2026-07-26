@@ -135,6 +135,8 @@ export function PatientExerciseScreen({
             label={t(locale, 'exercise.addAnother')}
             onPress={() => {
               setSavedExercise(null);
+              setInitialDraft(null);
+              setError(null);
               setFormVersion((current) => current + 1);
             }}
           />
