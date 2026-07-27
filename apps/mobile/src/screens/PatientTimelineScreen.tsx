@@ -626,6 +626,8 @@ export function PatientTimelineScreen({
       <PatientBottomNav
         active="timeline"
         onProfile={onOpenBaseline ?? onBack}
+        profileDisabled={offlineMode}
+        profileDisabledHint={t(locale, 'offline.actionsDisabled')}
         onSettings={onOpenSettings ?? onBack}
         onTimeline={() => undefined}
         onToday={onBack}

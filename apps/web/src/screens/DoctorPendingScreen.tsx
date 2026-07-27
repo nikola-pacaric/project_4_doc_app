@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
 import { StatusMessage } from '../components/StatusMessage';
+import { clearStaleLinkedPatients, type DoctorDashboardData } from '../lib/doctorDashboardState';
 import { DoctorLinkedPatientTimelineScreen } from './DoctorLinkedPatientTimelineScreen';
 
 interface DoctorPendingScreenProps {
@@ -82,8 +83,10 @@ export function DoctorPendingScreen({
   profile,
 }: DoctorPendingScreenProps) {
   const locale = getActiveLocale();
-  const [invites, setInvites] = useState<DoctorInviteCode[]>([]);
-  const [patients, setPatients] = useState<LinkedPatientSummary[]>([]);
+  const [{ invites, patients }, setDashboardData] = useState<DoctorDashboardData>({
+    invites: [],
+    patients: [],
+  });
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
@@ -97,6 +100,7 @@ export function DoctorPendingScreen({
   );
 
   const loadDashboard = useCallback(async () => {
+    setDashboardData(clearStaleLinkedPatients);
     setLoading(true);
     setError(null);
 
@@ -105,10 +109,10 @@ export function DoctorPendingScreen({
         listDoctorInviteCodes(client),
         listLinkedPatients(client),
       ]);
-      setInvites(nextInvites);
-      setPatients(nextPatients);
+      setDashboardData({ invites: nextInvites, patients: nextPatients });
     } catch {
       setError(t(locale, 'doctor.loadError'));
+      setDashboardData(clearStaleLinkedPatients);
     } finally {
       setLoading(false);
     }
@@ -125,7 +129,10 @@ export function DoctorPendingScreen({
 
     try {
       const invite = await createDoctorInviteCode(client);
-      setInvites((current) => [invite, ...current]);
+      setDashboardData((current) => ({
+        ...current,
+        invites: [invite, ...current.invites],
+      }));
       setSuccess(t(locale, 'doctor.inviteCreated'));
     } catch {
       setError(t(locale, 'doctor.inviteCreateError'));

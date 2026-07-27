@@ -64,6 +64,7 @@ interface SettingsScreenProps {
   onToday?: () => void;
   onTimeline?: () => void;
   onProfile?: () => void;
+  profileDisabled?: boolean;
   onChange: (changes: Partial<AppPreferences>) => void;
   onSignOut: () => void | Promise<void>;
 }
@@ -81,6 +82,7 @@ export function SettingsScreen({
   onToday,
   onTimeline,
   onProfile,
+  profileDisabled = false,
   onChange,
   onSignOut,
 }: SettingsScreenProps) {
@@ -576,6 +578,8 @@ export function SettingsScreen({
         <PatientBottomNav
           active="settings"
           onProfile={goProfile}
+          profileDisabled={profileDisabled}
+          profileDisabledHint={profileDisabled ? t(locale, 'offline.actionsDisabled') : undefined}
           onSettings={() => undefined}
           onTimeline={goTimeline}
           onToday={goToday}

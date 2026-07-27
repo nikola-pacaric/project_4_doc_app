@@ -7,6 +7,7 @@ import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -14,10 +15,14 @@ import com.facebook.react.bridge.ReactMethod
 import java.util.Locale
 
 class VoiceInputModule(private val reactContext: ReactApplicationContext) :
-  ReactContextBaseJavaModule(reactContext) {
+  ReactContextBaseJavaModule(reactContext), LifecycleEventListener {
   private val mainHandler = Handler(Looper.getMainLooper())
   private var pendingPromise: Promise? = null
   private var speechRecognizer: SpeechRecognizer? = null
+
+  init {
+    reactContext.addLifecycleEventListener(this)
+  }
 
   override fun getName(): String = "VoiceInput"
 
@@ -33,23 +38,63 @@ class VoiceInputModule(private val reactContext: ReactApplicationContext) :
       return
     }
 
-    if (pendingPromise != null) {
-      promise.reject("busy", "Voice input is already running.")
-      return
-    }
-
-    pendingPromise = promise
     mainHandler.post {
+      if (pendingPromise != null) {
+        promise.reject("busy", "Voice input is already running.")
+        return@post
+      }
+
+      pendingPromise = promise
       startRecognizer(localeTag, prompt)
     }
   }
 
+  @ReactMethod
+  fun stop(promise: Promise) {
+    mainHandler.post {
+      val recognizer = speechRecognizer
+      if (recognizer == null || pendingPromise == null) {
+        promise.resolve(null)
+        return@post
+      }
+
+      try {
+        recognizer.stopListening()
+        promise.resolve(null)
+      } catch (error: RuntimeException) {
+        cancelRecognizer()
+        promise.reject("unavailable", "Voice input is unavailable.", error)
+      }
+    }
+  }
+
+  @ReactMethod
+  fun cancel(promise: Promise) {
+    mainHandler.post {
+      cancelRecognizer()
+      promise.resolve(null)
+    }
+  }
+
   override fun invalidate() {
+    reactContext.removeLifecycleEventListener(this)
     super.invalidate()
     mainHandler.post {
-      cleanupRecognizer()
-      pendingPromise?.reject("canceled", "Voice input was canceled.")
-      pendingPromise = null
+      cancelRecognizer()
+    }
+  }
+
+  override fun onHostResume() = Unit
+
+  override fun onHostPause() {
+    mainHandler.post {
+      cancelRecognizer()
+    }
+  }
+
+  override fun onHostDestroy() {
+    mainHandler.post {
+      cancelRecognizer()
     }
   }
 
@@ -129,8 +174,29 @@ class VoiceInputModule(private val reactContext: ReactApplicationContext) :
   }
 
   private fun cleanupRecognizer() {
-    speechRecognizer?.setRecognitionListener(null)
-    speechRecognizer?.destroy()
+    val recognizer = speechRecognizer
     speechRecognizer = null
+
+    try {
+      recognizer?.setRecognitionListener(null)
+      recognizer?.destroy()
+    } catch (_: RuntimeException) {
+      // Cleanup is best-effort if Android already disposed the recognizer.
+    }
+  }
+
+  private fun cancelRecognizer() {
+    val promise = pendingPromise
+    pendingPromise = null
+
+    try {
+      speechRecognizer?.cancel()
+    } catch (_: RuntimeException) {
+      // The recognizer may already be shutting down during an activity transition.
+    } finally {
+      cleanupRecognizer()
+    }
+
+    promise?.reject("canceled", "Voice input was canceled.")
   }
 }

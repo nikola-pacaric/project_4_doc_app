@@ -1,4 +1,8 @@
 import type { UserRole } from '@project4/contracts';
+import {
+  getPatientSignupValidationError,
+  PATIENT_SIGNUP_PASSWORD_MIN_LENGTH,
+} from '@project4/forms';
 import { t, type Locale } from '@project4/i18n';
 import { signInForRole, signUpPatient, type AppSupabaseClient } from '@project4/supabase-client';
 import { useState, type FormEvent } from 'react';
@@ -38,6 +42,15 @@ export function AuthScreen({ client, locale, onChangeLocale }: AuthScreenProps) 
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (mode === 'patient-signup') {
+      const validationError = getPatientSignupValidationError({ displayName, email, password });
+      if (validationError) {
+        setError(t(locale, validationError));
+        setMessage(null);
+        return;
+      }
+    }
+
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -145,7 +158,7 @@ export function AuthScreen({ client, locale, onChangeLocale }: AuthScreenProps) 
             autoComplete={mode === 'patient-signup' ? 'new-password' : 'current-password'}
             hidden={passwordHidden}
             label={t(locale, 'auth.password')}
-            minLength={mode === 'patient-signup' ? 6 : undefined}
+            minLength={mode === 'patient-signup' ? PATIENT_SIGNUP_PASSWORD_MIN_LENGTH : undefined}
             onChange={setPassword}
             onToggleVisibility={() => setPasswordHidden((current) => !current)}
             toggleLabel={t(locale, passwordHidden ? 'auth.showPassword' : 'auth.hidePassword')}

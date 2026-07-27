@@ -29,6 +29,7 @@ import {
 import { FormField } from '../components/FormField';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PatientBottomNav } from '../components/PatientBottomNav';
+import { PrimaryButton } from '../components/PrimaryButton';
 import { StatusMessage } from '../components/StatusMessage';
 import { useDiscardGuard } from '../hooks/useDiscardGuard';
 import { colors } from '../theme';
@@ -250,6 +251,8 @@ export function BaselineScreen({
   const [current, setCurrent] = useState<PatientBaselineProfile | null>(null);
   const [draft, setDraft] = useState<BaselineProfileDraft>({ ...baselineProfileDefaults });
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -326,7 +329,10 @@ export function BaselineScreen({
         setChronicTherapies(parseChronicTherapies(loaded?.chronicTherapy));
       })
       .catch(() => {
-        if (active) setError(t(locale, 'baseline.loadError'));
+        if (active) {
+          setLoadFailed(true);
+          setError(t(locale, 'baseline.loadError'));
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -334,8 +340,30 @@ export function BaselineScreen({
     return () => {
       active = false;
     };
-  }, [client, locale, profile.id]);
+  }, [client, locale, profile.id, reloadToken]);
 
+  function retryLoad() {
+    setError(null);
+    setLoadFailed(false);
+    setLoading(true);
+    setReloadToken((value) => value + 1);
+  }
+
+  if (!loading && loadFailed) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.background }]}>
+        <View style={styles.loadFailure}>
+          <StatusMessage
+            message={error ?? t(locale, 'baseline.loadError')}
+            style={[styles.statusError, { color: palette.error }]}
+            tone="error"
+          />
+          <PrimaryButton label={t(locale, 'common.retry')} onPress={retryLoad} />
+          <PrimaryButton label={t(locale, 'common.back')} onPress={onBack} variant="secondary" />
+        </View>
+      </SafeAreaView>
+    );
+  }
   async function save() {
     if (
       !isCompleteBaselineProfile(draft) ||
@@ -917,6 +945,12 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.5 },
   loader: { marginTop: 40 },
+  loadFailure: {
+    flex: 1,
+    gap: 16,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
   headerBlock: {
     gap: 8,
   },

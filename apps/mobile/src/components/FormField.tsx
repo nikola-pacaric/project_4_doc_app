@@ -2,6 +2,7 @@ import { getActiveLocale, getActiveVoiceLanguage, t } from '@project4/i18n';
 import { spacing } from '@project4/ui-tokens';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
+  AppState,
   Pressable,
   StyleSheet,
   Text,
@@ -14,7 +15,12 @@ import {
 
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { useKeyboardAwareInput } from './KeyboardAwareScrollView';
-import { appendVoiceTranscript, isVoiceInputSupported, startVoiceInput } from '../lib/voiceInput';
+import {
+  appendVoiceTranscript,
+  createVoiceInputSession,
+  isVoiceInputSupported,
+  type VoiceInputSession,
+} from '../lib/voiceInput';
 
 interface FormFieldProps extends TextInputProps {
   enableVoice?: boolean;
@@ -34,10 +40,16 @@ export function FormField({
   const locale = getActiveLocale();
   const keyboardAwareInput = useKeyboardAwareInput();
   const inputRef = useRef<TextInput>(null);
+  const mountedRef = useRef(true);
+  const voiceSessionRef = useRef<VoiceInputSession | null>(null);
+  if (voiceSessionRef.current == null) {
+    voiceSessionRef.current = createVoiceInputSession();
+  }
   const valueRef = useRef(props.value ?? '');
   const onChangeTextRef = useRef(props.onChangeText);
   const [supported, setSupported] = useState<boolean | null>(null);
   const [listening, setListening] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const canUseVoice =
     enableVoice && props.editable !== false && typeof props.onChangeText === 'function';
@@ -64,27 +76,75 @@ export function FormField({
     };
   }, [canUseVoice]);
 
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      void voiceSessionRef.current?.cancel().catch(() => undefined);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!canUseVoice) return;
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active') {
+        void voiceSessionRef.current?.cancel().catch(() => undefined);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      void voiceSessionRef.current?.cancel().catch(() => undefined);
+    };
+  }, [canUseVoice]);
+
   async function startListening() {
-    if (!canUseVoice || supported !== true || listening) return;
+    const voiceSession = voiceSessionRef.current;
+    if (!canUseVoice || supported !== true || listening || !voiceSession) return;
 
     inputRef.current?.focus();
     setListening(true);
+    setStopping(false);
     setMessage(t(locale, 'voice.listening'));
 
     try {
-      const transcript = await startVoiceInput(getActiveVoiceLanguage(), t(locale, 'voice.prompt'));
+      const transcript = await voiceSession.start(
+        getActiveVoiceLanguage(),
+        t(locale, 'voice.prompt'),
+      );
+      if (!mountedRef.current) return;
       onChangeTextRef.current?.(appendVoiceTranscript(valueRef.current, transcript));
       setMessage(t(locale, 'voice.added'));
     } catch (error) {
+      if (!mountedRef.current) return;
       const code = typeof error === 'object' && error && 'code' in error ? error.code : undefined;
       setMessage(code === 'canceled' ? null : t(locale, 'voice.unavailable'));
     } finally {
-      setListening(false);
+      if (mountedRef.current) {
+        setListening(false);
+        setStopping(false);
+      }
+    }
+  }
+
+  async function stopListening() {
+    if (!listening || stopping) return;
+    setStopping(true);
+
+    try {
+      await voiceSessionRef.current?.stop();
+    } catch {
+      if (mountedRef.current) {
+        setMessage(t(locale, 'voice.unavailable'));
+        setListening(false);
+        setStopping(false);
+      }
     }
   }
 
   const showVoiceButton = canUseVoice && supported === true;
-  const voiceDisabled = listening;
+  const voiceDisabled = stopping;
 
   return (
     <View style={styles.field}>
@@ -122,12 +182,12 @@ export function FormField({
         ) : null}
         {showVoiceButton ? (
           <Pressable
-            accessibilityLabel={t(locale, 'voice.start')}
+            accessibilityLabel={t(locale, listening ? 'voice.stop' : 'voice.start')}
             accessibilityRole="button"
             accessibilityState={{ disabled: voiceDisabled }}
             disabled={voiceDisabled}
             hitSlop={8}
-            onPress={startListening}
+            onPress={listening ? stopListening : startListening}
             style={({ pressed }) => [
               styles.voiceButton,
               props.multiline && styles.voiceButtonMultiline,

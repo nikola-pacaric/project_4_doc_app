@@ -1,4 +1,5 @@
 export * from './baseline';
+export * from './auth';
 export * from './daily';
 export * from './dailyCompletion';
 export * from './exercises';

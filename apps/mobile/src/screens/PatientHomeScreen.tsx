@@ -58,6 +58,7 @@ import {
   foregroundReconnectDelayMs,
   refreshForegroundPatientData,
 } from '../lib/foregroundReconnectPolicy';
+import { primarySubmitHelpKey } from '../lib/dailyProgressState';
 import { localDayRange, toLocalDateInput } from '../utils/dateTime';
 import { BaselineScreen } from './BaselineScreen';
 import { DailyProgressHomeScreen } from './DailyProgressHomeScreen';
@@ -77,6 +78,7 @@ interface PatientHomeScreenProps {
   client: AppSupabaseClient;
   profile: UserProfile;
   onOpenSettings: () => void;
+  onOfflineModeChange?: (offline: boolean) => void;
   /** Open this surface after Settings (or other app-level) returns to patient home. */
   initialTab?: PatientHomeTab;
 }
@@ -129,6 +131,7 @@ export function PatientHomeScreen({
   client,
   profile,
   onOpenSettings,
+  onOfflineModeChange,
   initialTab = 'today',
 }: PatientHomeScreenProps) {
   const locale = getActiveLocale();
@@ -137,6 +140,10 @@ export function PatientHomeScreen({
   const [error, setError] = useState<string | null>(null);
   const [offlineMode, setOfflineMode] = useState(false);
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
+
+  useEffect(() => {
+    onOfflineModeChange?.(offlineMode);
+  }, [offlineMode, onOfflineModeChange]);
   const [showBaseline, setShowBaseline] = useState(initialTab === 'profile');
   const [showDailyForm, setShowDailyForm] = useState(false);
   const [dailyEntryId, setDailyEntryId] = useState<string | null>(null);
@@ -911,25 +918,24 @@ export function PatientHomeScreen({
     }
   }
 
-  const submitHelp = offlineMode
-    ? t(locale, 'offline.actionsDisabled')
-    : dailyCompleted
-      ? t(locale, 'home.submitCompletedHelp')
-      : (() => {
-          const missingSubmitSections = [
-            !dailyCompleted && !dailyReadyToSubmit ? t(locale, 'home.action.daily') : null,
-            !foodCompleted ? t(locale, 'home.action.food') : null,
-            !symptomsCompleted ? t(locale, 'home.action.symptoms') : null,
-            !stoolCompleted ? t(locale, 'home.action.stool') : null,
-            exerciseRequired && !exerciseCompleted ? t(locale, 'home.action.exercise') : null,
-            medicationRequired && !medicationCompleted ? t(locale, 'home.action.medication') : null,
-            periodRequired && !periodCompleted ? t(locale, 'home.action.period') : null,
-          ].filter(Boolean) as string[];
+  const submitHelpKey = primarySubmitHelpKey({ dailyCompleted, offlineMode });
+  const submitHelp = submitHelpKey
+    ? t(locale, submitHelpKey)
+    : (() => {
+        const missingSubmitSections = [
+          !dailyCompleted && !dailyReadyToSubmit ? t(locale, 'home.action.daily') : null,
+          !foodCompleted ? t(locale, 'home.action.food') : null,
+          !symptomsCompleted ? t(locale, 'home.action.symptoms') : null,
+          !stoolCompleted ? t(locale, 'home.action.stool') : null,
+          exerciseRequired && !exerciseCompleted ? t(locale, 'home.action.exercise') : null,
+          medicationRequired && !medicationCompleted ? t(locale, 'home.action.medication') : null,
+          periodRequired && !periodCompleted ? t(locale, 'home.action.period') : null,
+        ].filter(Boolean) as string[];
 
-          return missingSubmitSections.length
-            ? formatMissingSubmitSections(t(locale, 'home.submitMissing'), missingSubmitSections)
-            : t(locale, 'home.submitHelp');
-        })();
+        return missingSubmitSections.length
+          ? formatMissingSubmitSections(t(locale, 'home.submitMissing'), missingSubmitSections)
+          : t(locale, 'home.submitHelp');
+      })();
   const visibleEntries = mergePendingTextEntries(entries, pendingEntries);
   const pendingIds = pendingTimelineEntryIds(pendingEntries);
 

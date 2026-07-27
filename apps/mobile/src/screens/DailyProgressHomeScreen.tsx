@@ -14,7 +14,6 @@ import {
   ENTRY_KIND_ICON_STYLES,
   entryKindIcon,
   entryKindIconStyle,
-  type EntryKind,
   type PatientEntry,
   type UserProfile,
 } from '@project4/contracts';
@@ -25,6 +24,10 @@ import { CircularProgress } from '../components/CircularProgress';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PatientBottomNav } from '../components/PatientBottomNav';
 import { StatusMessage } from '../components/StatusMessage';
+import {
+  isDailyProgressActionComplete,
+  type DailyProgressCompletionState,
+} from '../lib/dailyProgressState';
 import { colors } from '../theme';
 import { formatEntryTime, toLocalDateInput } from '../utils/dateTime';
 
@@ -100,17 +103,6 @@ interface QuickAction {
   iconColor: string;
   iconBg: string;
 }
-
-const actionEntryKinds: Record<QuickAction['id'], EntryKind> = {
-  daily: 'daily',
-  food: 'meal',
-  symptoms: 'symptom',
-  stool: 'stool',
-  medication: 'medication',
-  exercise: 'exercise',
-  period: 'menstruation',
-  notes: 'note',
-};
 
 const quickActions: QuickAction[] = [
   {
@@ -265,12 +257,20 @@ export function DailyProgressHomeScreen({
   const completeMealIds = new Set(completeMealEntryIds);
   const completeMedicationIds = new Set(completeMedicationEntryIds);
   const completedKinds = new Set(allTodayEntries.map((entry) => entry.kind));
-  const completedItems = progressActions.filter((action) => {
-    if (action.id === 'daily') return dailyCompleted || dailyReadyToSubmit;
-    if (action.id === 'stool') return stoolCompleted;
-    if (action.id === 'food') return foodCompleted;
-    return completedKinds.has(actionEntryKinds[action.id]);
-  }).length;
+  const completionState: DailyProgressCompletionState = {
+    dailyCompleted,
+    dailyReadyToSubmit,
+    exerciseCompleted,
+    foodCompleted,
+    medicationCompleted,
+    noteCompleted: completedKinds.has('note'),
+    periodCompleted,
+    stoolCompleted,
+    symptomsCompleted,
+  };
+  const completedItems = progressActions.filter((action) =>
+    isDailyProgressActionComplete(action.id, completionState),
+  ).length;
   const progress = Math.round((completedItems / Math.max(progressActions.length, 1)) * 100);
 
   const horizontalPadding = 20;
@@ -283,14 +283,7 @@ export function DailyProgressHomeScreen({
     day: 'numeric',
   }).format(now);
   function actionIsCompleted(action: QuickAction): boolean {
-    if (action.id === 'daily') return dailyCompleted || dailyReadyToSubmit;
-    if (action.id === 'food') return foodCompleted;
-    if (action.id === 'symptoms') return symptomsCompleted;
-    if (action.id === 'stool') return stoolCompleted;
-    if (action.id === 'medication') return medicationCompleted;
-    if (action.id === 'exercise') return exerciseCompleted;
-    if (action.id === 'period') return periodCompleted;
-    return completedKinds.has('note');
+    return isDailyProgressActionComplete(action.id, completionState);
   }
 
   function actionIsRequired(action: QuickAction): boolean {

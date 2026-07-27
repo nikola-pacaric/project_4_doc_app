@@ -46,6 +46,7 @@ function MainApp() {
   const [preferencesLoading, setPreferencesLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [patientLandingTab, setPatientLandingTab] = useState<PatientHomeTab>('today');
+  const [patientOfflineMode, setPatientOfflineMode] = useState(false);
   const [doctorLandingTab, setDoctorLandingTab] = useState<DoctorLandingTab>('dashboard');
   const [profileError, setProfileError] = useState(false);
   const [profileReloadToken, setProfileReloadToken] = useState(0);
@@ -108,6 +109,7 @@ function MainApp() {
         setProfileError(false);
         setSettingsOpen(false);
         setPatientLandingTab('today');
+        setPatientOfflineMode(false);
         setDoctorLandingTab('dashboard');
       }
       if (!nextSession) {
@@ -190,6 +192,7 @@ function MainApp() {
   async function signOut() {
     setSettingsOpen(false);
     setPatientLandingTab('today');
+    setPatientOfflineMode(false);
     setDoctorLandingTab('dashboard');
     try {
       if (supabase) {
@@ -301,6 +304,7 @@ function MainApp() {
         }
         onChange={updatePreferences}
         onProfile={profile.role === 'patient' ? () => closeSettingsTo('profile') : undefined}
+        profileDisabled={profile.role === 'patient' && patientOfflineMode}
         onSignOut={signOut}
         onTimeline={profile.role === 'patient' ? () => closeSettingsTo('timeline') : undefined}
         onToday={profile.role === 'patient' ? () => closeSettingsTo('today') : undefined}
@@ -332,6 +336,7 @@ function MainApp() {
         client={supabase}
         initialTab={patientLandingTab}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOfflineModeChange={setPatientOfflineMode}
         profile={profile}
       />
     );
