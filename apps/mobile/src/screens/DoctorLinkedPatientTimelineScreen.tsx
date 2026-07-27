@@ -42,6 +42,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { SelectField } from '../components/SelectField';
 import { StatusMessage } from '../components/StatusMessage';
 import { downloadDoctorExportImageBytes, shareDoctorExportBundle } from '../lib/doctorExport';
+import { doctorExportFailureState, type DoctorExportStage } from '../lib/doctorExportStatus';
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 import {
   formatEntryDate,
@@ -218,7 +219,7 @@ export function DoctorLinkedPatientTimelineScreen({
   }, [locale, requestTimeline]);
 
   async function handleExport() {
-    let exportStage: 'preparing' | 'sharing' = 'preparing';
+    let exportStage: DoctorExportStage = 'preparing';
     setExporting(true);
     setExportStatus(null);
     setExportError(null);
@@ -241,9 +242,9 @@ export function DoctorLinkedPatientTimelineScreen({
       await shareDoctorExportBundle(bundle);
       setExportStatus(t(locale, 'doctor.exportShared'));
     } catch {
-      setExportError(
-        t(locale, exportStage === 'sharing' ? 'doctor.exportShareError' : 'doctor.exportError'),
-      );
+      const failure = doctorExportFailureState(exportStage);
+      setExportStatus(failure.status);
+      setExportError(t(locale, failure.errorKey));
     } finally {
       setExporting(false);
     }

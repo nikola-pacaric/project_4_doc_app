@@ -23,6 +23,20 @@ describe('withRequestTimeout', () => {
     await assertion;
   });
 
+  it('rejects an aggregate when one request stalls', async () => {
+    vi.useFakeTimers();
+    const result = withRequestTimeout(
+      Promise.all([Promise.resolve(['meal-entry']), new Promise<never>(() => undefined)]),
+      2_500,
+    );
+    const assertion = expect(result).rejects.toMatchObject({
+      name: REQUEST_TIMEOUT_ERROR_NAME,
+    });
+
+    await vi.advanceTimersByTimeAsync(2_500);
+    await assertion;
+  });
+
   it('preserves a request error that arrives before the deadline', async () => {
     const requestError = new Error('Request failed');
     await expect(withRequestTimeout(Promise.reject(requestError), 2_500)).rejects.toBe(

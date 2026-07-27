@@ -70,7 +70,9 @@ import { MedicationFormScreen } from './MedicationFormScreen';
 import { MenstruationFormScreen } from './MenstruationFormScreen';
 import { NoteFormScreen } from './NoteFormScreen';
 import { StoolFormScreen } from './StoolFormScreen';
+import { confirmStructuredFormDiscard } from './structuredFormDiscard';
 import { SymptomFormScreen } from './SymptomFormScreen';
+import { getTimelinePhotoLoadStatus } from './timelinePhotoLoadState';
 
 interface TimelineScreenProps {
   client: AppSupabaseClient;
@@ -242,6 +244,7 @@ export function TimelineScreen({
   const [foodForm, setFoodForm] = useState<FoodFormRecord | null>(null);
   const [pendingEntries, setPendingEntries] = useState<LocalPendingEntry[]>([]);
   const [entryPhotos, setEntryPhotos] = useState<Record<string, TimelineEntryPhoto[]>>({});
+  const [photoLoadStatus, setPhotoLoadStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [lightboxPhoto, setLightboxPhoto] = useState<{ url: string; label: string } | null>(null);
   const [completeMealEntryIds, setCompleteMealEntryIds] = useState<string[]>([]);
   const [completeMedicationEntryIds, setCompleteMedicationEntryIds] = useState<string[]>([]);
@@ -455,10 +458,14 @@ export function TimelineScreen({
           const medIds = nextEntries
             .filter((entry) => entry.kind === 'medication')
             .map((entry) => entry.id);
-          const [nextCompleteMealEntryIds, nextCompleteMedicationEntryIds] = await Promise.all([
-            listCompletePatientMealEntryIds(client, mealIds),
-            listCompletePatientMedicationEntryIds(client, medIds),
-          ]);
+          const [nextCompleteMealEntryIds, nextCompleteMedicationEntryIds] =
+            await withRequestTimeout(
+              Promise.all([
+                listCompletePatientMealEntryIds(client, mealIds),
+                listCompletePatientMedicationEntryIds(client, medIds),
+              ]),
+              ONLINE_LOAD_TIMEOUT_MS,
+            );
           setCompleteMealEntryIds(nextCompleteMealEntryIds);
           setCompleteMedicationEntryIds(nextCompleteMedicationEntryIds);
           setCanTrackMenstruation(includeMenstruation);
@@ -603,11 +610,23 @@ export function TimelineScreen({
         (entry.kind === 'meal' || entry.kind === 'fluid' || entry.kind === 'medication') &&
         !isPendingEntryId(entry.id),
     );
+    const nextStatus = getTimelinePhotoLoadStatus({
+      eligibleEntryCount: photoEntries.length,
+      offlineMode,
+    });
 
     void (async () => {
-      if (offlineMode || !photoEntries.length) {
-        if (active) setEntryPhotos({});
+      if (nextStatus === 'idle') {
+        if (active) {
+          setEntryPhotos({});
+          setPhotoLoadStatus('idle');
+        }
         return;
+      }
+
+      if (active) {
+        setEntryPhotos({});
+        setPhotoLoadStatus('loading');
       }
 
       try {
@@ -635,10 +654,22 @@ export function TimelineScreen({
           }),
         );
 
-        if (active) setEntryPhotos(nextEntryPhotos);
+        if (active) {
+          setEntryPhotos(nextEntryPhotos);
+          setPhotoLoadStatus('idle');
+        }
       } catch (photoError) {
         console.error('Failed to load timeline entry photos:', photoError);
-        if (active) setEntryPhotos({});
+        if (active) {
+          setEntryPhotos({});
+          setPhotoLoadStatus(
+            getTimelinePhotoLoadStatus({
+              eligibleEntryCount: photoEntries.length,
+              failed: true,
+              offlineMode,
+            }),
+          );
+        }
       }
     })();
 
@@ -759,6 +790,10 @@ export function TimelineScreen({
     );
   }
 
+  function confirmFormExit(onDiscard: () => void) {
+    confirmStructuredFormDiscard({ locale, onDiscard });
+  }
+
   if (showBaseline) {
     return (
       <BaselineScreen
@@ -781,7 +816,7 @@ export function TimelineScreen({
         onActivityAnswerChange={handleActivityAnswerChange}
         onMedicationAnswerChange={handleMedicationAnswerChange}
         onMenstruationAnswerChange={handleMenstruationAnswerChange}
-        onBack={() => setShowDailyForm(false)}
+        onBack={() => confirmFormExit(() => setShowDailyForm(false))}
         onSaved={() => {
           setShowDailyForm(false);
           void loadEntries();
@@ -795,7 +830,7 @@ export function TimelineScreen({
     return (
       <FoodFormScreen
         client={client}
-        onBack={() => setShowFoodForm(false)}
+        onBack={() => confirmFormExit(() => setShowFoodForm(false))}
         onSaved={() => {
           setShowFoodForm(false);
           void loadEntries();
@@ -809,7 +844,7 @@ export function TimelineScreen({
     return (
       <SymptomFormScreen
         client={client}
-        onBack={() => setShowSymptomForm(false)}
+        onBack={() => confirmFormExit(() => setShowSymptomForm(false))}
         onSaved={() => {
           setShowSymptomForm(false);
           void loadEntries();
@@ -824,12 +859,17 @@ export function TimelineScreen({
       <StoolFormScreen
         client={client}
         entryToEdit={stoolEntryToEdit}
-        onBack={() => {
+        onBack={() =>
+          confirmFormExit(() => {
+            setShowStoolForm(false);
+            setStoolEntryToEdit(null);
+          })
+        }
+        onDone={() => {
           setShowStoolForm(false);
           setStoolEntryToEdit(null);
         }}
-        onSaved={() => {
-          setShowStoolForm(false);
+        onPersisted={() => {
           setStoolEntryToEdit(null);
           void loadEntries();
         }}
@@ -843,10 +883,12 @@ export function TimelineScreen({
       <MedicationFormScreen
         client={client}
         entryToEdit={medicationEntryToEdit}
-        onBack={() => {
-          setShowMedicationForm(false);
-          setMedicationEntryToEdit(null);
-        }}
+        onBack={() =>
+          confirmFormExit(() => {
+            setShowMedicationForm(false);
+            setMedicationEntryToEdit(null);
+          })
+        }
         onSaved={() => {
           setMedicationCompleted(true);
           setShowMedicationForm(false);
@@ -863,10 +905,12 @@ export function TimelineScreen({
       <ExerciseFormScreen
         client={client}
         entryToEdit={exerciseEntryToEdit}
-        onBack={() => {
-          setShowExerciseForm(false);
-          setExerciseEntryToEdit(null);
-        }}
+        onBack={() =>
+          confirmFormExit(() => {
+            setShowExerciseForm(false);
+            setExerciseEntryToEdit(null);
+          })
+        }
         onSaved={() => {
           setExerciseCompleted(true);
           setShowExerciseForm(false);
@@ -883,10 +927,12 @@ export function TimelineScreen({
       <MenstruationFormScreen
         client={client}
         entryToEdit={menstruationEntryToEdit}
-        onBack={() => {
-          setShowMenstruationForm(false);
-          setMenstruationEntryToEdit(null);
-        }}
+        onBack={() =>
+          confirmFormExit(() => {
+            setShowMenstruationForm(false);
+            setMenstruationEntryToEdit(null);
+          })
+        }
         onSaved={() => {
           setPeriodCompleted(true);
           setShowMenstruationForm(false);
@@ -903,10 +949,12 @@ export function TimelineScreen({
       <NoteFormScreen
         client={client}
         entryToEdit={noteEntryToEdit}
-        onBack={() => {
-          setShowNoteForm(false);
-          setNoteEntryToEdit(null);
-        }}
+        onBack={() =>
+          confirmFormExit(() => {
+            setShowNoteForm(false);
+            setNoteEntryToEdit(null);
+          })
+        }
         onPendingSaved={(entry) => {
           setPendingEntries(appendPendingEntry(profile.id, entry));
         }}
@@ -1057,6 +1105,14 @@ export function TimelineScreen({
         {timelineError ? <StatusMessage tone="error">{timelineError}</StatusMessage> : null}
         {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
         {timelineLoading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
+        {photoLoadStatus === 'loading' ? (
+          <p aria-live="polite" className="empty-state" role="status">
+            {t(locale, 'app.loading')}
+          </p>
+        ) : null}
+        {photoLoadStatus === 'error' ? (
+          <StatusMessage tone="error">{t(locale, 'photo.loadError')}</StatusMessage>
+        ) : null}
         {!timelineLoading && dayEntries.length === 0 ? (
           <p className="empty-state">{t(locale, 'timeline.emptyDay')}</p>
         ) : null}
@@ -1354,6 +1410,14 @@ export function TimelineScreen({
         {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
         {!loading && todayEntries.length === 0 ? (
           <p className="empty-state">{t(locale, 'home.noEntriesToday')}</p>
+        ) : null}
+        {photoLoadStatus === 'loading' ? (
+          <p aria-live="polite" className="empty-state" role="status">
+            {t(locale, 'app.loading')}
+          </p>
+        ) : null}
+        {photoLoadStatus === 'error' ? (
+          <StatusMessage tone="error">{t(locale, 'photo.loadError')}</StatusMessage>
         ) : null}
         <div className="web-recent-list">
           {todayEntries.slice(0, 8).map((entry) => {

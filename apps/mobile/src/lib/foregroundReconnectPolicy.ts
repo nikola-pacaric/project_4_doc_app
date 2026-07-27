@@ -9,3 +9,13 @@ export function foregroundReconnectDelayMs(attempt: number): number {
   // Keep margin for the existing 2.5-second request timeout and timer scheduling.
   return FOREGROUND_RECONNECT_DELAYS_MS[index] ?? FOREGROUND_RECONNECT_MAX_INTERVAL_MS;
 }
+
+export async function refreshForegroundPatientData(
+  refreshHome: () => Promise<void>,
+  refreshVisibleTimeline?: () => Promise<void>,
+): Promise<void> {
+  await refreshHome();
+  if (refreshVisibleTimeline) {
+    await refreshVisibleTimeline();
+  }
+}

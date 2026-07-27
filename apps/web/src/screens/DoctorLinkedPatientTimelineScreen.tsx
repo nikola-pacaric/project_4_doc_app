@@ -29,6 +29,8 @@ import { StatusMessage } from '../components/StatusMessage';
 import {
   isFutureLocalDateInput,
   isFutureLocalMonthInput,
+  isNormalizedLocalDateInput,
+  isNormalizedLocalMonthInput,
   toLocalDateInput,
   toLocalMonthInput,
 } from '../utils/localCalendarInput';
@@ -161,6 +163,11 @@ export function DoctorLinkedPatientTimelineScreen({
   const [error, setError] = useState<string | null>(null);
   const exportMaximumDate = toLocalDateInput(new Date());
   const exportMaximumMonth = toLocalMonthInput(new Date());
+  const hasValidExportRange =
+    exportRangeType === 'all_time' ||
+    (exportRangeType === 'selected_day'
+      ? isNormalizedLocalDateInput(exportDate) && !isFutureLocalDateInput(exportDate)
+      : isNormalizedLocalMonthInput(exportMonth) && !isFutureLocalMonthInput(exportMonth));
 
   const requestTimeline = useCallback(
     () => getDoctorLinkedPatientTimeline(client, initialPatient.patientId),
@@ -216,10 +223,7 @@ export function DoctorLinkedPatientTimelineScreen({
   }, [locale, requestTimeline]);
 
   async function handleDownloadExport() {
-    const hasFutureRange =
-      (exportRangeType === 'selected_day' && isFutureLocalDateInput(exportDate)) ||
-      (exportRangeType === 'partial_month' && isFutureLocalMonthInput(exportMonth));
-    if (hasFutureRange) {
+    if (!hasValidExportRange) {
       setExportStatus(null);
       setExportError(t(locale, 'doctor.exportError'));
       return;
@@ -400,7 +404,7 @@ export function DoctorLinkedPatientTimelineScreen({
         <div className="doctor-export-actions">
           <button
             className="primary-button"
-            disabled={exporting}
+            disabled={exporting || !hasValidExportRange}
             onClick={() => void handleDownloadExport()}
             type="button"
           >

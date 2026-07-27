@@ -17,12 +17,14 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { StatusMessage } from '../components/StatusMessage';
 import { VoiceTextField } from '../components/VoiceTextField';
+import { createStoolSaveCompletion } from './stoolSaveCompletion';
 
 interface StoolFormScreenProps {
   client: AppSupabaseClient;
   entryToEdit?: { id: string; occurredAt: string } | null;
   onBack: () => void;
-  onSaved: () => void;
+  onDone: () => void;
+  onPersisted: () => void;
   profile: UserProfile;
 }
 
@@ -62,7 +64,8 @@ export function StoolFormScreen({
   client,
   entryToEdit,
   onBack,
-  onSaved,
+  onDone,
+  onPersisted,
   profile,
 }: StoolFormScreenProps) {
   const locale = getActiveLocale();
@@ -73,20 +76,12 @@ export function StoolFormScreen({
   const [error, setError] = useState<string | null>(null);
   const [savedStool, setSavedStool] = useState<StoolRecord | null>(null);
   const [savedNoStool, setSavedNoStool] = useState(false);
+  const completion = createStoolSaveCompletion({ onDone, onPersisted });
 
   useEffect(() => {
-    if (!entryToEdit) {
-      setDraft(initialDraft);
-      setOccurredAt(undefined);
-      setSavedStool(null);
-      setSavedNoStool(false);
-      setLoading(false);
-      return;
-    }
+    if (!entryToEdit) return;
 
     let active = true;
-    setLoading(true);
-    setError(null);
     void getPatientStool(client, entryToEdit.id, entryToEdit.occurredAt)
       .then((record) => {
         if (!active) return;
@@ -127,7 +122,7 @@ export function StoolFormScreen({
     setError(null);
     try {
       const saved = await createPatientStool(client, profile.id, draft, occurredAt);
-      setSavedStool(saved);
+      completion.persisted(() => setSavedStool(saved));
     } catch {
       setError(t(locale, 'stool.saveError'));
     } finally {
@@ -151,8 +146,7 @@ export function StoolFormScreen({
       await createPatientNoStoolMarker(client, profile.id, markerOccurredAt, {
         entryId: entryToEdit?.id,
       });
-      setSavedNoStool(true);
-      onSaved();
+      completion.persisted(() => setSavedNoStool(true));
     } catch {
       setError(t(locale, 'stool.noStoolSaveError'));
     } finally {
@@ -188,7 +182,7 @@ export function StoolFormScreen({
             >
               {t(locale, savedNoStool ? 'stool.recordBowelMovement' : 'stool.addAnother')}
             </button>
-            <button className="secondary-button" onClick={onSaved} type="button">
+            <button className="secondary-button" onClick={completion.done} type="button">
               {t(locale, 'stool.done')}
             </button>
           </div>

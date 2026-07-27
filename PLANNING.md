@@ -15,7 +15,7 @@ Build:
 - One immutable role per account: `patient` or `doctor`.
 - Manual doctor provisioning in Supabase.
 - Doctor invite-code creation, revocation before use, and patient redemption.
-- Patient baseline profile, full daily/symptom/stool forms, timeline CRUD, timestamp editing, and custom entries.
+- Patient baseline profile, full daily/symptom/stool forms, timeline CRUD, timestamp editing, and custom entries through the normal free-text Notes workflow.
 - Offline-lite cached own history and pending patient text entries.
 - Online compressed private photo upload with thumbnail and metadata for food/meal/fluid and medication entries only.
 - Free browser/device voice input for text fields where supported.
@@ -24,6 +24,10 @@ Build:
 
 Do not build in V1:
 - Doctor notes, patient revocation UI, paid transcription, raw audio storage, full offline sync, multi-device conflict resolution, offline photo upload, automatic deletion, post-research cleanup, iOS release, or formal compliance certification.
+
+V1 terminology:
+- A patient "custom entry" means an entry created through the normal free-text Notes workflow. V1 does not require a separate custom-entry category, screen, or persistence path in addition to Notes.
+- A custom symptom is captured through the Symptoms form by choosing "Other" and entering the custom symptom type. This satisfies the custom-symptom workflow and is separate from a free-text Notes entry.
 
 ## 3. Target Architecture
 Recommended monorepo:
@@ -103,7 +107,7 @@ Photo storage:
   - Each meal inside the food form can have its own photo.
   - Each other-fluid input inside the food form can have its own photo.
   - Medication entries can have a photo for package/pill identification.
-- Do not add photo inputs to daily, symptom, stool, exercise, menstruation, note, or custom-note entries in V1.
+- Do not add photo inputs to daily, symptom, stool, exercise, menstruation, or Notes/custom entries in V1.
 - Preview, resize main image to max width 1280px, encode JPEG around quality `0.8`, create thumbnail, and store metadata/path rows only.
 - Target sizes: main 250-500 KB where possible; thumbnail 20-60 KB.
 - Linked doctor access must use authenticated access or guarded time-limited references.
@@ -145,8 +149,8 @@ Photo storage:
 - Show menstrual history and menstruation tracking only when the patient's recorded sex is female; do not show menstruation fields or tracking to male patients.
 - Implement daily fields: wake time, food, appetite, water, other fluids, activity, sleep, stress, day description, medication outside chronic therapy, menstruation, energy, naps, and notes.
 - Require a response for every applicable daily field on each tracked day. Subfields explicitly marked optional remain optional, and conditional details are required only when their triggering answer applies.
-- Implement entry details: meal, symptom, stool, medication, exercise, menstruation, note, and custom fields.
-- Implement symptom fields: symptom type/custom type, start/end time, intensity 1-3, modifying factors, sleep interruption, pain location/radiation/description, custom pain description, and an explicit no-symptoms checkpoint. Meal and medication timestamps provide intake correlation; there are no standalone intake-list, quality-of-life-effect, or general-description questions.
+- Implement entry details: meal, symptom, stool, medication, exercise, menstruation, and Notes, where Notes is the patient custom-entry workflow.
+- Implement symptom fields: symptom type, an "Other" option with custom symptom type input, start/end time, intensity 1-3, modifying factors, sleep interruption, pain location/radiation/description, custom pain description, and an explicit no-symptoms checkpoint. Meal and medication timestamps provide intake correlation; there are no standalone intake-list, quality-of-life-effect, or general-description questions.
 - Implement stool fields: Bristol classification, urgency, pain, mucus, blood, fatty stool, black stool.
 - Repair Phase 4 form presentation with distinct platform styling: native mobile layouts must follow phone-first React Native patterns, while the companion web app must use its own responsive web layout without inheriting phone-frame or desktop-width assumptions.
 - Validate Phase 4 form layout at Pixel 9-style dimensions, at least one smaller phone viewport, and one wider desktop viewport. Stack or reflow date/time and other multi-column controls before they clip, overflow, or become unreadable.
@@ -162,7 +166,7 @@ Photo storage:
 
 ### Phase 6 - Photos And Voice
 - Add photo preview, compression, thumbnail generation, private upload, metadata rows, ownership policies, and linked-doctor read access for the V1 photo surfaces only: meals, other fluids, and medication.
-- Exclude photo inputs for daily, symptom, stool, exercise, menstruation, note, and custom-note entries. Rationale: daily has no photo need; symptoms are subjective stomach symptoms; stool photos are intentionally not collected; exercise, menstruation, and notes do not need photos in V1.
+- Exclude photo inputs for daily, symptom, stool, exercise, menstruation, and Notes/custom entries. Rationale: daily has no photo need; symptoms are subjective stomach symptoms; stool photos are intentionally not collected; exercise, menstruation, and Notes/custom entries do not need photos in V1.
 - Add free device/browser voice helper for `sr-RS` and `en-US` where available; append transcript, allow edits before save, and fall back to typing.
 - Done: photos are private compressed JPEG <=1280px wide with thumbnails and no original upload; voice/fallback behavior works.
 

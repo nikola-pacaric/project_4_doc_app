@@ -29,6 +29,7 @@ import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { StatusMessage } from '../components/StatusMessage';
+import { clearStaleLinkedPatients, type DoctorDashboardData } from '../lib/doctorDashboardState';
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { DoctorLinkedPatientTimelineScreen } from './DoctorLinkedPatientTimelineScreen';
 
@@ -101,8 +102,10 @@ export function DoctorPendingScreen({
   profile,
 }: DoctorPendingScreenProps) {
   const locale = getActiveLocale();
-  const [invites, setInvites] = useState<DoctorInviteCode[]>([]);
-  const [patients, setPatients] = useState<LinkedPatientSummary[]>([]);
+  const [{ invites, patients }, setDashboardData] = useState<DoctorDashboardData>({
+    invites: [],
+    patients: [],
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -119,6 +122,7 @@ export function DoctorPendingScreen({
 
   const loadDashboard = useCallback(
     async (showRefresh = false) => {
+      setDashboardData(clearStaleLinkedPatients);
       if (showRefresh) {
         setRefreshing(true);
       } else {
@@ -131,9 +135,9 @@ export function DoctorPendingScreen({
           listDoctorInviteCodes(client),
           listLinkedPatients(client),
         ]);
-        setInvites(nextInvites);
-        setPatients(nextPatients);
+        setDashboardData({ invites: nextInvites, patients: nextPatients });
       } catch {
+        setDashboardData(clearStaleLinkedPatients);
         setError(t(locale, 'doctor.loadError'));
       } finally {
         setLoading(false);
@@ -165,7 +169,10 @@ export function DoctorPendingScreen({
 
     try {
       const invite = await createDoctorInviteCode(client);
-      setInvites((current) => [invite, ...current]);
+      setDashboardData((current) => ({
+        ...current,
+        invites: [invite, ...current.invites],
+      }));
       setSuccess(t(locale, 'doctor.inviteCreated'));
     } catch {
       setError(t(locale, 'doctor.inviteCreateError'));

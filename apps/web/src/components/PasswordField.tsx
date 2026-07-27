@@ -2,6 +2,7 @@ interface PasswordFieldProps {
   autoComplete: 'current-password' | 'new-password';
   hidden: boolean;
   label: string;
+  minLength?: number;
   onChange: (value: string) => void;
   onToggleVisibility: () => void;
   toggleLabel: string;
@@ -12,6 +13,7 @@ export function PasswordField({
   autoComplete,
   hidden,
   label,
+  minLength,
   onChange,
   onToggleVisibility,
   toggleLabel,
@@ -23,7 +25,7 @@ export function PasswordField({
       <span className="password-input-wrap">
         <input
           autoComplete={autoComplete}
-          minLength={8}
+          minLength={minLength}
           onChange={(event) => onChange(event.target.value)}
           required
           type={hidden ? 'password' : 'text'}

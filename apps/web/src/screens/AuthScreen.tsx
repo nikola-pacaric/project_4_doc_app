@@ -6,8 +6,7 @@ import { useState, type FormEvent } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { PasswordField } from '../components/PasswordField';
 import { StatusMessage } from '../components/StatusMessage';
-
-type AuthMode = 'patient-login' | 'patient-signup' | 'doctor-login';
+import { authModeUiAfterChange, type AuthMode } from './authModeUi';
 
 interface AuthScreenProps {
   client: AppSupabaseClient;
@@ -28,6 +27,14 @@ export function AuthScreen({ client, locale, onChangeLocale }: AuthScreenProps) 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  function changeMode(nextMode: AuthMode) {
+    const nextUi = authModeUiAfterChange(nextMode);
+    setMode(nextUi.mode);
+    setPasswordHidden(nextUi.passwordHidden);
+    setError(nextUi.error);
+    setMessage(nextUi.message);
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -103,10 +110,7 @@ export function AuthScreen({ client, locale, onChangeLocale }: AuthScreenProps) 
               aria-selected={mode === item.value}
               className={mode === item.value ? 'selected' : ''}
               key={item.value}
-              onClick={() => {
-                setMode(item.value);
-                setPasswordHidden(true);
-              }}
+              onClick={() => changeMode(item.value)}
               role="tab"
               type="button"
             >
@@ -141,6 +145,7 @@ export function AuthScreen({ client, locale, onChangeLocale }: AuthScreenProps) 
             autoComplete={mode === 'patient-signup' ? 'new-password' : 'current-password'}
             hidden={passwordHidden}
             label={t(locale, 'auth.password')}
+            minLength={mode === 'patient-signup' ? 6 : undefined}
             onChange={setPassword}
             onToggleVisibility={() => setPasswordHidden((current) => !current)}
             toggleLabel={t(locale, passwordHidden ? 'auth.showPassword' : 'auth.hidePassword')}

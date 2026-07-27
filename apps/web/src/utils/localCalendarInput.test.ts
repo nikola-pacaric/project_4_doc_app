@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   isFutureLocalDateInput,
   isFutureLocalMonthInput,
+  isNormalizedLocalDateInput,
+  isNormalizedLocalMonthInput,
   toLocalDateInput,
   toLocalMonthInput,
 } from './localCalendarInput';
@@ -20,6 +22,18 @@ describe('web local calendar input defaults', () => {
 
     expect(toLocalDateInput(value)).toBe('2026-01-05');
     expect(toLocalMonthInput(value)).toBe('2026-01');
+  });
+
+  it('accepts only non-empty normalized calendar values', () => {
+    expect(isNormalizedLocalDateInput('2026-07-23')).toBe(true);
+    expect(isNormalizedLocalDateInput('')).toBe(false);
+    expect(isNormalizedLocalDateInput('2026-7-23')).toBe(false);
+    expect(isNormalizedLocalDateInput('2026-02-31')).toBe(false);
+
+    expect(isNormalizedLocalMonthInput('2026-07')).toBe(true);
+    expect(isNormalizedLocalMonthInput('')).toBe(false);
+    expect(isNormalizedLocalMonthInput('2026-7')).toBe(false);
+    expect(isNormalizedLocalMonthInput('2026-13')).toBe(false);
   });
 
   it('rejects only day values after the current local calendar day', () => {

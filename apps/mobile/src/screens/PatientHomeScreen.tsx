@@ -54,7 +54,10 @@ import {
   saveCachedRecentEntries,
   savePendingEntries,
 } from '../offline/pendingEntries';
-import { foregroundReconnectDelayMs } from '../lib/foregroundReconnectPolicy';
+import {
+  foregroundReconnectDelayMs,
+  refreshForegroundPatientData,
+} from '../lib/foregroundReconnectPolicy';
 import { localDayRange, toLocalDateInput } from '../utils/dateTime';
 import { BaselineScreen } from './BaselineScreen';
 import { DailyProgressHomeScreen } from './DailyProgressHomeScreen';
@@ -171,9 +174,17 @@ export function PatientHomeScreen({
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
   const [pendingEntries, setPendingEntries] = useState<LocalPendingEntry[]>([]);
   const [foodForm, setFoodForm] = useState<FoodFormRecord | null>(null);
+  const showTimelineRef = useRef(showTimeline);
+  const timelineDayRef = useRef(timelineDay);
   const syncPendingPromiseRef = useRef<Promise<LocalPendingEntry[]> | null>(null);
   const loadEntriesPromiseRef = useRef<Promise<void> | null>(null);
+  const lifecycleRefreshPromiseRef = useRef<Promise<void> | null>(null);
   const timelineDayRequestIdRef = useRef(0);
+
+  useEffect(() => {
+    showTimelineRef.current = showTimeline;
+    timelineDayRef.current = timelineDay;
+  }, [showTimeline, timelineDay]);
 
   const handleActivityAnswerChange = useCallback((answer: boolean | undefined) => {
     setExerciseRequired(answer === true);
@@ -516,6 +527,28 @@ export function PatientHomeScreen({
     [client, locale, profile.id, syncPendingQueue],
   );
 
+  const refreshVisiblePatientData = useCallback(async () => {
+    if (lifecycleRefreshPromiseRef.current) {
+      return lifecycleRefreshPromiseRef.current;
+    }
+
+    const refreshPromise = refreshForegroundPatientData(
+      () => loadEntries({ showLoading: false }),
+      async () => {
+        if (showTimelineRef.current) {
+          await loadTimelineDay(timelineDayRef.current, { showLoading: false });
+        }
+      },
+    );
+    lifecycleRefreshPromiseRef.current = refreshPromise;
+
+    try {
+      await refreshPromise;
+    } finally {
+      lifecycleRefreshPromiseRef.current = null;
+    }
+  }, [loadEntries, loadTimelineDay]);
+
   const deleteTimelineEntry = useCallback(
     async (entry: PatientEntry) => {
       const today = toLocalDateInput(new Date());
@@ -569,21 +602,21 @@ export function PatientHomeScreen({
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         setReconnectAttempt((current) => current + 1);
-        void loadEntries({ showLoading: false });
+        void refreshVisiblePatientData();
       }
     });
 
     return () => subscription.remove();
-  }, [loadEntries]);
+  }, [refreshVisiblePatientData]);
 
   useEffect(() => {
     if (!offlineMode || AppState.currentState !== 'active') return;
     const retryTimer = setTimeout(() => {
-      void loadEntries({ showLoading: false });
+      void refreshVisiblePatientData();
     }, foregroundReconnectDelayMs(reconnectAttempt));
 
     return () => clearTimeout(retryTimer);
-  }, [loadEntries, offlineMode, reconnectAttempt]);
+  }, [offlineMode, reconnectAttempt, refreshVisiblePatientData]);
 
   if (showBaseline) {
     return (
