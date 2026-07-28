@@ -23,10 +23,23 @@ export type VoiceInputSession = {
   stop: () => Promise<void>;
 };
 
+export type VoiceInputFailureFeedback = 'silent' | 'no_speech' | 'unavailable';
+
 let activeSessionOwner: symbol | null = null;
 
 function voiceInputError(code: string, message: string): Error & { code: string } {
   return Object.assign(new Error(message), { code });
+}
+
+export function voiceInputFailureFeedback(error: unknown): VoiceInputFailureFeedback {
+  const code =
+    typeof error === 'object' && error && 'code' in error && typeof error.code === 'string'
+      ? error.code
+      : undefined;
+
+  if (code === 'canceled') return 'silent';
+  if (code === 'no_transcript') return 'no_speech';
+  return 'unavailable';
 }
 
 export function appendVoiceTranscript(currentValue: string, transcript: string): string {

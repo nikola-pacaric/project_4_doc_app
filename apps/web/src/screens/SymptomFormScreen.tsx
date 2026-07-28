@@ -16,6 +16,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { StatusMessage } from '../components/StatusMessage';
 import { SymptomFields } from '../components/SymptomFields';
+import { initialLoadViewState } from './initialLoadViewState';
 
 interface SymptomFormScreenProps {
   client: AppSupabaseClient;
@@ -68,6 +69,8 @@ export function SymptomFormScreen({ client, onBack, onSaved, profile }: SymptomF
   const [expanded, setExpanded] = useState<SymptomType[]>([]);
   const [invalid, setInvalid] = useState<SymptomType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -78,16 +81,22 @@ export function SymptomFormScreen({ client, onBack, onSaved, profile }: SymptomF
     void listPatientSymptoms(client, profile.id, range.start, range.end)
       .then((records) => {
         if (!active) return;
+        setLoadFailed(false);
         const loaded = records.map(toDraft);
         setDrafts(loaded);
         setExpanded(loaded.flatMap((draft) => (draft.type ? [draft.type] : [])));
       })
-      .catch(() => active && setError(t(locale, 'symptom.loadError')))
+      .catch(() => {
+        if (active) {
+          setLoadFailed(true);
+          setError(t(locale, 'symptom.loadError'));
+        }
+      })
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, [client, locale, profile.id]);
+  }, [client, loadAttempt, locale, profile.id]);
 
   function toggle(type: SymptomType) {
     const selected = drafts.some((draft) => draft.type === type);
@@ -154,14 +163,37 @@ export function SymptomFormScreen({ client, onBack, onSaved, profile }: SymptomF
     }
   }
 
+  function retryLoad() {
+    setLoading(true);
+    setLoadFailed(false);
+    setError(null);
+    setMessage(null);
+    setLoadAttempt((current) => current + 1);
+  }
+
+  const loadView = initialLoadViewState(loading, loadFailed);
+
   return (
     <main className="baseline-layout structured-entry-layout symptom-layout">
       <div className="baseline-toolbar">
         <ScreenHeader eyebrow={t(locale, 'role.patient')} title={t(locale, 'symptom.title')} />
         <p className="summary">{t(locale, 'symptom.subtitle')}</p>
       </div>
-      {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
-      {!loading ? (
+      {loadView === 'loading' ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
+      {loadView === 'failure' ? (
+        <section className="structured-entry-form">
+          <StatusMessage tone="error">{error ?? t(locale, 'symptom.loadError')}</StatusMessage>
+          <div className="form-actions form-actions-row">
+            <button className="primary-button" onClick={retryLoad} type="button">
+              {t(locale, 'common.retry')}
+            </button>
+            <button className="secondary-button" onClick={onBack} type="button">
+              {t(locale, 'common.back')}
+            </button>
+          </div>
+        </section>
+      ) : null}
+      {loadView === 'content' ? (
         <form
           className="structured-entry-form symptom-form"
           onSubmit={(event) => void submit(event)}

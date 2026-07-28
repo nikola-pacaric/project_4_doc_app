@@ -1,5 +1,5 @@
 import type { UserRole } from '@project4/contracts';
-import { getPatientSignupValidationError } from '@project4/forms';
+import { getLoginValidationError, getPatientSignupValidationError } from '@project4/forms';
 import { t, type Locale } from '@project4/i18n';
 import { signInForRole, signUpPatient, type AppSupabaseClient } from '@project4/supabase-client';
 import { useState } from 'react';
@@ -62,9 +62,12 @@ export function AuthScreen({ client, locale, onChangeLocale }: AuthScreenProps) 
         setError(t(locale, validationError));
         return;
       }
-    } else if (!email.trim() || !password) {
-      setError(t(locale, 'auth.unexpectedError'));
-      return;
+    } else {
+      const validationError = getLoginValidationError({ email, password });
+      if (validationError) {
+        setError(t(locale, validationError));
+        return;
+      }
     }
 
     setBusy(true);

@@ -19,6 +19,7 @@ import {
   appendVoiceTranscript,
   createVoiceInputSession,
   isVoiceInputSupported,
+  voiceInputFailureFeedback,
   type VoiceInputSession,
 } from '../lib/voiceInput';
 
@@ -118,8 +119,12 @@ export function FormField({
       setMessage(t(locale, 'voice.added'));
     } catch (error) {
       if (!mountedRef.current) return;
-      const code = typeof error === 'object' && error && 'code' in error ? error.code : undefined;
-      setMessage(code === 'canceled' ? null : t(locale, 'voice.unavailable'));
+      const feedback = voiceInputFailureFeedback(error);
+      setMessage(
+        feedback === 'silent'
+          ? null
+          : t(locale, feedback === 'no_speech' ? 'voice.noSpeech' : 'voice.unavailable'),
+      );
     } finally {
       if (mountedRef.current) {
         setListening(false);

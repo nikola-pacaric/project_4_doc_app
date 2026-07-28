@@ -27,6 +27,7 @@ describe('AuthScreen', () => {
     );
 
     expect(markup).toContain('autoComplete="current-password"');
+    expect(markup).toContain('noValidate=""');
     expect(markup).not.toContain('minLength=');
   });
 

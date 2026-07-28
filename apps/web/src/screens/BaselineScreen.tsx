@@ -22,6 +22,7 @@ import {
   type BaselineEditorState,
   type ChronicTherapyInput,
 } from './baselineDiscard';
+import { initialLoadViewState } from './initialLoadViewState';
 
 interface BaselineScreenProps {
   client: AppSupabaseClient;
@@ -101,9 +102,7 @@ function savedYesNoFromText(
   return Boolean(value?.trim());
 }
 
-function savedBaselineEditorState(
-  current: PatientBaselineProfile | null,
-): BaselineEditorState {
+function savedBaselineEditorState(current: PatientBaselineProfile | null): BaselineEditorState {
   return {
     draft: toDraft(current),
     hasChronicDiseases: savedYesNoFromText(current, current?.chronicDiseases),
@@ -118,6 +117,8 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
   const [current, setCurrent] = useState<PatientBaselineProfile | null>(null);
   const [draft, setDraft] = useState<BaselineProfileDraft>({ ...baselineProfileDefaults });
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -146,6 +147,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
     void getPatientBaseline(client, profile.id)
       .then((loaded) => {
         if (!active) return;
+        setLoadFailed(false);
         setCurrent(loaded);
         setDraft(toDraft(loaded));
         setHasChronicDiseases(savedYesNoFromText(loaded, loaded?.chronicDiseases));
@@ -154,7 +156,10 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
         setChronicTherapies(parseChronicTherapies(loaded?.chronicTherapy));
       })
       .catch(() => {
-        if (active) setError(t(locale, 'baseline.loadError'));
+        if (active) {
+          setLoadFailed(true);
+          setError(t(locale, 'baseline.loadError'));
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -162,7 +167,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
     return () => {
       active = false;
     };
-  }, [client, locale, profile.id]);
+  }, [client, loadAttempt, locale, profile.id]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -197,6 +202,16 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
     confirmBaselineDiscard({ hasUnsavedChanges, saving, locale, onDiscard: onBack });
   }
 
+  function retryLoad() {
+    setLoading(true);
+    setLoadFailed(false);
+    setError(null);
+    setMessage(null);
+    setLoadAttempt((current) => current + 1);
+  }
+
+  const loadView = initialLoadViewState(loading, loadFailed);
+
   return (
     <main className="baseline-layout structured-entry-layout">
       <div className="baseline-toolbar">
@@ -204,8 +219,21 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
         <p className="summary">{t(locale, 'baseline.subtitle')}</p>
       </div>
 
-      {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
-      {!loading ? (
+      {loadView === 'loading' ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
+      {loadView === 'failure' ? (
+        <section className="structured-entry-form">
+          <StatusMessage tone="error">{error ?? t(locale, 'baseline.loadError')}</StatusMessage>
+          <div className="form-actions form-actions-row">
+            <button className="primary-button" onClick={retryLoad} type="button">
+              {t(locale, 'common.retry')}
+            </button>
+            <button className="secondary-button" onClick={onBack} type="button">
+              {t(locale, 'common.back')}
+            </button>
+          </div>
+        </section>
+      ) : null}
+      {loadView === 'content' ? (
         <form
           className="structured-entry-form baseline-profile-form"
           onSubmit={(event) => void submit(event)}

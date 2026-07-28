@@ -54,6 +54,7 @@ import {
   saveCachedRecentEntries,
   savePendingEntries,
 } from '../offline/pendingEntries';
+import { failedPendingSyncErrorKey } from '../offline/pendingSyncError';
 import {
   foregroundReconnectDelayMs,
   refreshForegroundPatientData,
@@ -318,6 +319,10 @@ export function PatientHomeScreen({
       }
 
       setPendingEntries(remainingEntries);
+      const failedErrorKey = failedPendingSyncErrorKey(remainingEntries);
+      if (failedErrorKey) {
+        setError(t(getActiveLocale(), failedErrorKey));
+      }
       return remainingEntries;
     })();
 

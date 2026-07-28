@@ -11,7 +11,7 @@ vi.mock('react-native', () => ({
   Platform: { OS: 'android' },
 }));
 
-import { createVoiceInputSession } from './voiceInput';
+import { createVoiceInputSession, voiceInputFailureFeedback } from './voiceInput';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -24,6 +24,24 @@ function deferred<T>() {
 }
 
 describe('mobile voice input lifecycle', () => {
+  it('uses dedicated feedback when recognition returns no transcript', () => {
+    expect(
+      voiceInputFailureFeedback(
+        Object.assign(new Error('No transcript'), { code: 'no_transcript' }),
+      ),
+    ).toBe('no_speech');
+  });
+
+  it('keeps cancellation silent and treats other failures as unavailable', () => {
+    expect(
+      voiceInputFailureFeedback(Object.assign(new Error('Canceled'), { code: 'canceled' })),
+    ).toBe('silent');
+    expect(
+      voiceInputFailureFeedback(Object.assign(new Error('Denied'), { code: 'unavailable' })),
+    ).toBe('unavailable');
+    expect(voiceInputFailureFeedback(new Error('Unknown failure'))).toBe('unavailable');
+  });
+
   it('does not start recognition when canceled during the permission request', async () => {
     const permission = deferred<boolean>();
     const nativeModule = {

@@ -1,5 +1,6 @@
 import type { UserRole } from '@project4/contracts';
 import {
+  getLoginValidationError,
   getPatientSignupValidationError,
   PATIENT_SIGNUP_PASSWORD_MIN_LENGTH,
 } from '@project4/forms';
@@ -44,6 +45,13 @@ export function AuthScreen({ client, locale, onChangeLocale }: AuthScreenProps) 
     event.preventDefault();
     if (mode === 'patient-signup') {
       const validationError = getPatientSignupValidationError({ displayName, email, password });
+      if (validationError) {
+        setError(t(locale, validationError));
+        setMessage(null);
+        return;
+      }
+    } else {
+      const validationError = getLoginValidationError({ email, password });
       if (validationError) {
         setError(t(locale, validationError));
         setMessage(null);
@@ -131,7 +139,7 @@ export function AuthScreen({ client, locale, onChangeLocale }: AuthScreenProps) 
             </button>
           ))}
         </div>
-        <form className="form-stack" onSubmit={(event) => void submit(event)}>
+        <form className="form-stack" noValidate onSubmit={(event) => void submit(event)}>
           {mode === 'patient-signup' ? (
             <label>
               <span>{t(locale, 'auth.displayName')}</span>
