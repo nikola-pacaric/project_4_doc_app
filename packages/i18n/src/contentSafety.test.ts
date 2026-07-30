@@ -40,4 +40,30 @@ describe('product trust copy', () => {
       expect(dictionaries[locale]['form.keepEditing']).toBeTruthy();
     }
   });
+
+  it('localizes every failed-sync recovery action', () => {
+    const recoveryKeys = [
+      'sync.failedTitle',
+      'sync.failedBody',
+      'sync.failedStatus',
+      'sync.failedCreate',
+      'sync.failedNoteUpdate',
+      'sync.failedTimestampUpdate',
+      'sync.retry',
+      'sync.retrying',
+      'sync.discard',
+      'sync.discardTitle',
+      'sync.discardBody',
+      'sync.discardConfirm',
+      'sync.retrySucceeded',
+      'sync.retryQueued',
+      'sync.discarded',
+      'sync.recoveryError',
+    ] as const;
+
+    for (const key of recoveryKeys) {
+      expect(dictionaries.en[key]).toBeTruthy();
+      expect(dictionaries.sr[key]).toBeTruthy();
+    }
+  });
 });

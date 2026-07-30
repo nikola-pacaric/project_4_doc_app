@@ -1,5 +1,6 @@
 import { getActiveLocale, getActiveVoiceLanguage, t } from '@project4/i18n';
 import { useEffect, useId, useRef, useState, type RefObject } from 'react';
+import { configureVoiceRecognitionLifecycle } from './voiceRecognitionLifecycle';
 
 interface VoiceTextFieldProps {
   label: string;
@@ -69,6 +70,7 @@ export function VoiceTextField({
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const receivedTranscriptRef = useRef(false);
+  const recognitionErrorRef = useRef(false);
   const valueRef = useRef(value);
   const onChangeRef = useRef(onChange);
 
@@ -86,42 +88,17 @@ export function VoiceTextField({
     recognition.interimResults = false;
     recognition.lang = getActiveVoiceLanguage();
 
-    recognition.onstart = () => {
-      setListening(true);
-      setMessage(t(locale, 'voice.listening'));
-    };
-
-    recognition.onresult = (event) => {
-      const transcripts: string[] = [];
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const result = event.results[index];
-        if (result?.isFinal) {
-          const transcript = result[0]?.transcript?.trim();
-          if (transcript) transcripts.push(transcript);
-        }
-      }
-
-      if (!transcripts.length) return;
-
-      receivedTranscriptRef.current = true;
-      const currentValue = valueRef.current.trimEnd();
-      const transcript = transcripts.join(' ');
-      onChangeRef.current(currentValue ? `${currentValue} ${transcript}` : transcript);
-      setMessage(t(locale, 'voice.added'));
-    };
-
-    recognition.onerror = (event) => {
-      if (event.error !== 'aborted') {
-        setMessage(t(locale, 'voice.unavailable'));
-      }
-    };
-
-    recognition.onend = () => {
-      setListening(false);
-      if (!receivedTranscriptRef.current) {
-        setMessage(t(locale, 'voice.noSpeech'));
-      }
-    };
+    configureVoiceRecognitionLifecycle(recognition, {
+      locale,
+      receivedTranscriptRef,
+      recognitionErrorRef,
+      onListeningChange: setListening,
+      onMessage: setMessage,
+      onTranscript: (transcript) => {
+        const currentValue = valueRef.current.trimEnd();
+        onChangeRef.current(currentValue ? `${currentValue} ${transcript}` : transcript);
+      },
+    });
 
     recognitionRef.current = recognition;
 
@@ -144,11 +121,13 @@ export function VoiceTextField({
 
     inputRef.current?.focus();
     receivedTranscriptRef.current = false;
+    recognitionErrorRef.current = false;
     setMessage(null);
     try {
       recognition.lang = getActiveVoiceLanguage();
       recognition.start();
     } catch {
+      recognitionErrorRef.current = true;
       setListening(false);
       setMessage(t(locale, 'voice.unavailable'));
     }

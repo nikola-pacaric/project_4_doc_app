@@ -1,5 +1,5 @@
 import type { UserProfile } from '@project4/contracts';
-import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
+import { formatShortDateTime, getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
   createDoctorInviteCode,
   listDoctorInviteCodes,
@@ -26,15 +26,6 @@ interface DoctorPendingScreenProps {
 }
 
 type InviteStatus = 'active' | 'redeemed' | 'revoked' | 'expired';
-
-function formatShortDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value));
-}
 
 function maskPatientId(patientId: string): string {
   return patientId.slice(0, 8).toUpperCase();
@@ -164,7 +155,7 @@ export function DoctorPendingScreen({
   const activeInviteHelp = activeInvite
     ? t(locale, 'doctor.activeInviteHelp').replace(
         '{date}',
-        formatShortDate(activeInvite.expiresAt),
+        formatShortDateTime(activeInvite.expiresAt, locale),
       )
     : t(locale, 'doctor.noActiveInvite');
 
@@ -240,7 +231,7 @@ export function DoctorPendingScreen({
               <small>
                 {t(locale, 'doctor.inviteExpires').replace(
                   '{date}',
-                  formatShortDate(activeInvite.expiresAt),
+                  formatShortDateTime(activeInvite.expiresAt, locale),
                 )}
               </small>
             </div>
@@ -326,7 +317,7 @@ export function DoctorPendingScreen({
                   <small>
                     {t(locale, 'doctor.linkedAt').replace(
                       '{date}',
-                      formatShortDate(patient.linkedAt),
+                      formatShortDateTime(patient.linkedAt, locale),
                     )}
                   </small>
                   <span className="doctor-open-patient">{t(locale, 'doctor.openPatient')}</span>

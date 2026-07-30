@@ -3,6 +3,7 @@ import type { PatientEntry } from '@project4/contracts';
 import type { AppSupabaseClient } from './index';
 import type { Database } from './database.types';
 import { deleteEntryPhotoObjects, listEntryPhotos } from './patientPhotos';
+import { drainPendingPatientPhotoCleanups } from './patientPhotoCleanup';
 
 export type PatientEntryRow = Pick<
   Database['public']['Tables']['patient_entries']['Row'],
@@ -145,6 +146,7 @@ export async function deletePatientEntry(
   try {
     await deleteEntryPhotoObjects(client, photos);
     return { photoCleanupPending: false };
+    await drainPendingPatientPhotoCleanups(client);
   } catch {
     return { photoCleanupPending: true };
   }

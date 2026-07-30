@@ -10,6 +10,7 @@
     "rls:exports": "npx --yes supabase db query --linked --file tests/rls_doctor_exports.sql",
     "rls:invites": "npx --yes supabase db query --linked --file tests/rls_doctor_invites.sql",
     "rls:notes": "npx --yes supabase db query --linked --file tests/atomic_period_note_save.sql",
+    "rls:photo-cleanup": "npx --yes supabase db query --linked --file tests/photo_cleanup_outbox.sql",
     "rls:photos": "npx --yes supabase db query --linked --file tests/rls_photo_storage.sql",
     "types:generate": "npx --yes supabase gen types --linked --schema public > ../../packages/supabase-client/src/database.types.ts && npx prettier --write ../../packages/supabase-client/src/database.types.ts",
     "typecheck": "node -e \"console.log('Supabase checks: npm run migration:list, npm run rls:core, npm run rls:invites, npm run rls:notes, npm run rls:exports, npm run rls:photos')\""

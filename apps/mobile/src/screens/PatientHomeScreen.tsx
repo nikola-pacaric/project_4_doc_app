@@ -1,7 +1,9 @@
 import {
+  filterCachedCompactTimelineEntries,
   filterPatientTimelineEntries,
   isNoStoolTodayEntry,
   type PatientEntry,
+  type PatientBaselineProfile,
   type UserProfile,
   type FoodFormRecord,
 } from '@project4/contracts';
@@ -22,6 +24,7 @@ import {
   mergePendingTextEntries,
   pendingTimelineEntryIds,
   removePendingEntry,
+  retryPendingEntry,
   type LocalPendingEntry,
   type PendingNoteUpdatePayload,
   type PendingTextEntryPayload,
@@ -31,6 +34,8 @@ import {
   completePatientDailyForm,
   createPatientNote,
   deletePatientEntry,
+  deleteQueuedEntryPhotos,
+  drainPendingPatientPhotoCleanups,
   isTransientSupabaseError,
   getPatientBaseline,
   getPatientDailyForm,
@@ -45,16 +50,21 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, BackHandler } from 'react-native';
 import {
+  type PendingSyncRecoveryBusyState,
+  type PendingSyncRecoveryMessage,
+} from '../components/PendingSyncRecovery';
+import {
   appendPendingEntry,
   loadCachedEntriesForDay,
+  loadPendingPhotoDeletions,
+  savePendingPhotoDeletions,
   loadCachedOpenedDayEntries,
   loadCachedRecentEntries,
   loadPendingEntries,
   saveCachedOpenedDayEntries,
   saveCachedRecentEntries,
-  savePendingEntries,
+  updatePendingEntries,
 } from '../offline/pendingEntries';
-import { failedPendingSyncErrorKey } from '../offline/pendingSyncError';
 import {
   foregroundReconnectDelayMs,
   refreshForegroundPatientData,
@@ -146,6 +156,7 @@ export function PatientHomeScreen({
     onOfflineModeChange?.(offlineMode);
   }, [offlineMode, onOfflineModeChange]);
   const [showBaseline, setShowBaseline] = useState(initialTab === 'profile');
+  const [patientBaseline, setPatientBaseline] = useState<PatientBaselineProfile | null>(null);
   const [showDailyForm, setShowDailyForm] = useState(false);
   const [dailyEntryId, setDailyEntryId] = useState<string | null>(null);
   const [dailyCompleted, setDailyCompleted] = useState(false);
@@ -181,6 +192,11 @@ export function PatientHomeScreen({
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
   const [canTrackMenstruation, setCanTrackMenstruation] = useState(false);
   const [pendingEntries, setPendingEntries] = useState<LocalPendingEntry[]>([]);
+  const [pendingSyncBusy, setPendingSyncBusy] = useState<PendingSyncRecoveryBusyState | null>(null);
+  const [pendingSyncMessage, setPendingSyncMessage] = useState<PendingSyncRecoveryMessage | null>(
+    null,
+  );
+  const pendingSyncRecoveryPromiseRef = useRef<Promise<void> | null>(null);
   const [foodForm, setFoodForm] = useState<FoodFormRecord | null>(null);
   const showTimelineRef = useRef(showTimeline);
   const timelineDayRef = useRef(timelineDay);
@@ -188,6 +204,22 @@ export function PatientHomeScreen({
   const loadEntriesPromiseRef = useRef<Promise<void> | null>(null);
   const lifecycleRefreshPromiseRef = useRef<Promise<void> | null>(null);
   const timelineDayRequestIdRef = useRef(0);
+
+  useEffect(() => {
+    let active = true;
+    void drainPendingPatientPhotoCleanups(client).catch(() => undefined);
+    void loadPendingPhotoDeletions(profile.id)
+      .then(async (pendingPhotoDeletions) => {
+        if (!pendingPhotoDeletions.length) return;
+        await deleteQueuedEntryPhotos(client, pendingPhotoDeletions);
+        if (active) await savePendingPhotoDeletions(profile.id, []);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [client, profile.id]);
 
   useEffect(() => {
     showTimelineRef.current = showTimeline;
@@ -263,8 +295,6 @@ export function PatientHomeScreen({
 
     const syncPromise = (async () => {
       const queuedEntries = await loadPendingEntries(profile.id);
-      let remainingEntries = queuedEntries;
-
       for (const pendingEntry of queuedEntries) {
         if (!isPendingEntryRetryable(pendingEntry)) continue;
 
@@ -291,10 +321,13 @@ export function PatientHomeScreen({
             const payload = pendingEntry.payload as PendingTimestampUpdatePayload;
             await updateEntryTimestamp(client, payload.entryId, payload.occurredAt);
           }
-          remainingEntries = removePendingEntry(remainingEntries, pendingEntry.id);
-          await savePendingEntries(profile.id, remainingEntries);
+          await updatePendingEntries(profile.id, (current) =>
+            removePendingEntry(current, pendingEntry.id),
+          );
         } catch (syncError) {
-          if (isTransientSupabaseError(syncError)) break;
+          if (isTransientSupabaseError(syncError)) {
+            break;
+          }
 
           const errorCode =
             syncError &&
@@ -303,26 +336,16 @@ export function PatientHomeScreen({
             typeof syncError.code === 'string'
               ? syncError.code
               : 'SYNC_REJECTED';
-          remainingEntries = remainingEntries.map((entry) =>
-            entry.id === pendingEntry.id ? markPendingEntryFailed(entry, errorCode) : entry,
-          );
-          await savePendingEntries(profile.id, remainingEntries);
-          setError(
-            t(
-              getActiveLocale(),
-              pendingEntry.operation === 'create_text_entry'
-                ? 'entry.saveError'
-                : 'entry.updateError',
+          await updatePendingEntries(profile.id, (current) =>
+            current.map((entry) =>
+              entry.id === pendingEntry.id ? markPendingEntryFailed(entry, errorCode) : entry,
             ),
           );
         }
       }
 
+      const remainingEntries = await loadPendingEntries(profile.id);
       setPendingEntries(remainingEntries);
-      const failedErrorKey = failedPendingSyncErrorKey(remainingEntries);
-      if (failedErrorKey) {
-        setError(t(getActiveLocale(), failedErrorKey));
-      }
       return remainingEntries;
     })();
 
@@ -361,6 +384,7 @@ export function PatientHomeScreen({
         const visible = filterPatientTimelineEntries(
           nextEntries,
           canTrackMenstruation ? 'female' : null,
+          { includeFluidEntries: true },
         );
         setTimelineDayEntries(visible);
         setOfflineMode(false);
@@ -373,9 +397,7 @@ export function PatientHomeScreen({
 
         setOfflineMode(true);
         if (cached.length) {
-          setTimelineDayEntries(
-            filterPatientTimelineEntries(cached, canTrackMenstruation ? 'female' : null),
-          );
+          setTimelineDayEntries(cached);
           setTimelineError(null);
         } else {
           setTimelineDayEntries([]);
@@ -449,6 +471,7 @@ export function PatientHomeScreen({
             ]),
             ONLINE_LOAD_TIMEOUT_MS,
           );
+          setPatientBaseline(baseline);
           const [nextCompleteMealEntryIds, nextCompleteMedicationEntryIds] = await withTimeout(
             Promise.all([
               listCompletePatientMealEntryIds(
@@ -465,21 +488,26 @@ export function PatientHomeScreen({
           setOfflineMode(false);
           setReconnectAttempt(0);
           setFoodForm(foodFormDetails);
-          await saveCachedRecentEntries(profile.id, nextEntries);
-          await saveCachedOpenedDayEntries(
-            profile.id,
-            nextEntries,
-            (entry) => toLocalDateInput(new Date(entry.occurredAt)),
-            recentLocalDays(),
-          );
           const dailyDraft = dailyForm ? toDailyFormDraft(dailyForm.details) : null;
           const visibleDailyEntryIds =
             dailyForm && (dailyForm.details.completedAt || hasDailyFormProgress(dailyDraft ?? {}))
               ? [dailyForm.entryId]
               : [];
-          setEntries(
-            filterPatientTimelineEntries(nextEntries, baseline?.sex, { visibleDailyEntryIds }),
+          const visibleEntries = filterPatientTimelineEntries(nextEntries, baseline?.sex, {
+            visibleDailyEntryIds,
+          });
+          await saveCachedRecentEntries(profile.id, visibleEntries);
+          const detailedVisibleEntries = filterPatientTimelineEntries(nextEntries, baseline?.sex, {
+            includeFluidEntries: true,
+            visibleDailyEntryIds,
+          });
+          await saveCachedOpenedDayEntries(
+            profile.id,
+            detailedVisibleEntries,
+            (entry) => toLocalDateInput(new Date(entry.occurredAt)),
+            recentLocalDays(),
           );
+          setEntries(visibleEntries);
           setDailyEntryId(dailyForm?.entryId ?? null);
           setDailyCompleted(Boolean(dailyForm?.details.completedAt));
           setDailyMissingFields(
@@ -509,15 +537,15 @@ export function PatientHomeScreen({
           setPeriodCompleted(hasTodayEntry(nextEntries, 'menstruation'));
           setCanTrackMenstruation(baseline?.sex === 'female');
         } catch {
-          const cachedOpenedDayEntries = await loadCachedOpenedDayEntries(profile.id);
-          const cachedEntries = cachedOpenedDayEntries.length
-            ? cachedOpenedDayEntries
-            : await loadCachedRecentEntries(profile.id);
+          const cachedRecentEntries = await loadCachedRecentEntries(profile.id);
+          const cachedEntries = cachedRecentEntries.length
+            ? cachedRecentEntries
+            : filterCachedCompactTimelineEntries(await loadCachedOpenedDayEntries(profile.id));
           setOfflineMode(true);
           setReconnectAttempt((current) => current + 1);
           setFoodForm(null);
           if (cachedEntries.length) {
-            setEntries(filterPatientTimelineEntries(cachedEntries, null));
+            setEntries(cachedEntries);
             setCompleteMealEntryIds([]);
             setCompleteMedicationEntryIds([]);
             setError(null);
@@ -561,6 +589,89 @@ export function PatientHomeScreen({
     }
   }, [loadEntries, loadTimelineDay]);
 
+  const retryFailedPendingSync = useCallback(
+    async (entryId: string) => {
+      if (pendingSyncRecoveryPromiseRef.current) {
+        return pendingSyncRecoveryPromiseRef.current;
+      }
+
+      const recoveryPromise = (async () => {
+        setPendingSyncBusy({ action: 'retry', entryId });
+        setPendingSyncMessage(null);
+        try {
+          if (syncPendingPromiseRef.current) {
+            await syncPendingPromiseRef.current;
+          }
+
+          const requeued = await updatePendingEntries(profile.id, (current) =>
+            retryPendingEntry(current, entryId),
+          );
+          setPendingEntries(requeued);
+
+          await syncPendingQueue();
+          const remaining = await loadPendingEntries(profile.id);
+          setPendingEntries(remaining);
+          const selected = remaining.find((entry) => entry.id === entryId);
+
+          if (!selected) {
+            setPendingSyncMessage({ text: t(locale, 'sync.retrySucceeded'), tone: 'success' });
+            await refreshVisiblePatientData();
+          } else if (selected.syncState === 'failed') {
+            setPendingSyncMessage({ text: t(locale, 'sync.recoveryError'), tone: 'error' });
+          } else {
+            setPendingSyncMessage({ text: t(locale, 'sync.retryQueued'), tone: 'success' });
+          }
+        } catch {
+          setPendingSyncMessage({ text: t(locale, 'sync.recoveryError'), tone: 'error' });
+        } finally {
+          setPendingSyncBusy(null);
+        }
+      })();
+
+      pendingSyncRecoveryPromiseRef.current = recoveryPromise;
+      try {
+        await recoveryPromise;
+      } finally {
+        pendingSyncRecoveryPromiseRef.current = null;
+      }
+    },
+    [locale, profile.id, refreshVisiblePatientData, syncPendingQueue],
+  );
+
+  const discardFailedPendingSync = useCallback(
+    async (entryId: string) => {
+      if (pendingSyncRecoveryPromiseRef.current) {
+        return pendingSyncRecoveryPromiseRef.current;
+      }
+
+      const recoveryPromise = (async () => {
+        setPendingSyncBusy({ action: 'discard', entryId });
+        setPendingSyncMessage(null);
+        try {
+          if (syncPendingPromiseRef.current) {
+            await syncPendingPromiseRef.current;
+          }
+          const remaining = await updatePendingEntries(profile.id, (current) =>
+            removePendingEntry(current, entryId),
+          );
+          setPendingEntries(remaining);
+          setPendingSyncMessage({ text: t(locale, 'sync.discarded'), tone: 'success' });
+        } catch {
+          setPendingSyncMessage({ text: t(locale, 'sync.recoveryError'), tone: 'error' });
+        } finally {
+          setPendingSyncBusy(null);
+        }
+      })();
+
+      pendingSyncRecoveryPromiseRef.current = recoveryPromise;
+      try {
+        await recoveryPromise;
+      } finally {
+        pendingSyncRecoveryPromiseRef.current = null;
+      }
+    },
+    [locale, profile.id],
+  );
   const deleteTimelineEntry = useCallback(
     async (entry: PatientEntry) => {
       const today = toLocalDateInput(new Date());
@@ -636,6 +747,7 @@ export function PatientHomeScreen({
         client={client}
         onBack={() => {
           setShowBaseline(false);
+          setPatientBaseline(null);
           void loadEntries();
         }}
         onOpenSettings={() => {
@@ -867,6 +979,11 @@ export function PatientHomeScreen({
         onRefresh={() => loadTimelineDay(timelineDay)}
         onSelectedDayChange={handleTimelineDayChange}
         pendingEntryIds={pendingIds}
+        pendingSyncBusy={pendingSyncBusy}
+        pendingSyncEntries={pendingEntries}
+        pendingSyncMessage={pendingSyncMessage}
+        onDiscardPendingSync={discardFailedPendingSync}
+        onRetryPendingSync={retryFailedPendingSync}
         selectedDay={timelineDay}
       />
     );
@@ -962,6 +1079,7 @@ export function PatientHomeScreen({
       periodCompleted={periodCompleted}
       periodRequired={periodRequired}
       stoolCompleted={stoolCompleted}
+      weightReminderDueAt={patientBaseline?.weightReminderDueAt}
       onOpenBaseline={() => setShowBaseline(true)}
       onOpenDaily={() => setShowDailyForm(true)}
       onOpenExercise={() => {
@@ -988,6 +1106,11 @@ export function PatientHomeScreen({
       onOpenSymptoms={() => setShowSymptomForm(true)}
       onOpenEntry={openRecentEntry}
       onOpenTimeline={openTimeline}
+      pendingSyncBusy={pendingSyncBusy}
+      pendingSyncEntries={pendingEntries}
+      pendingSyncMessage={pendingSyncMessage}
+      onDiscardPendingSync={discardFailedPendingSync}
+      onRetryPendingSync={retryFailedPendingSync}
       onOpenSettings={onOpenSettings}
       onSubmitDay={submitDay}
       offlineMode={offlineMode}

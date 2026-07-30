@@ -8,10 +8,17 @@ import {
   uploadPreparedEntryPhoto,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
-import { PHOTO_MIME_TYPE } from '@project4/photo';
+import {
+  PHOTO_MIME_TYPE,
+  filterStagedEntryPhotos,
+  createStagedEntryPhotoDeletions,
+  stageEntryPhotoDeletions,
+} from '@project4/photo';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, View } from 'react-native';
 
+import { PrimaryButton } from '../components/PrimaryButton';
+import { StatusMessage } from '../components/StatusMessage';
 import { cleanupPreparedPhoto } from '../lib/preparedPhotos';
 import { type PersistedEntryPhoto, withSignedThumbnailUris } from '../lib/persistedPhotos';
 import { colors, sharedStyles } from '../theme';
@@ -53,14 +60,20 @@ export function PatientMedicationScreen({
   const locale = getActiveLocale();
   const [initialDraft, setInitialDraft] = useState<ClientMedicationDraft | null>(null);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoLoadAttempt, setPhotoLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [existingPhotos, setExistingPhotos] = useState<PersistedEntryPhoto[]>([]);
-  const [deletingPhotoIds, setDeletingPhotoIds] = useState(new Set<string>());
   const [photoTarget, setPhotoTarget] = useState<ClientMedicationDraft | null>(null);
   const savedEntryIdRef = useRef<string | null>(entryToEdit?.id ?? null);
   const preparedPhotoRef = useRef<PreparedPhoto | null>(null);
   const uploadedPhotoIdsRef = useRef(new Set<string>());
+  const stagedPhotoDeletionsRef = useRef(createStagedEntryPhotoDeletions());
+  const entryIdentityRef = useRef(entryToEdit?.id ?? null);
 
   useEffect(
     () => () => {
@@ -71,7 +84,17 @@ export function PatientMedicationScreen({
   );
 
   useEffect(() => {
-    savedEntryIdRef.current = entryToEdit?.id ?? null;
+    const nextEntryId = entryToEdit?.id ?? null;
+    savedEntryIdRef.current = nextEntryId;
+    if (entryIdentityRef.current === nextEntryId) return;
+
+    entryIdentityRef.current = nextEntryId;
+    stagedPhotoDeletionsRef.current = createStagedEntryPhotoDeletions();
+    uploadedPhotoIdsRef.current.clear();
+    const preparedPhoto = preparedPhotoRef.current;
+    preparedPhotoRef.current = null;
+    void cleanupPreparedPhoto(preparedPhoto);
+    setExistingPhotos([]);
   }, [entryToEdit?.id]);
 
   useEffect(() => {
@@ -79,28 +102,32 @@ export function PatientMedicationScreen({
       setInitialDraft(null);
       setExistingPhotos([]);
       setLoading(false);
+      setLoadFailed(false);
+      setPhotoLoading(false);
+      setPhotoError(null);
       return;
     }
 
     let active = true;
     setLoading(true);
     setError(null);
-    void Promise.all([
-      getPatientMedication(client, entryToEdit.id, entryToEdit.occurredAt),
-      listEntryPhotos(client, entryToEdit.id),
-    ])
-      .then(async ([record, photos]) => {
+    setLoadFailed(false);
+    void getPatientMedication(client, entryToEdit.id, entryToEdit.occurredAt)
+      .then((record) => {
         if (!active) return;
         if (!record) {
+          setLoadFailed(true);
           setError(t(locale, 'medication.loadError'));
           return;
         }
         setInitialDraft(toDraft(record));
-        const persistedPhotos = await withSignedThumbnailUris(client, photos);
-        if (active) setExistingPhotos(persistedPhotos);
+        setPhotoLoading(true);
+        setPhotoError(null);
       })
       .catch(() => {
-        if (active) setError(t(locale, 'medication.loadError'));
+        if (!active) return;
+        setLoadFailed(true);
+        setError(t(locale, 'medication.loadError'));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -109,7 +136,40 @@ export function PatientMedicationScreen({
     return () => {
       active = false;
     };
-  }, [client, entryToEdit, locale]);
+  }, [client, entryToEdit, loadAttempt, locale]);
+  useEffect(() => {
+    if (!entryToEdit || loading || loadFailed) return;
+    let active = true;
+    void listEntryPhotos(client, entryToEdit.id)
+      .then((photos) => withSignedThumbnailUris(client, photos))
+      .then((photos) => {
+        if (active) {
+          setExistingPhotos(filterStagedEntryPhotos(photos, stagedPhotoDeletionsRef.current));
+        }
+      })
+      .catch(() => {
+        if (active) setPhotoError(t(locale, 'photo.loadError'));
+      })
+      .finally(() => {
+        if (active) setPhotoLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [client, entryToEdit, loadFailed, loading, locale, photoLoadAttempt]);
+
+  function retryLoad() {
+    setLoading(true);
+    setLoadFailed(false);
+    setError(null);
+    setLoadAttempt((current) => current + 1);
+  }
+
+  function retryPhotos() {
+    setPhotoLoading(true);
+    setPhotoError(null);
+    setPhotoLoadAttempt((current) => current + 1);
+  }
 
   function confirmDeletePhoto(photo: PersistedEntryPhoto) {
     Alert.alert(t(locale, 'common.delete'), t(locale, 'photo.deleteConfirm'), [
@@ -118,20 +178,11 @@ export function PatientMedicationScreen({
         style: 'destructive',
         text: t(locale, 'common.delete'),
         onPress: () => {
-          setDeletingPhotoIds((current) => new Set(current).add(photo.id));
-          setError(null);
-          void deleteEntryPhotos(client, [photo])
-            .then(() =>
-              setExistingPhotos((current) => current.filter((item) => item.id !== photo.id)),
-            )
-            .catch(() => setError(t(locale, 'photo.deleteError')))
-            .finally(() =>
-              setDeletingPhotoIds((current) => {
-                const next = new Set(current);
-                next.delete(photo.id);
-                return next;
-              }),
-            );
+          stagedPhotoDeletionsRef.current = stageEntryPhotoDeletions(
+            stagedPhotoDeletionsRef.current,
+            [photo],
+          );
+          setExistingPhotos((current) => current.filter((item) => item.id !== photo.id));
         },
       },
     ]);
@@ -177,6 +228,8 @@ export function PatientMedicationScreen({
         });
         uploadedPhotoIdsRef.current.add(localPhoto.uploadId);
       }
+      await deleteEntryPhotos(client, stagedPhotoDeletionsRef.current.photos);
+      stagedPhotoDeletionsRef.current = createStagedEntryPhotoDeletions();
       if (localPhoto) {
         if (preparedPhotoRef.current?.uploadId === localPhoto.uploadId) {
           preparedPhotoRef.current = null;
@@ -215,6 +268,20 @@ export function PatientMedicationScreen({
     );
   }
 
+  if (loadFailed) {
+    return (
+      <View style={[sharedStyles.screen, { gap: 16, justifyContent: 'center', padding: 24 }]}>
+        <StatusMessage
+          message={error ?? t(locale, 'medication.loadError')}
+          style={sharedStyles.error}
+          tone="error"
+        />
+        <PrimaryButton label={t(locale, 'common.retry')} onPress={retryLoad} />
+        <PrimaryButton label={t(locale, 'common.cancel')} onPress={onBack} variant="secondary" />
+      </View>
+    );
+  }
+
   if (photoTarget) {
     return (
       <PhotoUploadScreen
@@ -242,15 +309,17 @@ export function PatientMedicationScreen({
   return (
     <MedicationFormScreen
       busy={saving}
-      deletingPhotoIds={deletingPhotoIds}
       error={error}
       existingPhotos={existingPhotos}
       initialDraft={initialDraft ?? undefined}
+      photoError={photoError}
+      photoLoading={photoLoading}
       onAddPhoto={handleAddPhoto}
       onBack={() => void leaveForm(onBack)}
       onDeletePhoto={confirmDeletePhoto}
       onCancelProfile={onCancelProfile ? () => void leaveForm(onCancelProfile) : undefined}
       onCancelTimeline={onCancelTimeline ? () => void leaveForm(onCancelTimeline) : undefined}
+      onRetryPhotos={retryPhotos}
       onSave={save}
     />
   );

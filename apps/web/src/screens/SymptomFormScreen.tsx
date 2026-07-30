@@ -215,7 +215,7 @@ export function SymptomFormScreen({ client, onBack, onSaved, profile }: SymptomF
             />
           </fieldset>
           <div className="form-actions">
-            <button className="secondary-button" onClick={onBack} type="button">
+            <button className="secondary-button" disabled={saving} onClick={onBack} type="button">
               {t(locale, 'common.cancel')}
             </button>
             <button className="primary-button" disabled={saving} type="submit">

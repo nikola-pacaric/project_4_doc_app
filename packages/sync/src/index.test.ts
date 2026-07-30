@@ -6,7 +6,9 @@ import {
   createPendingTimestampUpdate,
   createPendingTextEntry,
   cachedOpenedDayEntries,
+  dedupePendingPhotoDeletions,
   dedupePendingEntries,
+  failedPendingEntries,
   filterPatientOfflineStorageKeys,
   isPendingEntryRetryable,
   isPendingEntryId,
@@ -18,6 +20,7 @@ import {
   pendingTextEntryToPatientEntry,
   replaceOpenedDayEntryCache,
   removePendingEntry,
+  retryPendingEntry,
   shouldClearMedicalCacheForAuthTransition,
   shouldResetUserStateForAuthTransition,
 } from './index';
@@ -26,12 +29,13 @@ describe('patientOfflineStorageKeys', () => {
   it('returns every patient-scoped medical cache key', () => {
     expect(patientOfflineStorageKeys('patient-1')).toEqual([
       'project4:pending-entries:patient-1',
-      'project4:recent-entries:patient-1',
-      'project4:opened-day-entries:patient-1',
+      'project4:recent-entries:visible-v1:patient-1',
+      'project4:opened-day-entries:visible-v1:patient-1',
+      'project4:pending-photo-deletions:patient-1',
     ]);
   });
 
-  it('finds every medical cache while preserving preferences and auth storage', () => {
+  it('finds current and legacy medical caches while preserving preferences and auth storage', () => {
     expect(
       filterPatientOfflineStorageKeys([
         'project4:preferences',
@@ -39,11 +43,17 @@ describe('patientOfflineStorageKeys', () => {
         'project4:pending-entries:patient-1',
         'project4:recent-entries:patient-2',
         'project4:opened-day-entries:patient-3',
+        'project4:pending-photo-deletions:patient-3',
+        'project4:recent-entries:visible-v1:patient-4',
+        'project4:opened-day-entries:visible-v1:patient-5',
       ]),
     ).toEqual([
       'project4:pending-entries:patient-1',
       'project4:recent-entries:patient-2',
       'project4:opened-day-entries:patient-3',
+      'project4:pending-photo-deletions:patient-3',
+      'project4:recent-entries:visible-v1:patient-4',
+      'project4:opened-day-entries:visible-v1:patient-5',
     ]);
   });
 });
@@ -236,6 +246,40 @@ describe('offline-lite pending text entries', () => {
       lastError: '42501',
     });
     expect(pendingTextEntryToPatientEntry(failed)?.text).toBe('Keep me');
+  });
+  it('selectively retries or exposes permanently failed entries', () => {
+    const pending = createPendingTextEntry(
+      { patientId: 'patient-1', text: 'Retry me', occurredAt: '2026-07-03T08:00:00.000Z' },
+      new Date('2026-07-03T08:01:00.000Z'),
+    );
+    const other = createPendingTimestampUpdate({
+      entryId: 'server-1',
+      occurredAt: '2026-07-03T09:00:00.000Z',
+    });
+    const failed = markPendingEntryFailed(pending, '42501');
+
+    expect(failedPendingEntries([other, failed])).toEqual([failed]);
+    expect(retryPendingEntry([other, failed], failed.id)).toEqual([
+      other,
+      { ...failed, syncState: 'pending', lastError: undefined },
+    ]);
+    expect(retryPendingEntry([other], other.id)).toEqual([other]);
+  });
+});
+
+describe('pending photo deletions', () => {
+  it('deduplicates cleanup targets by both object paths', () => {
+    const photo = {
+      photoPath: 'patient/entry/photo.jpg',
+      thumbnailPath: 'patient/entry/thumb.jpg',
+    };
+    expect(
+      dedupePendingPhotoDeletions([
+        photo,
+        { ...photo },
+        { ...photo, thumbnailPath: 'patient/entry/other-thumb.jpg' },
+      ]),
+    ).toEqual([photo, { ...photo, thumbnailPath: 'patient/entry/other-thumb.jpg' }]);
   });
 });
 

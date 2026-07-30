@@ -2,6 +2,7 @@ export * from './baseline';
 export * from './auth';
 export * from './daily';
 export * from './dailyCompletion';
+export * from './formExit';
 export * from './exercises';
 export * from './food';
 export * from './meals';

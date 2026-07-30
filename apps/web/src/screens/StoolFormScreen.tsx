@@ -72,6 +72,8 @@ export function StoolFormScreen({
   const [draft, setDraft] = useState<StoolDraft>(initialDraft);
   const [occurredAt, setOccurredAt] = useState<string | undefined>(entryToEdit?.occurredAt);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedStool, setSavedStool] = useState<StoolRecord | null>(null);
@@ -95,7 +97,9 @@ export function StoolFormScreen({
         setOccurredAt(record.occurredAt);
       })
       .catch(() => {
-        if (active) setError(t(locale, 'stool.loadError'));
+        if (!active) return;
+        setLoadFailed(true);
+        setError(t(locale, 'stool.loadError'));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -104,7 +108,14 @@ export function StoolFormScreen({
     return () => {
       active = false;
     };
-  }, [client, entryToEdit, locale]);
+  }, [client, entryToEdit, loadAttempt, locale]);
+
+  function retryLoad() {
+    setLoading(true);
+    setLoadFailed(false);
+    setError(null);
+    setLoadAttempt((current) => current + 1);
+  }
 
   function update<K extends keyof StoolDraft>(field: K, value: StoolDraft[K]) {
     setError(null);
@@ -202,7 +213,20 @@ export function StoolFormScreen({
       </div>
 
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
-      {!loading ? (
+      {!loading && loadFailed ? (
+        <section className="structured-entry-form">
+          <StatusMessage tone="error">{error ?? t(locale, 'stool.loadError')}</StatusMessage>
+          <div className="button-row form-actions-row">
+            <button className="secondary-button" onClick={onBack} type="button">
+              {t(locale, 'common.cancel')}
+            </button>
+            <button className="primary-button" onClick={retryLoad} type="button">
+              {t(locale, 'common.retry')}
+            </button>
+          </div>
+        </section>
+      ) : null}
+      {!loading && !loadFailed ? (
         <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
           <fieldset className="structured-fieldset">
             <legend>{t(locale, 'stool.noStoolToday')}</legend>
@@ -292,7 +316,7 @@ export function StoolFormScreen({
 
           {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
           <div className="button-row form-actions-row">
-            <button className="secondary-button" onClick={onBack} type="button">
+            <button className="secondary-button" disabled={saving} onClick={onBack} type="button">
               {t(locale, 'common.cancel')}
             </button>
             <button className="primary-button" disabled={saving} type="submit">

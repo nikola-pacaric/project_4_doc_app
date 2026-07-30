@@ -13,9 +13,17 @@ import {
   type OtherFluidDraft,
 } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
-import { mergeExistingPhotosByEntryId, PHOTO_MIME_TYPE } from '@project4/photo';
 import {
-  deleteEntryPhotos,
+  createStagedEntryPhotoDeletions,
+  filterStagedEntryPhotos,
+  mergeExistingPhotosByEntryId,
+  PHOTO_MIME_TYPE,
+  stageEntryPhotoDeletions,
+  stageRemovedDraftEntryPhotos,
+} from '@project4/photo';
+import {
+  deleteQueuedEntryPhotos,
+  drainPendingPatientPhotoCleanups,
   getPatientFoodForm,
   listEntryPhotos,
   listPatientOtherFluids,
@@ -29,6 +37,7 @@ import { Alert } from 'react-native';
 
 import { FormField } from '../components/FormField';
 import { fluidPhotoContextLabel } from '../lib/photoContextLabel';
+import { loadPendingPhotoDeletions, savePendingPhotoDeletions } from '../offline/pendingEntries';
 import { cleanupPreparedPhoto } from '../lib/preparedPhotos';
 import { type PersistedEntryPhoto, withSignedThumbnailUris } from '../lib/persistedPhotos';
 import { MealFields, type ClientMealDraft } from '../components/MealFields';
@@ -258,11 +267,11 @@ export function FoodFormScreen({
   const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [deletingPhotoIds, setDeletingPhotoIds] = useState(new Set<string>());
   const [photoTarget, setPhotoTarget] = useState<FoodPhotoTarget | null>(null);
   const mealsRef = useRef(meals);
   const otherFluidsRef = useRef(otherFluids);
   const uploadedPhotoIdsRef = useRef(new Set<string>());
+  const stagedPhotoDeletionsRef = useRef(createStagedEntryPhotoDeletions());
 
   useEffect(
     () => () => {
@@ -275,6 +284,11 @@ export function FoodFormScreen({
   );
 
   function replaceMeals(nextMeals: ClientMealDraft[]) {
+    stagedPhotoDeletionsRef.current = stageRemovedDraftEntryPhotos(
+      stagedPhotoDeletionsRef.current,
+      mealsRef.current,
+      nextMeals,
+    );
     const retainedIds = new Set(localPreparedPhotos(nextMeals).map((photo) => photo.uploadId));
     const discarded = localPreparedPhotos(mealsRef.current).filter(
       (photo) => !retainedIds.has(photo.uploadId),
@@ -285,6 +299,11 @@ export function FoodFormScreen({
   }
 
   function replaceOtherFluids(nextFluids: ClientOtherFluidDraft[]) {
+    stagedPhotoDeletionsRef.current = stageRemovedDraftEntryPhotos(
+      stagedPhotoDeletionsRef.current,
+      otherFluidsRef.current,
+      nextFluids,
+    );
     const retainedIds = new Set(localPreparedPhotos(nextFluids).map((photo) => photo.uploadId));
     const discarded = localPreparedPhotos(otherFluidsRef.current).filter(
       (photo) => !retainedIds.has(photo.uploadId),
@@ -292,6 +311,18 @@ export function FoodFormScreen({
     otherFluidsRef.current = nextFluids;
     setOtherFluids(nextFluids);
     void cleanupPreparedPhotos(discarded);
+  }
+
+  async function resolveStagedPhotoDeletions() {
+    const photos = (
+      await Promise.all(
+        stagedPhotoDeletionsRef.current.entryIds.map((entryId) => listEntryPhotos(client, entryId)),
+      )
+    ).flat();
+    stagedPhotoDeletionsRef.current = stageEntryPhotoDeletions(
+      stagedPhotoDeletionsRef.current,
+      photos,
+    );
   }
 
   function confirmDeletePhoto(
@@ -305,46 +336,29 @@ export function FoodFormScreen({
         style: 'destructive',
         text: t(locale, 'common.delete'),
         onPress: () => {
-          setDeletingPhotoIds((current) => new Set(current).add(photo.id));
-          setError(null);
-          void deleteEntryPhotos(client, [photo])
-            .then(() => {
-              if (contextType === 'meal') {
-                replaceMeals(
-                  mealsRef.current.map((meal, mealIndex) =>
-                    mealIndex === index
-                      ? {
-                          ...meal,
-                          existingPhotos: meal.existingPhotos?.filter(
-                            (item) => item.id !== photo.id,
-                          ),
-                        }
-                      : meal,
-                  ),
-                );
-              } else {
-                replaceOtherFluids(
-                  otherFluidsRef.current.map((fluid, fluidIndex) =>
-                    fluidIndex === index
-                      ? {
-                          ...fluid,
-                          existingPhotos: fluid.existingPhotos?.filter(
-                            (item) => item.id !== photo.id,
-                          ),
-                        }
-                      : fluid,
-                  ),
-                );
-              }
-            })
-            .catch(() => setError(t(locale, 'photo.deleteError')))
-            .finally(() =>
-              setDeletingPhotoIds((current) => {
-                const next = new Set(current);
-                next.delete(photo.id);
-                return next;
-              }),
+          if (contextType === 'meal') {
+            replaceMeals(
+              mealsRef.current.map((meal, mealIndex) =>
+                mealIndex === index
+                  ? {
+                      ...meal,
+                      existingPhotos: meal.existingPhotos?.filter((item) => item.id !== photo.id),
+                    }
+                  : meal,
+              ),
             );
+          } else {
+            replaceOtherFluids(
+              otherFluidsRef.current.map((fluid, fluidIndex) =>
+                fluidIndex === index
+                  ? {
+                      ...fluid,
+                      existingPhotos: fluid.existingPhotos?.filter((item) => item.id !== photo.id),
+                    }
+                  : fluid,
+              ),
+            );
+          }
         },
       },
     ]);
@@ -403,12 +417,24 @@ export function FoodFormScreen({
       .then(([mealsWithPhotos, fluidsWithPhotos]) => {
         if (!active) return;
         setMeals((current) => {
-          const next = mergeExistingPhotosByEntryId(current, mealsWithPhotos);
+          const next = mergeExistingPhotosByEntryId(current, mealsWithPhotos).map((draft) => ({
+            ...draft,
+            existingPhotos: filterStagedEntryPhotos(
+              draft.existingPhotos ?? [],
+              stagedPhotoDeletionsRef.current,
+            ),
+          }));
           mealsRef.current = next;
           return next;
         });
         setOtherFluids((current) => {
-          const next = mergeExistingPhotosByEntryId(current, fluidsWithPhotos);
+          const next = mergeExistingPhotosByEntryId(current, fluidsWithPhotos).map((draft) => ({
+            ...draft,
+            existingPhotos: filterStagedEntryPhotos(
+              draft.existingPhotos ?? [],
+              stagedPhotoDeletionsRef.current,
+            ),
+          }));
           otherFluidsRef.current = next;
           return next;
         });
@@ -462,8 +488,41 @@ export function FoodFormScreen({
     setMessage(null);
 
     try {
+      if (normalizedHydration.hasOtherFluids !== true) {
+        stagedPhotoDeletionsRef.current = stageRemovedDraftEntryPhotos(
+          stagedPhotoDeletionsRef.current,
+          otherFluidsRef.current,
+          [],
+        );
+        const legacyFoodEntryId = photoLoadInput?.foodEntryId;
+        if (legacyFoodEntryId) {
+          const legacyFluidPhotos = (await listEntryPhotos(client, legacyFoodEntryId)).filter(
+            (photo) => photo.contextType === 'fluid',
+          );
+          stagedPhotoDeletionsRef.current = stageEntryPhotoDeletions(
+            stagedPhotoDeletionsRef.current,
+            legacyFluidPhotos,
+          );
+        }
+      }
+      const pendingPhotoDeletions = await loadPendingPhotoDeletions(profile.id);
+      if (pendingPhotoDeletions.length) {
+        await deleteQueuedEntryPhotos(client, pendingPhotoDeletions);
+        try {
+          await savePendingPhotoDeletions(profile.id, []);
+        } catch {
+          // Cleanup is idempotent; a stale queue can safely retry later.
+        }
+      }
+      await resolveStagedPhotoDeletions();
       const range = localDayRange(day);
-      await savePatientFoodForm(client, range, normalizedHydration, mealsToSave);
+      await savePatientFoodForm(
+        client,
+        range,
+        normalizedHydration,
+        mealsToSave,
+        stagedPhotoDeletionsRef.current.photos.map((photo) => photo.id),
+      );
 
       const [foodRecord, mealRecords] = await Promise.all([
         getPatientFoodForm(client, profile.id, range.start, range.end),
@@ -476,13 +535,6 @@ export function FoodFormScreen({
         ? await listPatientOtherFluids(client, nextFoodEntryId)
         : [];
       const nextOtherFluids = toOtherFluidDrafts(fluidRecords, nextHydration.otherFluids);
-
-      if (hydration.hasOtherFluids !== true && nextFoodEntryId) {
-        const legacyFluidPhotos = (await listEntryPhotos(client, nextFoodEntryId)).filter(
-          (photo) => photo.contextType === 'fluid',
-        );
-        await deleteEntryPhotos(client, legacyFluidPhotos);
-      }
 
       for (let i = 0; i < meals.length; i++) {
         const mealDraft = meals[i];
@@ -579,6 +631,9 @@ export function FoodFormScreen({
           await cleanupPreparedPhoto(localPhoto);
         }
       }
+
+      await drainPendingPatientPhotoCleanups(client);
+      stagedPhotoDeletionsRef.current = createStagedEntryPhotoDeletions();
 
       setHydration(nextHydration);
       setWaterText(formatWaterLiters(nextHydration.waterLiters));
@@ -701,7 +756,6 @@ export function FoodFormScreen({
       <TactileSectionCard icon="🍽" palette={palette} title={t(locale, 'food.title')}>
         <MealFields
           createMeal={createEmptyMealDraft}
-          deletingPhotoIds={deletingPhotoIds}
           meals={meals}
           onAddPhoto={(meal, index) => {
             setPhotoTarget({
@@ -744,9 +798,6 @@ export function FoodFormScreen({
               hasOtherFluids,
               otherFluids: hasOtherFluids ? current.otherFluids : '',
             }));
-            if (!hasOtherFluids) {
-              replaceOtherFluids([createEmptyOtherFluidDraft()]);
-            }
           }}
           options={[
             { value: 'yes', label: t(locale, 'common.yes') },
@@ -764,7 +815,6 @@ export function FoodFormScreen({
         {hydration.hasOtherFluids ? (
           <OtherFluidFields
             createFluid={createEmptyOtherFluidDraft}
-            deletingPhotoIds={deletingPhotoIds}
             fluids={otherFluids}
             onAddPhoto={(fluid, index) => {
               setPhotoTarget({

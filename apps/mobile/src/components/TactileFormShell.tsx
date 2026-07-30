@@ -27,6 +27,8 @@ interface TactileFormShellProps {
   onCancelTimeline?: () => void;
   /** Leave form without saving (Profile). Defaults to onCancelToday. */
   onCancelProfile?: () => void;
+  /** Whether the current form differs from its saved/initial snapshot. */
+  hasUnsavedChanges?: boolean;
   /** Save form (pink nav Save). */
   onSave?: () => void;
   saveBusy?: boolean;
@@ -52,6 +54,7 @@ export function TactileFormShell({
   subtitle,
   children,
   loading = false,
+  hasUnsavedChanges,
   error,
   message,
   onCancelToday,
@@ -68,7 +71,8 @@ export function TactileFormShell({
   const dark = isDarkThemeActive();
 
   const confirmDiscard = useDiscardGuard({
-    enabled: guardUnsavedChanges && !loading && !saveBusy,
+    busy: saveBusy,
+    enabled: (hasUnsavedChanges ?? guardUnsavedChanges) && !loading,
     onHardwareBack: onCancelToday,
   });
 
@@ -126,6 +130,7 @@ export function TactileFormShell({
 
       {!hideNav && onSave ? (
         <FormBottomNav
+          navigationDisabled={saveBusy}
           onProfile={() => dismissAnd(onCancelProfile ?? onCancelToday, true)}
           onSave={() => dismissAnd(onSave)}
           onTimeline={() => dismissAnd(onCancelTimeline ?? onCancelToday, true)}

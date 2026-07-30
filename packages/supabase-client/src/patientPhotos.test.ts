@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AppSupabaseClient } from './index';
 import {
   createEntryPhotoSignedUrl,
+  deleteQueuedEntryPhotos,
   deleteEntryPhotos,
   uploadPreparedEntryPhoto,
 } from './patientPhotos';
@@ -313,5 +314,38 @@ describe('deleteEntryPhotos', () => {
     expect(from).toHaveBeenCalledWith('entry_photos');
     expect(deleteRows).toHaveBeenCalled();
     expect(inFilter).toHaveBeenCalledWith('id', ['photo-row-1']);
+  });
+});
+
+describe('deleteQueuedEntryPhotos', () => {
+  it('deletes metadata for current items while supporting legacy path-only items', async () => {
+    const remove = vi.fn().mockResolvedValue({ data: [], error: null });
+    const inFilter = vi.fn().mockResolvedValue({ error: null });
+    const deleteRows = vi.fn(() => ({ in: inFilter }));
+    const from = vi.fn(() => ({ delete: deleteRows }));
+    const storageFrom = vi.fn(() => ({ remove }));
+    const client = { from, storage: { from: storageFrom } } as unknown as AppSupabaseClient;
+
+    await deleteQueuedEntryPhotos(client, [
+      {
+        id: 'photo-row-1',
+        photoPath: 'patients/patient-1/entries/entry-1/photos/photo-1.jpg',
+        thumbnailPath: 'patients/patient-1/entries/entry-1/thumbs/photo-1.jpg',
+      },
+      {
+        photoPath: 'patients/patient-1/entries/entry-1/photos/legacy.jpg',
+        thumbnailPath: 'patients/patient-1/entries/entry-1/thumbs/legacy.jpg',
+      },
+    ]);
+
+    expect(remove).toHaveBeenNthCalledWith(1, [
+      'patients/patient-1/entries/entry-1/photos/photo-1.jpg',
+      'patients/patient-1/entries/entry-1/thumbs/photo-1.jpg',
+    ]);
+    expect(inFilter).toHaveBeenCalledWith('id', ['photo-row-1']);
+    expect(remove).toHaveBeenNthCalledWith(2, [
+      'patients/patient-1/entries/entry-1/photos/legacy.jpg',
+      'patients/patient-1/entries/entry-1/thumbs/legacy.jpg',
+    ]);
   });
 });

@@ -13,13 +13,23 @@ import { uploadPreparedEntryPhoto, type AppSupabaseClient } from '@project4/supa
 import { spacing } from '@project4/ui-tokens';
 import { manipulateAsync, SaveFormat, type ImageResult } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  BackHandler,
+  Image,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { StatusMessage } from '../components/StatusMessage';
+import { registerPhotoUploadHardwareBack } from '../lib/photoUploadBackHandler';
 import {
   cleanupPreparedPhoto,
   cleanupPreparedPhotoUris,
@@ -172,13 +182,18 @@ export function PhotoUploadScreen({
     }
   }
 
-  async function handleBack() {
+  const handleBack = useCallback(async () => {
     const retainedPhoto = preparedPhotoRef.current;
     preparedPhotoRef.current = null;
     setPreparedPhoto(null);
     await cleanupPreparedPhoto(retainedPhoto);
     onBack();
-  }
+  }, [onBack]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    return registerPhotoUploadHardwareBack(BackHandler, () => void handleBack());
+  }, [handleBack]);
 
   async function pickPhoto() {
     setPreparing(true);

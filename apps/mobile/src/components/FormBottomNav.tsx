@@ -5,6 +5,7 @@ import type { PatientBottomNavPalette } from './PatientBottomNav';
 
 interface FormBottomNavProps {
   onToday: () => void;
+  navigationDisabled?: boolean;
   onTimeline: () => void;
   onProfile: () => void;
   onSave: () => void;
@@ -18,6 +19,7 @@ interface FormBottomNavProps {
  * pink Save commits the form. Matches PatientBottomNav sizing.
  */
 export function FormBottomNav({
+  navigationDisabled = false,
   onToday,
   onTimeline,
   onProfile,
@@ -41,10 +43,16 @@ export function FormBottomNav({
       ]}
     >
       <Pressable
+        accessibilityState={{ disabled: navigationDisabled }}
+        disabled={navigationDisabled}
         accessibilityHint={t(locale, 'common.cancel')}
         accessibilityRole="button"
         onPress={onToday}
-        style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          styles.item,
+          pressed && !navigationDisabled && styles.pressed,
+          navigationDisabled && styles.disabled,
+        ]}
       >
         <Text style={[styles.icon, { color: idle }]}>📅</Text>
         <Text style={[styles.label, { color: idle }]}>{t(locale, 'home.nav.today')}</Text>
@@ -53,8 +61,14 @@ export function FormBottomNav({
       <Pressable
         accessibilityHint={t(locale, 'common.cancel')}
         accessibilityRole="button"
+        accessibilityState={{ disabled: navigationDisabled }}
+        disabled={navigationDisabled}
         onPress={onTimeline}
-        style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          styles.item,
+          pressed && !navigationDisabled && styles.pressed,
+          navigationDisabled && styles.disabled,
+        ]}
       >
         <Text style={[styles.icon, { color: idle }]}>☰</Text>
         <Text style={[styles.label, { color: idle }]}>{t(locale, 'home.nav.timeline')}</Text>
@@ -64,7 +78,13 @@ export function FormBottomNav({
         accessibilityHint={t(locale, 'common.cancel')}
         accessibilityRole="button"
         onPress={onProfile}
-        style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          styles.item,
+          pressed && !navigationDisabled && styles.pressed,
+          navigationDisabled && styles.disabled,
+        ]}
+        accessibilityState={{ disabled: navigationDisabled }}
+        disabled={navigationDisabled}
       >
         <Text style={[styles.icon, { color: idle }]}>👤</Text>
         <Text style={[styles.label, { color: idle }]}>{t(locale, 'home.nav.profile')}</Text>
@@ -88,13 +108,7 @@ export function FormBottomNav({
         ) : (
           <>
             <Text style={[styles.icon, { color: palette.onPrimaryContainer }]}>💾</Text>
-            <Text
-              style={[
-                styles.label,
-                styles.saveLabel,
-                { color: palette.onPrimaryContainer },
-              ]}
-            >
+            <Text style={[styles.label, styles.saveLabel, { color: palette.onPrimaryContainer }]}>
               {t(locale, 'common.save')}
             </Text>
           </>

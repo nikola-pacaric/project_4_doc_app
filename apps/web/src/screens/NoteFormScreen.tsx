@@ -27,7 +27,7 @@ interface NoteFormScreenProps {
   entryToEdit?: PatientEntry | null;
   onBack: () => void;
   onPendingSaved: (entry: LocalPendingEntry) => void;
-  onSaved: () => void;
+  onSaved: (pending?: boolean) => void;
   profile: UserProfile;
 }
 
@@ -92,7 +92,7 @@ export function NoteFormScreen({
       await createPatientNote(client, profile.id, draft, {
         clientEntryId: pendingCreate?.id,
       });
-      onSaved();
+      onSaved(false);
     } catch (saveError) {
       if (isTransientSupabaseError(saveError) && entryToEdit && occurredAt && text) {
         onPendingSaved(
@@ -102,12 +102,12 @@ export function NoteFormScreen({
             text,
           }),
         );
-        onSaved();
+        onSaved(true);
         return;
       }
       if (isTransientSupabaseError(saveError) && pendingCreate) {
         onPendingSaved(pendingCreate);
-        onSaved();
+        onSaved(true);
         return;
       }
       setError(t(locale, 'note.saveError'));
@@ -160,7 +160,7 @@ export function NoteFormScreen({
 
         {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
         <div className="button-row form-actions-row">
-          <button className="secondary-button" onClick={onBack} type="button">
+          <button className="secondary-button" disabled={saving} onClick={onBack} type="button">
             {t(locale, 'common.cancel')}
           </button>
           <button className="primary-button" disabled={saving} type="submit">

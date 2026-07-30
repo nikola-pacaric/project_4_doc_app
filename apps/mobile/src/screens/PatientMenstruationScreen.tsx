@@ -6,9 +6,12 @@ import {
   getPatientMenstruation,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
+import { spacing } from '@project4/ui-tokens';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
+import { PrimaryButton } from '../components/PrimaryButton';
+import { StatusMessage } from '../components/StatusMessage';
 import { colors, sharedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 import { MenstruationFormScreen } from './MenstruationFormScreen';
@@ -47,29 +50,36 @@ export function PatientMenstruationScreen({
   const [initialDraft, setInitialDraft] = useState<MenstruationDraft | null>(null);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
   const [saving, setSaving] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!entryToEdit) {
       setInitialDraft(null);
       setLoading(false);
+      setLoadFailed(false);
       return;
     }
 
     let active = true;
     setLoading(true);
     setError(null);
+    setLoadFailed(false);
     void getPatientMenstruation(client, entryToEdit.id, entryToEdit.occurredAt)
       .then((record) => {
         if (!active) return;
         if (!record) {
           setError(t(locale, 'menstruation.loadError'));
+          setLoadFailed(true);
           return;
         }
         setInitialDraft(toDraft(record));
       })
       .catch(() => {
-        if (active) setError(t(locale, 'menstruation.loadError'));
+        if (!active) return;
+        setLoadFailed(true);
+        setError(t(locale, 'menstruation.loadError'));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -78,7 +88,14 @@ export function PatientMenstruationScreen({
     return () => {
       active = false;
     };
-  }, [client, entryToEdit, locale]);
+  }, [client, entryToEdit, loadAttempt, locale]);
+
+  function retryLoad() {
+    setLoading(true);
+    setLoadFailed(false);
+    setError(null);
+    setLoadAttempt((current) => current + 1);
+  }
 
   async function save(draft: MenstruationDraft) {
     setSaving(true);
@@ -97,6 +114,24 @@ export function PatientMenstruationScreen({
     return (
       <View style={[sharedStyles.screen, { alignItems: 'center', justifyContent: 'center' }]}>
         <ActivityIndicator color={colors.accent} size="large" />
+      </View>
+    );
+  }
+
+  if (loadFailed) {
+    return (
+      <View style={[sharedStyles.screen, { gap: spacing.md, justifyContent: 'center', padding: spacing.lg }]}>
+        <StatusMessage
+          message={error ?? t(locale, 'menstruation.loadError')}
+          style={sharedStyles.error}
+          tone="error"
+        />
+        <PrimaryButton label={t(locale, 'common.retry')} onPress={retryLoad} />
+        <PrimaryButton
+          label={t(locale, 'common.cancel')}
+          onPress={onBack}
+          variant="secondary"
+        />
       </View>
     );
   }

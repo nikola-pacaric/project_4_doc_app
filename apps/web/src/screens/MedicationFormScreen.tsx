@@ -6,6 +6,11 @@ import {
 } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
 import {
+  createStagedEntryPhotoDeletions,
+  filterStagedEntryPhotos,
+  stageEntryPhotoDeletions,
+} from '@project4/photo';
+import {
   createPatientMedication,
   getPatientMedication,
   listEntryPhotos,
@@ -14,13 +19,14 @@ import {
   deleteEntryPhotos,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { ScreenHeader } from '../components/ScreenHeader';
 import { PhotoUploader, type ExistingWebPhoto } from '../components/PhotoUploader';
 import { StatusMessage } from '../components/StatusMessage';
 import { VoiceTextField } from '../components/VoiceTextField';
 import { type WebPreparedPhoto } from '../utils/photoHelper';
+import { mergeMedicationExistingPhotos } from './medicationPhotoLoadState';
 
 interface MedicationFormScreenProps {
   client: AppSupabaseClient;
@@ -69,14 +75,34 @@ export function MedicationFormScreen({
   const locale = getActiveLocale();
   const [draft, setDraft] = useState<ClientMedicationDraft>(createInitialDraft);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoLoadAttempt, setPhotoLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const stagedPhotoDeletionsRef = useRef(createStagedEntryPhotoDeletions());
+  const entryIdentityRef = useRef(entryToEdit?.id ?? null);
+
+  useEffect(() => {
+    const nextEntryId = entryToEdit?.id ?? null;
+    if (entryIdentityRef.current === nextEntryId) return;
+
+    entryIdentityRef.current = nextEntryId;
+    stagedPhotoDeletionsRef.current = createStagedEntryPhotoDeletions();
+    completedPhotoUploadIdsRef.current.clear();
+  }, [entryToEdit?.id]);
+  const completedPhotoUploadIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
     if (!entryToEdit) {
       setTimeout(() => {
         setDraft(createInitialDraft());
         setLoading(false);
+        setLoadFailed(false);
+        setPhotoLoading(false);
+        setPhotoError(null);
       }, 0);
       return;
     }
@@ -85,35 +111,25 @@ export function MedicationFormScreen({
     const loadingTimer = window.setTimeout(() => {
       if (!active) return;
       setLoading(true);
+      setLoadFailed(false);
       setError(null);
     }, 0);
-    void Promise.all([
-      getPatientMedication(client, entryToEdit.id, entryToEdit.occurredAt),
-      listEntryPhotos(client, entryToEdit.id),
-    ])
-      .then(async ([record, photos]) => {
+    void getPatientMedication(client, entryToEdit.id, entryToEdit.occurredAt)
+      .then((record) => {
         if (!active) return;
         if (!record) {
+          setLoadFailed(true);
           setError(t(locale, 'medication.loadError'));
           return;
         }
-
-        const draftData = toDraft(record);
-        const existingPhotos: ExistingWebPhoto[] = await Promise.all(
-          photos
-            .filter((photo) => photo.contextType === 'medication' || photo.contextType === null)
-            .map(async (photo) => ({
-              id: photo.id,
-              photoPath: photo.photoPath,
-              thumbnailPath: photo.thumbnailPath,
-              uri: await createEntryPhotoSignedUrl(client, photo.thumbnailPath),
-            })),
-        );
-
-        setDraft({ ...draftData, existingPhotos });
+        setDraft(toDraft(record));
+        setPhotoLoading(true);
+        setPhotoError(null);
       })
       .catch(() => {
-        if (active) setError(t(locale, 'medication.loadError'));
+        if (!active) return;
+        setLoadFailed(true);
+        setError(t(locale, 'medication.loadError'));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -123,7 +139,55 @@ export function MedicationFormScreen({
       active = false;
       window.clearTimeout(loadingTimer);
     };
-  }, [client, entryToEdit, locale]);
+  }, [client, entryToEdit, loadAttempt, locale]);
+  useEffect(() => {
+    if (!entryToEdit || loading || loadFailed) return;
+    let active = true;
+    void listEntryPhotos(client, entryToEdit.id)
+      .then((photos) =>
+        Promise.all(
+          photos
+            .filter((photo) => photo.contextType === 'medication' || photo.contextType === null)
+            .map(async (photo) => ({
+              id: photo.id,
+              photoPath: photo.photoPath,
+              thumbnailPath: photo.thumbnailPath,
+              uri: await createEntryPhotoSignedUrl(client, photo.thumbnailPath),
+            })),
+        ),
+      )
+      .then((existingPhotos: ExistingWebPhoto[]) => {
+        if (!active) return;
+        setDraft((current) =>
+          mergeMedicationExistingPhotos(
+            current,
+            filterStagedEntryPhotos(existingPhotos, stagedPhotoDeletionsRef.current),
+          ),
+        );
+      })
+      .catch(() => {
+        if (active) setPhotoError(t(locale, 'photo.loadError'));
+      })
+      .finally(() => {
+        if (active) setPhotoLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [client, entryToEdit, loadFailed, loading, locale, photoLoadAttempt]);
+
+  function retryLoad() {
+    setLoading(true);
+    setLoadFailed(false);
+    setError(null);
+    setLoadAttempt((current) => current + 1);
+  }
+
+  function retryPhotos() {
+    setPhotoLoadAttempt((current) => current + 1);
+    setPhotoLoading(true);
+    setPhotoError(null);
+  }
 
   function update<K extends keyof ClientMedicationDraft>(
     field: K,
@@ -139,7 +203,9 @@ export function MedicationFormScreen({
   }
 
   async function deleteSavedPhoto(photo: ExistingWebPhoto) {
-    await deleteEntryPhotos(client, [photo]);
+    stagedPhotoDeletionsRef.current = stageEntryPhotoDeletions(stagedPhotoDeletionsRef.current, [
+      photo,
+    ]);
     setDraft((current) => ({
       ...current,
       existingPhotos: current.existingPhotos?.filter((candidate) => candidate.id !== photo.id),
@@ -158,7 +224,7 @@ export function MedicationFormScreen({
     try {
       const saved = await createPatientMedication(client, profile.id, draft);
       setDraft((current) => ({ ...current, entryId: saved.entryId }));
-      if (draft.localPhoto) {
+      if (draft.localPhoto && !completedPhotoUploadIdsRef.current.has(draft.localPhoto.uploadId)) {
         const photoId = draft.localPhoto.uploadId;
         await uploadPreparedEntryPhoto(client, {
           contextLabel: saved.name || undefined,
@@ -170,7 +236,10 @@ export function MedicationFormScreen({
           thumbnailBody: draft.localPhoto.thumbnailBody,
           metadata: draft.localPhoto.metadata,
         });
+        completedPhotoUploadIdsRef.current.add(photoId);
       }
+      await deleteEntryPhotos(client, stagedPhotoDeletionsRef.current.photos);
+      stagedPhotoDeletionsRef.current = createStagedEntryPhotoDeletions();
       onSaved();
     } catch {
       setError(t(locale, 'medication.saveError'));
@@ -192,7 +261,20 @@ export function MedicationFormScreen({
       </div>
 
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
-      {!loading ? (
+      {!loading && loadFailed ? (
+        <section className="structured-entry-form">
+          <StatusMessage tone="error">{error ?? t(locale, 'medication.loadError')}</StatusMessage>
+          <div className="button-row form-actions-row">
+            <button className="secondary-button" onClick={onBack} type="button">
+              {t(locale, 'common.cancel')}
+            </button>
+            <button className="primary-button" onClick={retryLoad} type="button">
+              {t(locale, 'common.retry')}
+            </button>
+          </div>
+        </section>
+      ) : null}
+      {!loading && !loadFailed ? (
         <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
           <fieldset className="structured-fieldset">
             <VoiceTextField
@@ -256,6 +338,15 @@ export function MedicationFormScreen({
 
           <fieldset className="structured-fieldset">
             <legend>{t(locale, 'photo.title')}</legend>
+            {photoLoading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
+            {photoError ? (
+              <>
+                <StatusMessage tone="error">{photoError}</StatusMessage>
+                <button className="secondary-button" onClick={retryPhotos} type="button">
+                  {t(locale, 'common.retry')}
+                </button>
+              </>
+            ) : null}
             <PhotoUploader
               existingPhotos={draft.existingPhotos}
               localPhoto={draft.localPhoto}
@@ -266,7 +357,7 @@ export function MedicationFormScreen({
 
           {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
           <div className="button-row form-actions-row">
-            <button className="secondary-button" onClick={onBack} type="button">
+            <button className="secondary-button" disabled={saving} onClick={onBack} type="button">
               {t(locale, 'common.cancel')}
             </button>
             <button className="primary-button" disabled={saving} type="submit">

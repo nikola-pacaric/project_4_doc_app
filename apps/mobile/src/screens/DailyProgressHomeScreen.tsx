@@ -14,14 +14,25 @@ import {
   ENTRY_KIND_ICON_STYLES,
   entryKindIcon,
   entryKindIconStyle,
+  isWeightReminderDue,
   type PatientEntry,
   type UserProfile,
 } from '@project4/contracts';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
+import {
+  failedPendingEntries,
+  pendingTimelineEntryIds,
+  type LocalPendingEntry,
+} from '@project4/sync';
 import { darkTheme } from '@project4/ui-tokens';
 
 import { CircularProgress } from '../components/CircularProgress';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
+import {
+  PendingSyncRecovery,
+  type PendingSyncRecoveryBusyState,
+  type PendingSyncRecoveryMessage,
+} from '../components/PendingSyncRecovery';
 import { PatientBottomNav } from '../components/PatientBottomNav';
 import { StatusMessage } from '../components/StatusMessage';
 import {
@@ -87,10 +98,16 @@ interface DailyProgressHomeScreenProps {
   foodStarted: boolean;
   profile: UserProfile;
   pendingEntryIds?: string[];
+  pendingSyncBusy: PendingSyncRecoveryBusyState | null;
+  pendingSyncEntries: readonly LocalPendingEntry[];
+  pendingSyncMessage: PendingSyncRecoveryMessage | null;
+  onDiscardPendingSync: (entryId: string) => void | Promise<void>;
+  onRetryPendingSync: (entryId: string) => void | Promise<void>;
   recentEntries: PatientEntry[];
   error: string | null;
   loading: boolean;
   offlineMode: boolean;
+  weightReminderDueAt: string | null | undefined;
   submitDisabled: boolean;
   submitBusy: boolean;
   submitHelp: string;
@@ -204,10 +221,16 @@ export function DailyProgressHomeScreen({
   foodStarted,
   profile,
   pendingEntryIds = [],
+  pendingSyncBusy,
+  pendingSyncEntries,
+  pendingSyncMessage,
+  onDiscardPendingSync,
+  onRetryPendingSync,
   recentEntries,
   error,
   loading,
   offlineMode,
+  weightReminderDueAt,
   submitDisabled,
   submitBusy,
   submitHelp,
@@ -238,6 +261,7 @@ export function DailyProgressHomeScreen({
     : stitch;
 
   const now = new Date();
+  const weightReminderDue = isWeightReminderDue(weightReminderDueAt, now.getTime());
   const visibleQuickActions = canTrackMenstruation
     ? quickActions
     : quickActions.filter((action) => action.id !== 'period');
@@ -254,6 +278,9 @@ export function DailyProgressHomeScreen({
   );
   const todayEntries = allTodayEntries.slice(0, 3);
   const pendingIds = new Set(pendingEntryIds);
+  const failedPendingIds = new Set(
+    pendingTimelineEntryIds(failedPendingEntries(pendingSyncEntries)),
+  );
   const completeMealIds = new Set(completeMealEntryIds);
   const completeMedicationIds = new Set(completeMedicationEntryIds);
   const completedKinds = new Set(allTodayEntries.map((entry) => entry.kind));
@@ -353,6 +380,56 @@ export function DailyProgressHomeScreen({
             style={[styles.errorText, { color: palette.error }]}
             tone="error"
           />
+        ) : null}
+        <PendingSyncRecovery
+          busy={pendingSyncBusy}
+          entries={pendingSyncEntries}
+          message={pendingSyncMessage}
+          onDiscard={onDiscardPendingSync}
+          onRetry={onRetryPendingSync}
+        />
+        {weightReminderDue ? (
+          <View
+            accessibilityLiveRegion="polite"
+            style={[
+              styles.weightReminderCard,
+              {
+                backgroundColor: palette.secondaryContainer,
+                borderColor: palette.outlineVariant,
+              },
+            ]}
+          >
+            <Text
+              accessibilityRole="header"
+              style={[styles.weightReminderTitle, { color: palette.onSurface }]}
+            >
+              {t(locale, 'home.weightReminder.title')}
+            </Text>
+            <Text style={[styles.weightReminderDescription, { color: palette.onSurfaceVariant }]}>
+              {t(locale, 'home.weightReminder.description')}
+            </Text>
+            <Pressable
+              accessibilityHint={
+                offlineMode
+                  ? t(locale, 'offline.actionsDisabled')
+                  : t(locale, 'home.weightReminder.actionHint')
+              }
+              accessibilityRole="button"
+              accessibilityState={{ disabled: offlineMode }}
+              disabled={offlineMode}
+              onPress={onOpenBaseline}
+              style={({ pressed }) => [
+                styles.weightReminderButton,
+                { backgroundColor: palette.primary },
+                offlineMode && styles.disabled,
+                pressed && !offlineMode && styles.pressed,
+              ]}
+            >
+              <Text style={[styles.weightReminderButtonLabel, { color: palette.onPrimary }]}>
+                {t(locale, 'home.weightReminder.action')}
+              </Text>
+            </Pressable>
+          </View>
         ) : null}
 
         {/* Daily progress bubble */}
@@ -514,6 +591,7 @@ export function DailyProgressHomeScreen({
             <View style={styles.entryList}>
               {todayEntries.map((entry) => {
                 const kindLabel = t(locale, ('entry.kind.' + entry.kind) as TranslationKey);
+                const entryFailed = failedPendingIds.has(entry.id);
                 const kindIconStyle = entryKindIconStyle(entry.kind);
                 const dailyEntryReady = entry.kind === 'daily' && dailyReadyToSubmit;
                 const entryPending = pendingIds.has(entry.id);
@@ -528,7 +606,9 @@ export function DailyProgressHomeScreen({
                         ? completeMedicationIds.has(entry.id)
                         : true;
                 const statusKey: TranslationKey = entryPending
-                  ? 'sync.pending'
+                  ? entryFailed
+                    ? 'sync.failedStatus'
+                    : 'sync.pending'
                   : entryOfflineDisabled
                     ? 'offline.onlyNotes'
                     : entryCompleted || dailyEntryReady
@@ -740,6 +820,38 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 15,
     lineHeight: 22,
+  },
+  weightReminderCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
+  weightReminderTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  weightReminderDescription: {
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  weightReminderButton: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    borderRadius: 999,
+    justifyContent: 'center',
+    marginTop: 4,
+    minHeight: 48,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  weightReminderButtonLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 20,
   },
   progressCard: {
     alignItems: 'center',

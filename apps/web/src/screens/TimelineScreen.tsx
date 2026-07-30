@@ -2,9 +2,12 @@ import {
   ENTRY_KIND_ICONS,
   entryKindIcon,
   entryKindIconStyle,
+  filterCachedCompactTimelineEntries,
   filterPatientTimelineEntries,
   isNoStoolTodayEntry,
+  isWeightReminderDue,
   type PatientEntry,
+  type PatientBaselineProfile,
   type UserProfile,
   type FoodFormRecord,
 } from '@project4/contracts';
@@ -19,10 +22,12 @@ import {
 } from '@project4/forms';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
+  failedPendingEntries,
   isPendingEntryRetryable,
   markPendingEntryFailed,
   isPendingEntryId,
   mergePendingTextEntries,
+  retryPendingEntry,
   pendingTimelineEntryIds,
   removePendingEntry,
   type LocalPendingEntry,
@@ -36,6 +41,8 @@ import {
   createPatientNote,
   createEntryPhotoSignedUrl,
   deletePatientEntry,
+  deleteQueuedEntryPhotos,
+  drainPendingPatientPhotoCleanups,
   getPatientBaseline,
   getPatientDailyForm,
   getPatientFoodForm,
@@ -54,15 +61,18 @@ import {
   loadCachedEntriesForDay,
   loadCachedOpenedDayEntries,
   loadCachedRecentEntries,
+  loadPendingPhotoDeletions,
+  savePendingPhotoDeletions,
   loadPendingEntries,
   saveCachedOpenedDayEntries,
   saveCachedRecentEntries,
-  savePendingEntries,
+  updatePendingEntries,
 } from '../offline/pendingEntries';
-import { pendingSyncErrorKey } from '../offline/pendingSyncError';
+import { PendingSyncRecovery } from '../components/PendingSyncRecovery';
 import { StatusMessage } from '../components/StatusMessage';
 import { withRequestTimeout } from '../utils/requestTimeout';
 import { BaselineScreen } from './BaselineScreen';
+import { isDaySubmitDisabled } from './daySubmitState';
 import { DailyFormScreen } from './DailyFormScreen';
 import { ExerciseFormScreen } from './ExerciseFormScreen';
 import { FoodFormScreen } from './FoodFormScreen';
@@ -207,10 +217,17 @@ export function TimelineScreen({
   const locale = getActiveLocale();
   const [entries, setEntries] = useState<PatientEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [recoveryMessage, setRecoveryMessage] = useState<{
+    text: string;
+    tone: 'error' | 'success';
+  } | null>(null);
+  const [retryingPendingEntryId, setRetryingPendingEntryId] = useState<string | null>(null);
+
   const [error, setError] = useState<string | null>(null);
   const [offlineMode, setOfflineMode] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [showBaseline, setShowBaseline] = useState(false);
+  const [patientBaseline, setPatientBaseline] = useState<PatientBaselineProfile | null>(null);
   const [showDailyForm, setShowDailyForm] = useState(false);
   const [showSymptomForm, setShowSymptomForm] = useState(false);
   const [showStoolForm, setShowStoolForm] = useState(false);
@@ -255,6 +272,23 @@ export function TimelineScreen({
   const offlineModeRef = useRef(false);
   const lastLifecycleRefreshAtRef = useRef(0);
 
+  useEffect(() => {
+    void drainPendingPatientPhotoCleanups(client).catch(() => undefined);
+
+    const pendingPhotoDeletions = loadPendingPhotoDeletions(profile.id);
+    if (!pendingPhotoDeletions.length) return;
+
+    let active = true;
+    void deleteQueuedEntryPhotos(client, pendingPhotoDeletions)
+      .then(() => {
+        if (active) savePendingPhotoDeletions(profile.id, []);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [client, profile.id]);
+
   const handleActivityAnswerChange = useCallback((answer: boolean | undefined) => {
     setExerciseRequired(answer === true);
   }, []);
@@ -276,8 +310,6 @@ export function TimelineScreen({
 
     const syncPromise = (async () => {
       const queuedEntries = loadPendingEntries(profile.id);
-      let remainingEntries = queuedEntries;
-
       for (const pendingEntry of queuedEntries) {
         try {
           if (!isPendingEntryRetryable(pendingEntry)) continue;
@@ -303,27 +335,28 @@ export function TimelineScreen({
             const payload = pendingEntry.payload as PendingTimestampUpdatePayload;
             await updateEntryTimestamp(client, payload.entryId, payload.occurredAt);
           }
-          remainingEntries = removePendingEntry(remainingEntries, pendingEntry.id);
-          savePendingEntries(profile.id, remainingEntries);
+          updatePendingEntries(profile.id, (current) =>
+            removePendingEntry(current, pendingEntry.id),
+          );
         } catch (syncError) {
-          if (isTransientSupabaseError(syncError)) break;
+          if (isTransientSupabaseError(syncError)) {
+            break;
+          }
 
           const errorCode =
             syncError && typeof syncError === 'object' && 'code' in syncError
               ? String(syncError.code)
               : 'PERMANENT_SYNC_FAILURE';
-          remainingEntries = remainingEntries.map((entry) =>
-            entry.id === pendingEntry.id ? markPendingEntryFailed(entry, errorCode) : entry,
+          updatePendingEntries(profile.id, (current) =>
+            current.map((entry) =>
+              entry.id === pendingEntry.id ? markPendingEntryFailed(entry, errorCode) : entry,
+            ),
           );
-          savePendingEntries(profile.id, remainingEntries);
         }
       }
 
+      const remainingEntries = loadPendingEntries(profile.id);
       setPendingEntries(remainingEntries);
-      const failedEntry = remainingEntries.find((entry) => !isPendingEntryRetryable(entry));
-      if (failedEntry) {
-        setError(t(locale, pendingSyncErrorKey(failedEntry.operation)));
-      }
       return remainingEntries;
     })();
 
@@ -333,7 +366,7 @@ export function TimelineScreen({
     } finally {
       syncPendingPromiseRef.current = null;
     }
-  }, [client, locale, profile.id]);
+  }, [client, profile.id]);
 
   const entryLocalDay = useCallback(
     (entry: PatientEntry) => localDateValue(new Date(entry.occurredAt)),
@@ -362,6 +395,7 @@ export function TimelineScreen({
         const visible = filterPatientTimelineEntries(
           nextEntries,
           canTrackMenstruation ? 'female' : null,
+          { includeFluidEntries: true },
         );
         setTimelineDayEntries(visible);
         setOfflineMode(false);
@@ -376,9 +410,7 @@ export function TimelineScreen({
         setOfflineMode(true);
         offlineModeRef.current = true;
         if (cached.length) {
-          setTimelineDayEntries(
-            filterPatientTimelineEntries(cached, canTrackMenstruation ? 'female' : null),
-          );
+          setTimelineDayEntries(cached);
           setTimelineError(null);
         } else {
           setTimelineDayEntries([]);
@@ -432,16 +464,10 @@ export function TimelineScreen({
             ]),
             ONLINE_LOAD_TIMEOUT_MS,
           );
+          setPatientBaseline(baseline);
           setOfflineMode(false);
           offlineModeRef.current = false;
           setFoodForm(foodFormDetails);
-          saveCachedRecentEntries(profile.id, nextEntries);
-          saveCachedOpenedDayEntries(
-            profile.id,
-            nextEntries,
-            (entry) => localDateValue(new Date(entry.occurredAt)),
-            recentLocalDays(),
-          );
           const nextHasChronicTherapy = Boolean(baseline?.chronicTherapy?.trim());
           const includeMenstruation = baseline?.sex === 'female';
           const dailyDraft = dailyForm ? toDailyDraft(dailyForm.details) : null;
@@ -449,9 +475,21 @@ export function TimelineScreen({
             dailyForm && (dailyForm.details.completedAt || hasDailyFormProgress(dailyDraft ?? {}))
               ? [dailyForm.entryId]
               : [];
-          setEntries(
-            filterPatientTimelineEntries(nextEntries, baseline?.sex, { visibleDailyEntryIds }),
+          const visibleEntries = filterPatientTimelineEntries(nextEntries, baseline?.sex, {
+            visibleDailyEntryIds,
+          });
+          saveCachedRecentEntries(profile.id, visibleEntries);
+          const detailedVisibleEntries = filterPatientTimelineEntries(nextEntries, baseline?.sex, {
+            includeFluidEntries: true,
+            visibleDailyEntryIds,
+          });
+          saveCachedOpenedDayEntries(
+            profile.id,
+            detailedVisibleEntries,
+            (entry) => localDateValue(new Date(entry.occurredAt)),
+            recentLocalDays(),
           );
+          setEntries(visibleEntries);
           const mealIds = nextEntries
             .filter((entry) => entry.kind === 'meal')
             .map((entry) => entry.id);
@@ -490,10 +528,10 @@ export function TimelineScreen({
           );
           setPeriodCompleted(hasTodayEntry(nextEntries, 'menstruation'));
         } catch {
-          const cachedOpenedDayEntries = loadCachedOpenedDayEntries(profile.id);
-          const cachedEntries = cachedOpenedDayEntries.length
-            ? cachedOpenedDayEntries
-            : loadCachedRecentEntries(profile.id);
+          const cachedRecentEntries = loadCachedRecentEntries(profile.id);
+          const cachedEntries = cachedRecentEntries.length
+            ? cachedRecentEntries
+            : filterCachedCompactTimelineEntries(loadCachedOpenedDayEntries(profile.id));
           setOfflineMode(true);
           offlineModeRef.current = true;
           setFoodForm(null);
@@ -502,7 +540,7 @@ export function TimelineScreen({
           setEntryPhotos({});
           setLightboxPhoto(null);
           if (cachedEntries.length) {
-            setEntries(filterPatientTimelineEntries(cachedEntries, null));
+            setEntries(cachedEntries);
             setError(null);
           } else {
             setError(t(locale, 'entry.loadError'));
@@ -521,6 +559,76 @@ export function TimelineScreen({
     },
     [client, locale, profile.id, syncPendingQueue],
   );
+
+  async function retryFailedPendingEntry(entryId: string) {
+    if (retryingPendingEntryId !== null) return;
+
+    setRetryingPendingEntryId(entryId);
+    setRecoveryMessage(null);
+    try {
+      const activeSync = syncPendingPromiseRef.current;
+      if (activeSync) await activeSync;
+
+      const retriedEntries = updatePendingEntries(profile.id, (current) =>
+        retryPendingEntry(current, entryId),
+      );
+      setPendingEntries(retriedEntries);
+
+      if (!retriedEntries.some((entry) => entry.id === entryId)) {
+        setRecoveryMessage({ text: t(locale, 'sync.retrySucceeded'), tone: 'success' });
+        await Promise.all([
+          loadEntries({ showLoading: false }),
+          showTimelineList
+            ? loadTimelineDay(timelineDay, { showLoading: false })
+            : Promise.resolve(),
+        ]);
+        return;
+      }
+
+      const remainingEntries = await syncPendingQueue();
+      const remainingEntry = remainingEntries.find((entry) => entry.id === entryId);
+
+      if (!remainingEntry) {
+        setRecoveryMessage({ text: t(locale, 'sync.retrySucceeded'), tone: 'success' });
+        await Promise.all([
+          loadEntries({ showLoading: false }),
+          showTimelineList
+            ? loadTimelineDay(timelineDay, { showLoading: false })
+            : Promise.resolve(),
+        ]);
+      } else if (isPendingEntryRetryable(remainingEntry)) {
+        setRecoveryMessage({ text: t(locale, 'sync.retryQueued'), tone: 'success' });
+      } else {
+        setRecoveryMessage({ text: t(locale, 'sync.recoveryError'), tone: 'error' });
+      }
+    } catch {
+      setRecoveryMessage({ text: t(locale, 'sync.recoveryError'), tone: 'error' });
+    } finally {
+      setRetryingPendingEntryId(null);
+    }
+  }
+
+  function discardFailedPendingEntry(entryId: string) {
+    if (
+      retryingPendingEntryId !== null ||
+      !window.confirm(
+        `${t(locale, 'sync.discardTitle')}\n\n${t(locale, 'sync.discardBody')}\n\n${t(locale, 'sync.discardConfirm')}`,
+      )
+    ) {
+      return;
+    }
+
+    setRecoveryMessage(null);
+    try {
+      const remainingEntries = updatePendingEntries(profile.id, (current) =>
+        removePendingEntry(current, entryId),
+      );
+      setPendingEntries(remainingEntries);
+      setRecoveryMessage({ text: t(locale, 'sync.discarded'), tone: 'success' });
+    } catch {
+      setRecoveryMessage({ text: t(locale, 'sync.recoveryError'), tone: 'error' });
+    }
+  }
 
   async function deleteTimelineEntry(entry: PatientEntry) {
     const today = localDateValue(new Date());
@@ -800,6 +908,7 @@ export function TimelineScreen({
         client={client}
         onBack={() => {
           setShowBaseline(false);
+          setPatientBaseline(null);
           setCanTrackMenstruation(false);
           setEntries((current) => filterPatientTimelineEntries(current, null));
           void loadEntries();
@@ -958,10 +1067,10 @@ export function TimelineScreen({
         onPendingSaved={(entry) => {
           setPendingEntries(appendPendingEntry(profile.id, entry));
         }}
-        onSaved={() => {
+        onSaved={(pending) => {
           setShowNoteForm(false);
           setNoteEntryToEdit(null);
-          setMessage(t(locale, 'note.saved'));
+          setMessage(t(locale, pending ? 'sync.pending' : 'note.saved'));
           void loadEntries();
         }}
         profile={profile}
@@ -973,6 +1082,8 @@ export function TimelineScreen({
   const today = localDateValue(now);
   const visibleEntries = mergePendingTextEntries(entries, pendingEntries);
   const pendingIds = new Set(pendingTimelineEntryIds(pendingEntries));
+  const failedSyncEntries = failedPendingEntries(pendingEntries);
+  const failedTimelineEntryIds = new Set(pendingTimelineEntryIds(failedSyncEntries));
   const todayEntries = visibleEntries.filter(
     (entry) => localDateValue(new Date(entry.occurredAt)) === today,
   );
@@ -1022,19 +1133,28 @@ export function TimelineScreen({
     month: 'long',
     day: 'numeric',
   }).format(now);
+  const weightReminderDue = isWeightReminderDue(
+    patientBaseline?.weightReminderDueAt,
+    now.getTime(),
+  );
   const symptomsCompleted = completedKinds.has('symptom');
-  const submitDisabled =
-    submittingDay ||
-    offlineMode ||
-    dailyCompleted ||
-    !dailyEntryId ||
-    !dailyReadyToSubmit ||
-    !foodCompleted ||
-    !symptomsCompleted ||
-    !stoolCompleted ||
-    (exerciseRequired && !exerciseCompleted) ||
-    (medicationRequired && !medicationCompleted) ||
-    (periodRequired && !periodCompleted);
+  const submitDisabled = isDaySubmitDisabled({
+    dailyCompleted,
+    dailyEntryId,
+    dailyReadyToSubmit,
+    exerciseCompleted,
+    exerciseRequired,
+    foodCompleted,
+    loading,
+    medicationCompleted,
+    medicationRequired,
+    offlineMode,
+    periodCompleted,
+    periodRequired,
+    stoolCompleted,
+    submittingDay,
+    symptomsCompleted,
+  });
 
   const missingSubmitSections = [
     !dailyCompleted && !dailyReadyToSubmit ? t(locale, 'home.action.daily') : null,
@@ -1102,6 +1222,16 @@ export function TimelineScreen({
           />
         </label>
 
+        {recoveryMessage ? (
+          <StatusMessage tone={recoveryMessage.tone}>{recoveryMessage.text}</StatusMessage>
+        ) : null}
+        <PendingSyncRecovery
+          entries={failedSyncEntries}
+          locale={locale}
+          onDiscard={discardFailedPendingEntry}
+          onRetry={(entryId) => void retryFailedPendingEntry(entryId)}
+          retryingEntryId={retryingPendingEntryId}
+        />
         {timelineError ? <StatusMessage tone="error">{timelineError}</StatusMessage> : null}
         {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
         {timelineLoading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
@@ -1125,6 +1255,7 @@ export function TimelineScreen({
               : entry.text?.trim() || kindLabel;
             const pending = dayPendingIds.has(entry.id);
             const isTodayDay = timelineDay === todayForPicker;
+            const failed = failedTimelineEntryIds.has(entry.id);
             const offlineDisabled = offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
             const canOpen = isTodayDay && !pending && !offlineDisabled;
             const canShowDelete = isTodayDay && !pending;
@@ -1168,7 +1299,9 @@ export function TimelineScreen({
             const trailing = (
               <span className="web-entry-trailing">
                 {pending ? (
-                  <small className="web-entry-pending">{t(locale, 'sync.pending')}</small>
+                  <small className={failed ? 'web-entry-failed' : 'web-entry-pending'}>
+                    {t(locale, failed ? 'sync.failedStatus' : 'sync.pending')}
+                  </small>
                 ) : null}
                 {!pending ? (
                   <small className={`web-entry-status ${entryStatusClass}`}>
@@ -1184,7 +1317,7 @@ export function TimelineScreen({
             );
             return (
               <article
-                className={`web-recent-entry ${pending ? 'pending' : ''} ${
+                className={`web-recent-entry ${pending ? 'pending' : ''} ${failed ? 'failed' : ''} ${
                   !entryCompleted && !(entry.kind === 'daily' && dailyReadyToSubmit) ? 'draft' : ''
                 } ${!canOpen && isTodayDay ? 'offline-disabled' : ''}`}
                 key={entry.id}
@@ -1277,10 +1410,39 @@ export function TimelineScreen({
           </button>
         </div>
       </section>
-
       {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
       {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
-
+      {recoveryMessage ? (
+        <StatusMessage tone={recoveryMessage.tone}>{recoveryMessage.text}</StatusMessage>
+      ) : null}
+      <PendingSyncRecovery
+        entries={failedSyncEntries}
+        locale={locale}
+        onDiscard={discardFailedPendingEntry}
+        onRetry={(entryId) => void retryFailedPendingEntry(entryId)}
+        retryingEntryId={retryingPendingEntryId}
+      />
+      {weightReminderDue ? (
+        <section
+          aria-live="polite"
+          aria-labelledby="weight-reminder-title"
+          className="web-weight-reminder"
+        >
+          <div>
+            <h2 id="weight-reminder-title">{t(locale, 'home.weightReminder.title')}</h2>
+            <p>{t(locale, 'home.weightReminder.description')}</p>
+          </div>
+          <button
+            className="primary-button"
+            disabled={offlineMode}
+            onClick={() => setShowBaseline(true)}
+            title={offlineMode ? t(locale, 'offline.actionsDisabled') : undefined}
+            type="button"
+          >
+            {t(locale, 'home.weightReminder.action')}
+          </button>
+        </section>
+      ) : null}
       <section className="web-home-grid">
         <div className="web-progress-panel">
           <div
@@ -1313,7 +1475,6 @@ export function TimelineScreen({
           <p>{submitHelp}</p>
         </div>
       </section>
-
       <section className="web-home-section">
         <div className="web-section-heading">
           <h2>{t(locale, 'home.quickActions')}</h2>
@@ -1399,7 +1560,6 @@ export function TimelineScreen({
           })}
         </div>
       </section>
-
       <section className="web-home-section">
         <div className="web-section-heading">
           <h2>{t(locale, 'home.recentEntries')}</h2>
@@ -1424,6 +1584,7 @@ export function TimelineScreen({
             const kindLabel = t(locale, `entry.kind.${entry.kind}` as TranslationKey);
             const pending = pendingIds.has(entry.id);
             const offlineDisabled = offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
+            const failed = failedTimelineEntryIds.has(entry.id);
             const entryCompleted =
               entry.kind === 'daily'
                 ? dailyCompleted
@@ -1438,7 +1599,7 @@ export function TimelineScreen({
                 : 'draft';
             return (
               <article
-                className={`web-recent-entry ${pending ? 'pending' : ''} ${
+                className={`web-recent-entry ${pending ? 'pending' : ''} ${failed ? 'failed' : ''} ${
                   !entryCompleted && !(entry.kind === 'daily' && dailyReadyToSubmit) ? 'draft' : ''
                 } ${offlineDisabled ? 'offline-disabled' : ''}`}
                 key={entry.id}
@@ -1469,7 +1630,9 @@ export function TimelineScreen({
                   </span>
                   <span className="web-entry-trailing">
                     {pending ? (
-                      <small className="web-entry-pending">{t(locale, 'sync.pending')}</small>
+                      <small className={failed ? 'web-entry-failed' : 'web-entry-pending'}>
+                        {t(locale, failed ? 'sync.failedStatus' : 'sync.pending')}
+                      </small>
                     ) : null}
                     {offlineDisabled ? (
                       <small className="web-entry-status offline">

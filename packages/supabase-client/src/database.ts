@@ -22,6 +22,7 @@ type AppFunctions = Omit<
   | 'save_patient_exercise'
   | 'save_patient_food_form'
   | 'save_patient_medication'
+  | 'save_patient_food_form_with_photo_cleanup'
   | 'save_patient_menstruation'
   | 'save_patient_note'
   | 'save_patient_stool'
@@ -29,6 +30,10 @@ type AppFunctions = Omit<
   save_patient_exercise: WithNullableArgs<'save_patient_exercise', 'p_entry_id' | 'p_notes'>;
   save_patient_food_form: WithNullableArgs<
     'save_patient_food_form',
+    'p_water_liters' | 'p_has_other_fluids' | 'p_other_fluids'
+  >;
+  save_patient_food_form_with_photo_cleanup: WithNullableArgs<
+    'save_patient_food_form_with_photo_cleanup',
     'p_water_liters' | 'p_has_other_fluids' | 'p_other_fluids'
   >;
   save_patient_medication: WithNullableArgs<

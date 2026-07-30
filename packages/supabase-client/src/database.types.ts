@@ -842,6 +842,10 @@ export type Database = {
         Args: { p_entry_id: string };
         Returns: string;
       };
+      complete_patient_photo_cleanups: {
+        Args: { p_job_ids: string[] };
+        Returns: undefined;
+      };
       create_doctor_invite_code: {
         Args: never;
         Returns: {
@@ -859,6 +863,15 @@ export type Database = {
           target_patient_id: string;
         };
         Returns: Json;
+      };
+      list_pending_patient_photo_cleanups: {
+        Args: never;
+        Returns: {
+          job_id: string;
+          photo_id: string;
+          photo_path: string;
+          thumbnail_path: string;
+        }[];
       };
       redeem_doctor_invite_code: {
         Args: { invite_code: string };
@@ -883,6 +896,19 @@ export type Database = {
         Args: {
           p_day_end: string;
           p_day_start: string;
+          p_has_other_fluids: boolean;
+          p_meals: Json;
+          p_occurred_at: string;
+          p_other_fluids: string;
+          p_water_liters: number;
+        };
+        Returns: string;
+      };
+      save_patient_food_form_with_photo_cleanup: {
+        Args: {
+          p_day_end: string;
+          p_day_start: string;
+          p_delete_photo_ids: string[];
           p_has_other_fluids: boolean;
           p_meals: Json;
           p_occurred_at: string;

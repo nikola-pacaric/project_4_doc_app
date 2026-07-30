@@ -10,6 +10,11 @@ import {
 } from '@project4/contracts';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
+  failedPendingEntries,
+  pendingTimelineEntryIds,
+  type LocalPendingEntry,
+} from '@project4/sync';
+import {
   createEntryPhotoSignedUrl,
   listEntryPhotos,
   type AppSupabaseClient,
@@ -31,6 +36,11 @@ import {
 } from 'react-native';
 
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
+import {
+  PendingSyncRecovery,
+  type PendingSyncRecoveryBusyState,
+  type PendingSyncRecoveryMessage,
+} from '../components/PendingSyncRecovery';
 import { PatientBottomNav } from '../components/PatientBottomNav';
 import { WeekDayStrip } from '../components/WeekDayStrip';
 import { StatusMessage } from '../components/StatusMessage';
@@ -85,6 +95,11 @@ interface PatientTimelineScreenProps {
   onRefresh: () => void | Promise<void>;
   onSelectedDayChange: (day: string) => void;
   pendingEntryIds?: string[];
+  pendingSyncBusy: PendingSyncRecoveryBusyState | null;
+  pendingSyncEntries: readonly LocalPendingEntry[];
+  pendingSyncMessage: PendingSyncRecoveryMessage | null;
+  onDiscardPendingSync: (entryId: string) => void | Promise<void>;
+  onRetryPendingSync: (entryId: string) => void | Promise<void>;
   deletingEntryId?: string | null;
   selectedDay: string;
 }
@@ -131,6 +146,11 @@ export function PatientTimelineScreen({
   onRefresh,
   onSelectedDayChange,
   pendingEntryIds = [],
+  pendingSyncBusy,
+  pendingSyncEntries,
+  pendingSyncMessage,
+  onDiscardPendingSync,
+  onRetryPendingSync,
   deletingEntryId = null,
   selectedDay,
 }: PatientTimelineScreenProps) {
@@ -168,6 +188,9 @@ export function PatientTimelineScreen({
     : stitch;
 
   const pendingIds = new Set(pendingEntryIds);
+  const failedPendingIds = new Set(
+    pendingTimelineEntryIds(failedPendingEntries(pendingSyncEntries)),
+  );
   const today = toLocalDateInput(new Date());
   const canEditSelectedDay = selectedDay === today && Boolean(onOpenEntry);
   const sectionLabel = daySectionLabel(selectedDay, locale);
@@ -351,6 +374,13 @@ export function PatientTimelineScreen({
             tone="success"
           />
         ) : null}
+        <PendingSyncRecovery
+          busy={pendingSyncBusy}
+          entries={pendingSyncEntries}
+          message={pendingSyncMessage}
+          onDiscard={onDiscardPendingSync}
+          onRetry={onRetryPendingSync}
+        />
         {loading ? (
           <ActivityIndicator color={palette.primary} size="large" style={styles.loader} />
         ) : null}
@@ -388,6 +418,7 @@ export function PatientTimelineScreen({
               : entry.text?.trim() || kindLabel;
             const pending = pendingIds.has(entry.id);
             const offlineDisabled = offlineMode && entry.kind !== 'note' && entry.kind !== 'text';
+            const failed = failedPendingIds.has(entry.id);
             const canOpen =
               canEditSelectedDay && !pending && !offlineDisabled && Boolean(onOpenEntry);
             const canShowDelete = selectedDay === today && !pending && Boolean(onDeleteEntry);
@@ -452,7 +483,14 @@ export function PatientTimelineScreen({
                           },
                         ]}
                       >
-                        {t(locale, pending ? 'sync.pending' : 'timeline.synced')}
+                        {t(
+                          locale,
+                          failed
+                            ? 'sync.failedStatus'
+                            : pending
+                              ? 'sync.pending'
+                              : 'timeline.synced',
+                        )}
                       </Text>
                     </View>
                   </View>

@@ -7,6 +7,7 @@ export function t(locale: Locale, key: TranslationKey): string {
 }
 
 export { dictionaries };
+export { appLocaleTag, formatShortDateTime } from './dateTime';
 export type { Locale, TranslationKey };
 export {
   defaultAppPreferences,

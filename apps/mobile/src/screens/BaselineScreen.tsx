@@ -280,7 +280,8 @@ export function BaselineScreen({
         chronicTherapies: parseChronicTherapies(current?.chronicTherapy),
       });
   const confirmDiscard = useDiscardGuard({
-    enabled: hasUnsavedChanges && !saving,
+    busy: saving,
+    enabled: hasUnsavedChanges,
     onHardwareBack: onBack,
   });
 
@@ -909,6 +910,7 @@ export function BaselineScreen({
       </KeyboardAwareScrollView>
 
       <PatientBottomNav
+        navigationDisabled={saving}
         active="profile"
         onProfile={() => undefined}
         onSettings={() => confirmDiscard(onOpenSettings ?? onBack)}

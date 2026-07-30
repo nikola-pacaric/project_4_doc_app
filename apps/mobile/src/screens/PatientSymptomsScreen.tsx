@@ -11,6 +11,7 @@ import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from 'react-n
 
 import { PrimaryButton } from '../components/PrimaryButton';
 import { StatusMessage } from '../components/StatusMessage';
+import { retrySymptomLoad, symptomInitialLoadView } from '../lib/symptomLoadRecovery';
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 import { SymptomFormScreen } from './SymptomFormScreen';
@@ -69,6 +70,7 @@ export function PatientSymptomsScreen({
   const [drafts, setDrafts] = useState<SymptomDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -79,7 +81,9 @@ export function PatientSymptomsScreen({
     const range = todayRange();
     void listPatientSymptoms(client, profile.id, range.start, range.end)
       .then((records) => {
-        if (active) setDrafts(records.map(toDraft));
+        if (!active) return;
+        setLoadFailed(false);
+        setDrafts(records.map(toDraft));
       })
       .catch(() => {
         if (active) {
@@ -94,7 +98,7 @@ export function PatientSymptomsScreen({
     return () => {
       active = false;
     };
-  }, [client, locale, profile.id]);
+  }, [client, loadAttempt, locale, profile.id]);
 
   async function save(nextDrafts: SymptomDraft[]) {
     setSaving(true);
@@ -115,7 +119,18 @@ export function PatientSymptomsScreen({
     }
   }
 
-  if (loading) {
+  function retryLoad() {
+    const next = retrySymptomLoad({ loading, loadFailed, error, message, loadAttempt });
+    setLoading(next.loading);
+    setLoadFailed(next.loadFailed);
+    setError(next.error);
+    setMessage(next.message);
+    setLoadAttempt(next.loadAttempt);
+  }
+
+  const loadView = symptomInitialLoadView(loading, loadFailed);
+
+  if (loadView === 'loading') {
     return (
       <SafeAreaView style={sharedStyles.screen}>
         <View style={styles.centered}>
@@ -126,7 +141,7 @@ export function PatientSymptomsScreen({
     );
   }
 
-  if (loadFailed) {
+  if (loadView === 'failure') {
     return (
       <SafeAreaView style={sharedStyles.screen}>
         <View style={styles.centered}>
@@ -135,7 +150,8 @@ export function PatientSymptomsScreen({
             style={sharedStyles.error}
             tone="error"
           />
-          <PrimaryButton label={t(locale, 'common.cancel')} onPress={onBack} variant="secondary" />
+          <PrimaryButton label={t(locale, 'common.retry')} onPress={retryLoad} />
+          <PrimaryButton label={t(locale, 'common.back')} onPress={onBack} variant="secondary" />
         </View>
       </SafeAreaView>
     );

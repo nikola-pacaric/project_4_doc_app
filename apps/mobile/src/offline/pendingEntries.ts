@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PatientEntry } from '@project4/contracts';
 import {
   cachedOpenedDayEntries,
+  dedupePendingPhotoDeletions,
   dedupePendingEntries,
   filterPatientOfflineStorageKeys,
   mergeOpenedDayEntryCache,
@@ -9,7 +10,10 @@ import {
   replaceOpenedDayEntryCache,
   type LocalPendingEntry,
   type OpenedDayEntryCache,
+  type PendingPhotoDeletion,
 } from '@project4/sync';
+
+const pendingEntryMutationChains = new Map<string, Promise<void>>();
 
 function keyForPatient(patientId: string): string {
   return patientOfflineStorageKeys(patientId)[0];
@@ -21,6 +25,9 @@ function cacheKeyForPatient(patientId: string): string {
 
 function openedDaysCacheKeyForPatient(patientId: string): string {
   return patientOfflineStorageKeys(patientId)[2];
+}
+function photoDeletionKeyForPatient(patientId: string): string {
+  return patientOfflineStorageKeys(patientId)[3];
 }
 
 export async function clearPatientOfflineData(patientId: string): Promise<void> {
@@ -50,13 +57,85 @@ export async function savePendingEntries(
   await AsyncStorage.setItem(keyForPatient(patientId), JSON.stringify(entries));
 }
 
+export async function updatePendingEntries(
+  patientId: string,
+  updater: (current: readonly LocalPendingEntry[]) => readonly LocalPendingEntry[],
+): Promise<LocalPendingEntry[]> {
+  const previousMutation = pendingEntryMutationChains.get(patientId) ?? Promise.resolve();
+  const mutation = previousMutation.then(async () => {
+    const nextEntries = dedupePendingEntries(updater(await loadPendingEntries(patientId)));
+    await savePendingEntries(patientId, nextEntries);
+    return nextEntries;
+  });
+  const settledMutation = mutation.then(
+    () => undefined,
+    () => undefined,
+  );
+  pendingEntryMutationChains.set(patientId, settledMutation);
+
+  try {
+    return await mutation;
+  } finally {
+    if (pendingEntryMutationChains.get(patientId) === settledMutation) {
+      pendingEntryMutationChains.delete(patientId);
+    }
+  }
+}
+
 export async function appendPendingEntry(
   patientId: string,
   entry: LocalPendingEntry,
 ): Promise<LocalPendingEntry[]> {
-  const nextEntries = dedupePendingEntries([...(await loadPendingEntries(patientId)), entry]);
-  await savePendingEntries(patientId, nextEntries);
-  return nextEntries;
+  return updatePendingEntries(patientId, (current) => [...current, entry]);
+}
+
+export async function loadPendingPhotoDeletions(
+  patientId: string,
+): Promise<PendingPhotoDeletion[]> {
+  const raw = await AsyncStorage.getItem(photoDeletionKeyForPatient(patientId));
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return dedupePendingPhotoDeletions(parsed.filter(isPendingPhotoDeletion));
+  } catch {
+    return [];
+  }
+}
+
+export async function savePendingPhotoDeletions(
+  patientId: string,
+  entries: readonly PendingPhotoDeletion[],
+): Promise<void> {
+  const next = dedupePendingPhotoDeletions(entries);
+  const key = photoDeletionKeyForPatient(patientId);
+  if (!next.length) {
+    await AsyncStorage.removeItem(key);
+    return;
+  }
+  await AsyncStorage.setItem(key, JSON.stringify(next));
+}
+
+export async function updatePendingPhotoDeletions(
+  patientId: string,
+  updater: (current: readonly PendingPhotoDeletion[]) => readonly PendingPhotoDeletion[],
+): Promise<PendingPhotoDeletion[]> {
+  const next = dedupePendingPhotoDeletions(updater(await loadPendingPhotoDeletions(patientId)));
+  await savePendingPhotoDeletions(patientId, next);
+  return next;
+}
+
+function isPendingPhotoDeletion(value: unknown): value is PendingPhotoDeletion {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<PendingPhotoDeletion>;
+  return (
+    (candidate.id === undefined || (typeof candidate.id === 'string' && candidate.id.length > 0)) &&
+    typeof candidate.photoPath === 'string' &&
+    candidate.photoPath.length > 0 &&
+    typeof candidate.thumbnailPath === 'string' &&
+    candidate.thumbnailPath.length > 0
+  );
 }
 
 export async function loadCachedRecentEntries(patientId: string): Promise<PatientEntry[]> {

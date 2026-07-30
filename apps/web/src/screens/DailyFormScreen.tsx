@@ -66,6 +66,8 @@ export function DailyFormScreen({
   const [includeMenstruation, setIncludeMenstruation] = useState(false);
   const [hasChronicTherapy, setHasChronicTherapy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -92,7 +94,9 @@ export function DailyFormScreen({
         onMenstruationAnswerChange(nextDraft.hadMenstruation);
       })
       .catch(() => {
-        if (active) setError(t(locale, 'daily.loadError'));
+        if (!active) return;
+        setLoadFailed(true);
+        setError(t(locale, 'daily.loadError'));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -105,11 +109,20 @@ export function DailyFormScreen({
     client,
     day,
     locale,
+    loadAttempt,
     onActivityAnswerChange,
     onMedicationAnswerChange,
     onMenstruationAnswerChange,
     profile.id,
   ]);
+
+  function retryLoad() {
+    setLoadAttempt((current) => current + 1);
+    setLoading(true);
+    setLoadFailed(false);
+    setError(null);
+    setMessage(null);
+  }
 
   async function save(mode: 'progress' | 'complete') {
     if (mode === 'progress' && !hasDailyFormProgress(draft)) {
@@ -241,7 +254,20 @@ export function DailyFormScreen({
       </div>
 
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
-      {!loading ? (
+      {!loading && loadFailed ? (
+        <section className="structured-entry-form">
+          <StatusMessage tone="error">{error ?? t(locale, 'daily.loadError')}</StatusMessage>
+          <div className="button-row form-actions-row">
+            <button className="secondary-button" onClick={onBack} type="button">
+              {t(locale, 'common.cancel')}
+            </button>
+            <button className="primary-button" onClick={retryLoad} type="button">
+              {t(locale, 'common.retry')}
+            </button>
+          </div>
+        </section>
+      ) : null}
+      {!loading && !loadFailed ? (
         <form className="structured-entry-form daily-form">
           {completedAt || showDraftStatus ? (
             <div
@@ -445,7 +471,7 @@ export function DailyFormScreen({
           <div className="form-actions">
             {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
             {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
-            <button className="secondary-button" onClick={onBack} type="button">
+            <button className="secondary-button" disabled={saving} onClick={onBack} type="button">
               {t(locale, 'common.cancel')}
             </button>
             <button

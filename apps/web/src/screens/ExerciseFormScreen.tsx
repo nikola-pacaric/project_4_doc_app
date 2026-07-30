@@ -54,6 +54,8 @@ export function ExerciseFormScreen({
   const locale = getActiveLocale();
   const [draft, setDraft] = useState<ExerciseDraft>(createInitialDraft);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedExercise, setSavedExercise] = useState<ExerciseRecord | null>(null);
@@ -63,23 +65,28 @@ export function ExerciseFormScreen({
       setDraft(createInitialDraft());
       setSavedExercise(null);
       setLoading(false);
+      setLoadFailed(false);
       return;
     }
 
     let active = true;
     setLoading(true);
+    setLoadFailed(false);
     setError(null);
     void getPatientExercise(client, entryToEdit.id, entryToEdit.occurredAt)
       .then((record) => {
         if (!active) return;
         if (!record) {
           setError(t(locale, 'exercise.loadError'));
+          setLoadFailed(true);
           return;
         }
         setDraft(toDraft(record));
       })
       .catch(() => {
-        if (active) setError(t(locale, 'exercise.loadError'));
+        if (!active) return;
+        setLoadFailed(true);
+        setError(t(locale, 'exercise.loadError'));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -88,7 +95,14 @@ export function ExerciseFormScreen({
     return () => {
       active = false;
     };
-  }, [client, entryToEdit, locale]);
+  }, [client, entryToEdit, loadAttempt, locale]);
+
+  function retryLoad() {
+    setLoading(true);
+    setLoadFailed(false);
+    setError(null);
+    setLoadAttempt((current) => current + 1);
+  }
 
   function update<K extends keyof ExerciseDraft>(field: K, value: ExerciseDraft[K]) {
     setError(null);
@@ -160,7 +174,20 @@ export function ExerciseFormScreen({
       </div>
 
       {loading ? <p className="empty-state">{t(locale, 'app.loading')}</p> : null}
-      {!loading ? (
+      {!loading && loadFailed ? (
+        <section className="structured-entry-form">
+          <StatusMessage tone="error">{error ?? t(locale, 'exercise.loadError')}</StatusMessage>
+          <div className="button-row form-actions-row">
+            <button className="secondary-button" onClick={onBack} type="button">
+              {t(locale, 'common.cancel')}
+            </button>
+            <button className="primary-button" onClick={retryLoad} type="button">
+              {t(locale, 'common.retry')}
+            </button>
+          </div>
+        </section>
+      ) : null}
+      {!loading && !loadFailed ? (
         <form className="structured-entry-form" onSubmit={(event) => void submit(event)}>
           <fieldset className="structured-fieldset">
             <VoiceTextField
@@ -237,7 +264,7 @@ export function ExerciseFormScreen({
 
           {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
           <div className="button-row form-actions-row">
-            <button className="secondary-button" onClick={onBack} type="button">
+            <button className="secondary-button" disabled={saving} onClick={onBack} type="button">
               {t(locale, 'common.cancel')}
             </button>
             <button className="primary-button" disabled={saving} type="submit">

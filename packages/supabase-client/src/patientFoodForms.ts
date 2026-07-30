@@ -166,11 +166,12 @@ export async function savePatientFoodForm(
   range: FoodFormSaveRange,
   draft: FoodHydrationDraft,
   meals: MealDraft[],
+  photoIdsToDelete: readonly string[] = [],
 ): Promise<string> {
-  const { data, error } = await client.rpc(
-    'save_patient_food_form',
-    toFoodFormSaveParams(range, draft, meals),
-  );
+  const { data, error } = await client.rpc('save_patient_food_form_with_photo_cleanup', {
+    ...toFoodFormSaveParams(range, draft, meals),
+    p_delete_photo_ids: [...new Set(photoIdsToDelete)],
+  });
   if (error) throw error;
   if (typeof data !== 'string') throw new Error('Food form save returned an invalid entry ID.');
   return data;

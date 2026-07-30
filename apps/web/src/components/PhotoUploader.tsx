@@ -1,6 +1,9 @@
 import { getActiveLocale, t } from '@project4/i18n';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { prepareWebPhoto, type WebPreparedPhoto } from '../utils/photoHelper';
+import {
+  deferWebPreparedPhotoRelease,
+} from '../utils/webPreparedPhotoLifecycle';
 import { StatusMessage } from './StatusMessage';
 
 export interface ExistingWebPhoto {
@@ -26,9 +29,35 @@ export function PhotoUploader({
   const locale = getActiveLocale();
   const libraryInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const mountedRef = useRef(false);
+  const currentPhotoRef = useRef(localPhoto);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const ownedPhoto = localPhoto;
+    currentPhotoRef.current = ownedPhoto;
+    return () => {
+      deferWebPreparedPhotoRelease(ownedPhoto, () => {
+        const currentPhoto = currentPhotoRef.current;
+        return Boolean(
+          mountedRef.current &&
+            currentPhoto &&
+            ownedPhoto &&
+            currentPhoto.uploadId === ownedPhoto.uploadId &&
+            currentPhoto.previewUrl === ownedPhoto.previewUrl,
+        );
+      });
+    };
+  }, [localPhoto]);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];

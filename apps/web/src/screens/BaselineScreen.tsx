@@ -536,7 +536,7 @@ export function BaselineScreen({ client, profile, onBack }: BaselineScreenProps)
             </fieldset>
           ) : null}
           <div className="button-row form-actions-row">
-            <button className="secondary-button" onClick={cancel} type="button">
+            <button className="secondary-button" disabled={saving} onClick={cancel} type="button">
               {t(locale, 'common.cancel')}
             </button>
             <button className="primary-button" disabled={saving} type="submit">

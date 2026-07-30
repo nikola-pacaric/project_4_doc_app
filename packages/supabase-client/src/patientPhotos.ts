@@ -243,3 +243,21 @@ export async function deleteEntryPhotoObjects(
   const { error } = await client.storage.from(PHOTO_BUCKET).remove(paths);
   if (error) throw error;
 }
+
+/**
+ * Replays persisted cleanup work. Current queue items include the photo row id,
+ * while legacy items only have object paths and must remain recoverable.
+ */
+export async function deleteQueuedEntryPhotos(
+  client: AppSupabaseClient,
+  photos: { id?: string; photoPath: string; thumbnailPath: string }[],
+): Promise<void> {
+  const photosWithRows = photos.filter(
+    (photo): photo is { id: string; photoPath: string; thumbnailPath: string } =>
+      typeof photo.id === 'string' && photo.id.length > 0,
+  );
+  const legacyObjects = photos.filter((photo) => !photo.id);
+
+  await deleteEntryPhotos(client, photosWithRows);
+  await deleteEntryPhotoObjects(client, legacyObjects);
+}

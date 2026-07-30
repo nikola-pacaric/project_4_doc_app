@@ -12,6 +12,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
+import { StatusMessage } from '../components/StatusMessage';
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { ExerciseFormScreen } from './ExerciseFormScreen';
 
@@ -57,6 +58,8 @@ export function PatientExerciseScreen({
   const locale = getActiveLocale();
   const [initialDraft, setInitialDraft] = useState<ExerciseDraft | null>(null);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedExercise, setSavedExercise] = useState<ExerciseRecord | null>(null);
@@ -66,23 +69,28 @@ export function PatientExerciseScreen({
     if (!entryToEdit) {
       setInitialDraft(null);
       setLoading(false);
+      setLoadFailed(false);
       return;
     }
 
     let active = true;
     setLoading(true);
     setError(null);
+    setLoadFailed(false);
     void getPatientExercise(client, entryToEdit.id, entryToEdit.occurredAt)
       .then((record) => {
         if (!active) return;
         if (!record) {
           setError(t(locale, 'exercise.loadError'));
+          setLoadFailed(true);
           return;
         }
         setInitialDraft(toDraft(record));
       })
       .catch(() => {
-        if (active) setError(t(locale, 'exercise.loadError'));
+        if (!active) return;
+        setLoadFailed(true);
+        setError(t(locale, 'exercise.loadError'));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -91,7 +99,14 @@ export function PatientExerciseScreen({
     return () => {
       active = false;
     };
-  }, [client, entryToEdit, locale]);
+  }, [client, entryToEdit, loadAttempt, locale]);
+
+  function retryLoad() {
+    setLoading(true);
+    setLoadFailed(false);
+    setError(null);
+    setLoadAttempt((current) => current + 1);
+  }
 
   async function save(draft: ExerciseDraft) {
     setSaving(true);
@@ -154,6 +169,24 @@ export function PatientExerciseScreen({
     );
   }
 
+  if (loadFailed) {
+    return (
+      <View style={[sharedStyles.screen, styles.loadFailure]}>
+        <StatusMessage
+          message={error ?? t(locale, 'exercise.loadError')}
+          style={sharedStyles.error}
+          tone="error"
+        />
+        <PrimaryButton label={t(locale, 'common.retry')} onPress={retryLoad} />
+        <PrimaryButton
+          label={t(locale, 'common.cancel')}
+          onPress={onBack}
+          variant="secondary"
+        />
+      </View>
+    );
+  }
+
   return (
     <ExerciseFormScreen
       busy={saving}
@@ -191,4 +224,5 @@ const styles = createThemedStyles(() => StyleSheet.create({
   detail: { color: colors.mutedText, fontSize: 16, lineHeight: 24, textAlign: 'center' },
   actions: { gap: spacing.sm, paddingTop: spacing.md },
   loadingScreen: { alignItems: 'center', justifyContent: 'center' },
+  loadFailure: { gap: spacing.md, justifyContent: 'center', padding: spacing.lg },
 }));

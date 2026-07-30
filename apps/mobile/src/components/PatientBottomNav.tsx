@@ -15,6 +15,8 @@ export type PatientBottomNavPalette = {
 interface PatientBottomNavProps {
   active: PatientNavTab;
   onToday: () => void;
+  /** When true, every navigation destination is temporarily non-interactive. */
+  navigationDisabled?: boolean;
   onTimeline: () => void;
   onProfile: () => void;
   onSettings: () => void;
@@ -41,6 +43,7 @@ const tabs: Array<{
  */
 export function PatientBottomNav({
   active,
+  navigationDisabled = false,
   onToday,
   onTimeline,
   onProfile,
@@ -71,15 +74,13 @@ export function PatientBottomNav({
     >
       {tabs.map((tab) => {
         const selected = active === tab.id;
-        const disabled = tab.id === 'profile' && profileDisabled;
+        const disabled = navigationDisabled || (tab.id === 'profile' && profileDisabled);
         const activeColor = palette.onPrimaryContainer;
         const idleColor = palette.onSurfaceVariant;
 
         return (
           <Pressable
-            accessibilityHint={
-              disabled && profileDisabledHint ? profileDisabledHint : undefined
-            }
+            accessibilityHint={disabled && profileDisabledHint ? profileDisabledHint : undefined}
             accessibilityRole="button"
             accessibilityState={{ disabled, selected }}
             disabled={disabled}
@@ -87,20 +88,12 @@ export function PatientBottomNav({
             onPress={() => handlePress(tab.id)}
             style={({ pressed }) => [
               styles.item,
-              selected && [
-                styles.itemActive,
-                { backgroundColor: palette.primaryContainer },
-              ],
+              selected && [styles.itemActive, { backgroundColor: palette.primaryContainer }],
               disabled && styles.disabled,
               pressed && !disabled && styles.pressed,
             ]}
           >
-            <Text
-              style={[
-                styles.icon,
-                { color: selected ? activeColor : idleColor },
-              ]}
-            >
+            <Text style={[styles.icon, { color: selected ? activeColor : idleColor }]}>
               {tab.icon}
             </Text>
             <Text

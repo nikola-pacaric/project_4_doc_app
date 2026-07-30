@@ -13,6 +13,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { PrimaryButton } from '../components/PrimaryButton';
+import { StatusMessage } from '../components/StatusMessage';
 import { colors, sharedStyles, createThemedStyles } from '../theme';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';
 import { StoolFormScreen } from './StoolFormScreen';
@@ -54,6 +55,8 @@ export function PatientStoolScreen({
   const [initialDraft, setInitialDraft] = useState<StoolDraft | null>(null);
   const [occurredAt, setOccurredAt] = useState<string | undefined>(entryToEdit?.occurredAt);
   const [loading, setLoading] = useState(Boolean(entryToEdit));
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedStool, setSavedStool] = useState<StoolRecord | null>(null);
@@ -65,12 +68,14 @@ export function PatientStoolScreen({
       setInitialDraft(null);
       setOccurredAt(undefined);
       setLoading(false);
+      setLoadFailed(false);
       return;
     }
 
     let active = true;
     setLoading(true);
     setError(null);
+    setLoadFailed(false);
     void getPatientStool(client, entryToEdit.id, entryToEdit.occurredAt)
       .then((record) => {
         if (!active) return;
@@ -93,7 +98,9 @@ export function PatientStoolScreen({
         setOccurredAt(record.occurredAt);
       })
       .catch(() => {
-        if (active) setError(t(locale, 'stool.loadError'));
+        if (!active) return;
+        setLoadFailed(true);
+        setError(t(locale, 'stool.loadError'));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -102,7 +109,14 @@ export function PatientStoolScreen({
     return () => {
       active = false;
     };
-  }, [client, entryToEdit, locale]);
+  }, [client, entryToEdit, loadAttempt, locale]);
+
+  function retryLoad() {
+    setLoading(true);
+    setLoadFailed(false);
+    setError(null);
+    setLoadAttempt((current) => current + 1);
+  }
 
   async function save(draft: StoolDraft) {
     setSaving(true);
@@ -150,6 +164,24 @@ export function PatientStoolScreen({
       </View>
     );
   }
+  if (loadFailed) {
+    return (
+      <View style={[sharedStyles.screen, styles.loadFailure]}>
+        <StatusMessage
+          message={error ?? t(locale, 'stool.loadError')}
+          style={sharedStyles.error}
+          tone="error"
+        />
+        <PrimaryButton label={t(locale, 'common.retry')} onPress={retryLoad} />
+        <PrimaryButton
+          label={t(locale, 'common.cancel')}
+          onPress={onBack}
+          variant="secondary"
+        />
+      </View>
+    );
+  }
+
 
   if (savedStool || savedNoStool) {
     return (
@@ -219,6 +251,7 @@ const styles = createThemedStyles(() =>
       padding: spacing.lg,
     },
     loadingScreen: { alignItems: 'center', justifyContent: 'center' },
+    loadFailure: { gap: spacing.md, justifyContent: 'center', padding: spacing.lg },
     successIcon: {
       alignItems: 'center',
       alignSelf: 'center',

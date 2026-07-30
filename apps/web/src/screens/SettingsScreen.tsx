@@ -1,3 +1,4 @@
+import { isDoctorInviteRedemptionEnabled, type PatientDoctorLinkState } from '@project4/contracts';
 import {
   getActiveLocale,
   t,
@@ -78,6 +79,9 @@ export function SettingsScreen({
   const [doctorInviteMessage, setDoctorInviteMessage] = useState<string | null>(null);
   const [doctorInviteRedeeming, setDoctorInviteRedeeming] = useState(false);
   const [doctorLinkOffline, setDoctorLinkOffline] = useState(false);
+  const [loadedDoctorLinkPatientId, setLoadedDoctorLinkPatientId] = useState<string | null>(
+    showDoctorLink ? null : (patientId ?? null),
+  );
 
   const languageOptions: SettingChoice<Locale>[] = [
     { value: 'en', label: t(locale, 'settings.languageEnglish') },
@@ -100,24 +104,34 @@ export function SettingsScreen({
       setDoctorLinkOffline(false);
     } catch {
       setDoctorLinkOffline(true);
+    } finally {
+      setLoadedDoctorLinkPatientId(patientId);
     }
   }, [client, patientId]);
 
   useEffect(() => {
-    void loadDoctorLink();
+    const timer = window.setTimeout(() => {
+      void loadDoctorLink();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [loadDoctorLink]);
 
+  const doctorLinkLoading = showDoctorLink && loadedDoctorLinkPatientId !== patientId;
+  const doctorLinkState: PatientDoctorLinkState = doctorLinkLoading
+    ? 'loading'
+    : doctorLinkOffline
+      ? 'offline'
+      : hasLinkedDoctor
+        ? 'linked'
+        : 'unlinked';
+  const inviteRedemptionEnabled = isDoctorInviteRedemptionEnabled(
+    doctorInviteCode,
+    doctorLinkState,
+    doctorInviteRedeeming,
+  );
+
   async function redeemInviteCode() {
-    if (
-      !client ||
-      !patientId ||
-      !doctorInviteCode.trim() ||
-      doctorInviteRedeeming ||
-      hasLinkedDoctor ||
-      doctorLinkOffline
-    ) {
-      return;
-    }
+    if (!client || !patientId || !inviteRedemptionEnabled) return;
 
     setDoctorInviteRedeeming(true);
     setDoctorInviteMessage(null);
@@ -186,7 +200,7 @@ export function SettingsScreen({
                   {t(locale, 'patientInvite.code')}
                   <input
                     autoCapitalize="characters"
-                    disabled={doctorLinkOffline || doctorInviteRedeeming}
+                    disabled={doctorLinkLoading || doctorLinkOffline || doctorInviteRedeeming}
                     onChange={(event) => {
                       setDoctorInviteCode(event.target.value.toUpperCase());
                       setDoctorInviteMessage(null);
@@ -197,7 +211,7 @@ export function SettingsScreen({
                 </label>
                 <button
                   className="secondary-button"
-                  disabled={doctorLinkOffline || doctorInviteRedeeming || !doctorInviteCode.trim()}
+                  disabled={!inviteRedemptionEnabled}
                   type="submit"
                 >
                   {doctorInviteRedeeming

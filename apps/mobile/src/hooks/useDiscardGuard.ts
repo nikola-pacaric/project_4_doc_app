@@ -1,18 +1,25 @@
+import { decideFormExit } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
 import { useCallback, useEffect } from 'react';
 import { Alert, BackHandler } from 'react-native';
 
 interface DiscardGuardOptions {
+  busy?: boolean;
   enabled: boolean;
   onHardwareBack: () => void;
 }
 
-export function useDiscardGuard({ enabled, onHardwareBack }: DiscardGuardOptions) {
+export function useDiscardGuard({ busy = false, enabled, onHardwareBack }: DiscardGuardOptions) {
   const locale = getActiveLocale();
 
   const confirmDiscard = useCallback(
     (action: () => void) => {
-      if (!enabled) {
+      const decision = decideFormExit({ busy, hasUnsavedChanges: enabled });
+      if (decision === 'block') {
+        return;
+      }
+
+      if (decision === 'allow') {
         action();
         return;
       }
@@ -22,7 +29,7 @@ export function useDiscardGuard({ enabled, onHardwareBack }: DiscardGuardOptions
         { onPress: action, style: 'destructive', text: t(locale, 'form.discard') },
       ]);
     },
-    [enabled, locale],
+    [busy, enabled, locale],
   );
 
   useEffect(() => {

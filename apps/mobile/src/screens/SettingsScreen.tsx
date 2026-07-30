@@ -1,3 +1,4 @@
+import { isDoctorInviteRedemptionEnabled, type PatientDoctorLinkState } from '@project4/contracts';
 import {
   getActiveLocale,
   t,
@@ -96,6 +97,9 @@ export function SettingsScreen({
   const [doctorInviteMessage, setDoctorInviteMessage] = useState<string | null>(null);
   const [doctorInviteRedeeming, setDoctorInviteRedeeming] = useState(false);
   const [doctorLinkOffline, setDoctorLinkOffline] = useState(false);
+  const [loadedDoctorLinkPatientId, setLoadedDoctorLinkPatientId] = useState<string | null>(
+    showDoctorLink ? null : (patientId ?? null),
+  );
   const dark = isDarkThemeActive();
   const palette = dark
     ? {
@@ -128,24 +132,34 @@ export function SettingsScreen({
       setDoctorLinkOffline(false);
     } catch {
       setDoctorLinkOffline(true);
+    } finally {
+      setLoadedDoctorLinkPatientId(patientId);
     }
   }, [client, patientId]);
 
   useEffect(() => {
-    void loadDoctorLink();
+    const timer = setTimeout(() => {
+      void loadDoctorLink();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [loadDoctorLink]);
 
+  const doctorLinkLoading = showDoctorLink && loadedDoctorLinkPatientId !== patientId;
+  const doctorLinkState: PatientDoctorLinkState = doctorLinkLoading
+    ? 'loading'
+    : doctorLinkOffline
+      ? 'offline'
+      : hasLinkedDoctor
+        ? 'linked'
+        : 'unlinked';
+  const inviteRedemptionEnabled = isDoctorInviteRedemptionEnabled(
+    doctorInviteCode,
+    doctorLinkState,
+    doctorInviteRedeeming,
+  );
+
   async function redeemDoctorInvite() {
-    if (
-      !client ||
-      !patientId ||
-      !doctorInviteCode.trim() ||
-      doctorInviteRedeeming ||
-      hasLinkedDoctor ||
-      doctorLinkOffline
-    ) {
-      return;
-    }
+    if (!client || !patientId || !inviteRedemptionEnabled) return;
 
     setDoctorInviteRedeeming(true);
     setDoctorInviteMessage(null);
@@ -471,7 +485,7 @@ export function SettingsScreen({
                   </Text>
                   <FormField
                     autoCapitalize="characters"
-                    editable={!doctorLinkOffline && !doctorInviteRedeeming}
+                    editable={!doctorLinkLoading && !doctorLinkOffline && !doctorInviteRedeeming}
                     label={t(locale, 'patientInvite.code')}
                     onChangeText={(value) => {
                       setDoctorInviteCode(value.toUpperCase());
@@ -501,9 +515,7 @@ export function SettingsScreen({
                   ) : null}
                   <PrimaryButton
                     busy={doctorInviteRedeeming}
-                    disabled={
-                      doctorLinkOffline || doctorInviteRedeeming || !doctorInviteCode.trim()
-                    }
+                    disabled={!inviteRedemptionEnabled}
                     label={t(locale, 'patientInvite.redeem')}
                     onPress={() => void redeemDoctorInvite()}
                     variant="secondary"

@@ -1,6 +1,7 @@
 import type { PatientEntry } from '@project4/contracts';
 import {
   cachedOpenedDayEntries,
+  dedupePendingPhotoDeletions,
   dedupePendingEntries,
   filterPatientOfflineStorageKeys,
   mergeOpenedDayEntryCache,
@@ -8,6 +9,7 @@ import {
   replaceOpenedDayEntryCache,
   type LocalPendingEntry,
   type OpenedDayEntryCache,
+  type PendingPhotoDeletion,
 } from '@project4/sync';
 
 function keyForPatient(patientId: string): string {
@@ -20,6 +22,10 @@ function cacheKeyForPatient(patientId: string): string {
 
 function openedDaysCacheKeyForPatient(patientId: string): string {
   return patientOfflineStorageKeys(patientId)[2];
+}
+
+function photoDeletionKeyForPatient(patientId: string): string {
+  return patientOfflineStorageKeys(patientId)[3];
 }
 
 export function clearPatientOfflineData(patientId: string): void {
@@ -51,13 +57,67 @@ export function savePendingEntries(patientId: string, entries: readonly LocalPen
   window.localStorage.setItem(keyForPatient(patientId), JSON.stringify(entries));
 }
 
+export function updatePendingEntries(
+  patientId: string,
+  updater: (current: readonly LocalPendingEntry[]) => readonly LocalPendingEntry[],
+): LocalPendingEntry[] {
+  const nextEntries = dedupePendingEntries(updater(loadPendingEntries(patientId)));
+  savePendingEntries(patientId, nextEntries);
+  return nextEntries;
+}
+
 export function appendPendingEntry(
   patientId: string,
   entry: LocalPendingEntry,
 ): LocalPendingEntry[] {
-  const nextEntries = dedupePendingEntries([...loadPendingEntries(patientId), entry]);
-  savePendingEntries(patientId, nextEntries);
-  return nextEntries;
+  return updatePendingEntries(patientId, (current) => [...current, entry]);
+}
+
+export function loadPendingPhotoDeletions(patientId: string): PendingPhotoDeletion[] {
+  const raw = window.localStorage.getItem(photoDeletionKeyForPatient(patientId));
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return dedupePendingPhotoDeletions(parsed.filter(isPendingPhotoDeletion));
+  } catch {
+    return [];
+  }
+}
+
+export function savePendingPhotoDeletions(
+  patientId: string,
+  entries: readonly PendingPhotoDeletion[],
+): void {
+  const next = dedupePendingPhotoDeletions(entries);
+  const key = photoDeletionKeyForPatient(patientId);
+  if (!next.length) {
+    window.localStorage.removeItem(key);
+    return;
+  }
+  window.localStorage.setItem(key, JSON.stringify(next));
+}
+
+export function updatePendingPhotoDeletions(
+  patientId: string,
+  updater: (current: readonly PendingPhotoDeletion[]) => readonly PendingPhotoDeletion[],
+): PendingPhotoDeletion[] {
+  const next = dedupePendingPhotoDeletions(updater(loadPendingPhotoDeletions(patientId)));
+  savePendingPhotoDeletions(patientId, next);
+  return next;
+}
+
+function isPendingPhotoDeletion(value: unknown): value is PendingPhotoDeletion {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<PendingPhotoDeletion>;
+  return (
+    (candidate.id === undefined || (typeof candidate.id === 'string' && candidate.id.length > 0)) &&
+    typeof candidate.photoPath === 'string' &&
+    candidate.photoPath.length > 0 &&
+    typeof candidate.thumbnailPath === 'string' &&
+    candidate.thumbnailPath.length > 0
+  );
 }
 
 export function loadCachedRecentEntries(patientId: string): PatientEntry[] {

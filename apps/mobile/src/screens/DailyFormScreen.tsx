@@ -17,6 +17,7 @@ import { LayoutAnimation, Platform, Text, UIManager, View } from 'react-native';
 import { useEffect, useState } from 'react';
 
 import { FormField } from '../components/FormField';
+import { PrimaryButton } from '../components/PrimaryButton';
 import { TactileChoiceRow } from '../components/TactileChoiceRow';
 import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
 import { TactileSectionCard } from '../components/TactileSectionCard';
@@ -66,6 +67,8 @@ export function DailyFormScreen({
   const [includeMenstruation, setIncludeMenstruation] = useState(false);
   const [hasChronicTherapy, setHasChronicTherapy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -94,7 +97,11 @@ export function DailyFormScreen({
         onMedicationAnswerChange(nextDraft.tookMedicationOutsideChronicTherapy);
         onMenstruationAnswerChange(nextDraft.hadMenstruation);
       })
-      .catch(() => active && setError(t(locale, 'daily.loadError')))
+      .catch(() => {
+        if (!active) return;
+        setLoadFailed(true);
+        setError(t(locale, 'daily.loadError'));
+      })
       .finally(() => active && setLoading(false));
 
     return () => {
@@ -104,11 +111,20 @@ export function DailyFormScreen({
     client,
     day,
     locale,
+    loadAttempt,
     onActivityAnswerChange,
     onMedicationAnswerChange,
     onMenstruationAnswerChange,
     profile.id,
   ]);
+
+  function retryLoad() {
+    setLoadAttempt((current) => current + 1);
+    setLoading(true);
+    setLoadFailed(false);
+    setError(null);
+    setMessage(null);
+  }
 
   function updateConditional(
     answerField: keyof DailyFormDraft,
@@ -189,6 +205,23 @@ export function DailyFormScreen({
   }
 
   const showDraftStatus = Boolean(existingEntryId && !completedAt && hasDailyFormProgress(draft));
+  if (loadFailed && !loading) {
+    return (
+      <TactileFormShell
+        error={error ?? t(locale, 'daily.loadError')}
+        guardUnsavedChanges={false}
+        hideNav
+        onCancelProfile={onCancelProfile}
+        onCancelTimeline={onCancelTimeline}
+        onCancelToday={onBack}
+        subtitle={t(locale, 'daily.subtitle')}
+        title={t(locale, 'daily.title')}
+      >
+        <PrimaryButton label={t(locale, 'common.retry')} onPress={retryLoad} />
+      </TactileFormShell>
+    );
+  }
+
 
   return (
     <TactileFormShell

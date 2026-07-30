@@ -11,7 +11,13 @@ import {
   type FoodHydrationDraft,
 } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
-import { mergeExistingPhotosByEntryId } from '@project4/photo';
+import {
+  createStagedEntryPhotoDeletions,
+  filterStagedEntryPhotos,
+  mergeExistingPhotosByEntryId,
+  stageEntryPhotoDeletions,
+  stageRemovedDraftEntryPhotos,
+} from '@project4/photo';
 import {
   getPatientFoodForm,
   listPatientMeals,
@@ -19,7 +25,8 @@ import {
   listPatientOtherFluids,
   listEntryPhotos,
   createEntryPhotoSignedUrl,
-  deleteEntryPhotos,
+  deleteQueuedEntryPhotos,
+  drainPendingPatientPhotoCleanups,
   uploadPreparedEntryPhoto,
   type AppSupabaseClient,
 } from '@project4/supabase-client';
@@ -29,6 +36,7 @@ import { MealFields, type ClientMealDraft } from '../components/MealFields';
 import { OtherFluidFields, type ClientOtherFluidDraft } from '../components/OtherFluidFields';
 import type { ExistingWebPhoto } from '../components/PhotoUploader';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { loadPendingPhotoDeletions, savePendingPhotoDeletions } from '../offline/pendingEntries';
 import { StatusMessage } from '../components/StatusMessage';
 
 interface FoodFormScreenProps {
@@ -285,6 +293,41 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const completedPhotoUploadIdsRef = useRef(new Set<string>());
+  const mealsRef = useRef(meals);
+  const otherFluidsRef = useRef(otherFluids);
+  const stagedPhotoDeletionsRef = useRef(createStagedEntryPhotoDeletions());
+
+  function replaceMeals(nextMeals: ClientMealDraft[]) {
+    stagedPhotoDeletionsRef.current = stageRemovedDraftEntryPhotos(
+      stagedPhotoDeletionsRef.current,
+      mealsRef.current,
+      nextMeals,
+    );
+    mealsRef.current = nextMeals;
+    setMeals(nextMeals);
+  }
+
+  function replaceOtherFluids(nextFluids: ClientOtherFluidDraft[]) {
+    stagedPhotoDeletionsRef.current = stageRemovedDraftEntryPhotos(
+      stagedPhotoDeletionsRef.current,
+      otherFluidsRef.current,
+      nextFluids,
+    );
+    otherFluidsRef.current = nextFluids;
+    setOtherFluids(nextFluids);
+  }
+
+  async function resolveStagedPhotoDeletions() {
+    const photos = (
+      await Promise.all(
+        stagedPhotoDeletionsRef.current.entryIds.map((entryId) => listEntryPhotos(client, entryId)),
+      )
+    ).flat();
+    stagedPhotoDeletionsRef.current = stageEntryPhotoDeletions(
+      stagedPhotoDeletionsRef.current,
+      photos,
+    );
+  }
 
   useEffect(() => {
     let active = true;
@@ -304,6 +347,8 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
 
         setHydration(nextHydration);
         setWaterText(formatWaterLiters(nextHydration.waterLiters));
+        mealsRef.current = baseMeals;
+        otherFluidsRef.current = baseOtherFluids;
         setMeals(baseMeals);
         setOtherFluids(baseOtherFluids);
         setPhotoLoadInput({ foodEntryId, meals: baseMeals, otherFluids: baseOtherFluids });
@@ -332,8 +377,28 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
     ])
       .then(([mealsWithPhotos, fluidsWithPhotos]) => {
         if (!active) return;
-        setMeals((current) => mergeExistingPhotosByEntryId(current, mealsWithPhotos));
-        setOtherFluids((current) => mergeExistingPhotosByEntryId(current, fluidsWithPhotos));
+        setMeals((current) => {
+          const next = mergeExistingPhotosByEntryId(current, mealsWithPhotos).map((draft) => ({
+            ...draft,
+            existingPhotos: filterStagedEntryPhotos(
+              draft.existingPhotos ?? [],
+              stagedPhotoDeletionsRef.current,
+            ),
+          }));
+          mealsRef.current = next;
+          return next;
+        });
+        setOtherFluids((current) => {
+          const next = mergeExistingPhotosByEntryId(current, fluidsWithPhotos).map((draft) => ({
+            ...draft,
+            existingPhotos: filterStagedEntryPhotos(
+              draft.existingPhotos ?? [],
+              stagedPhotoDeletionsRef.current,
+            ),
+          }));
+          otherFluidsRef.current = next;
+          return next;
+        });
         setPhotoLoadFailed(false);
       })
       .catch(() => {
@@ -349,9 +414,8 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
   }, [client, photoLoadAttempt, photoLoadInput]);
 
   async function deleteMealPhoto(localId: string, photo: ExistingWebPhoto) {
-    await deleteEntryPhotos(client, [photo]);
-    setMeals((current) =>
-      current.map((meal) =>
+    replaceMeals(
+      mealsRef.current.map((meal) =>
         (meal.localId ?? meal.entryId) === localId
           ? {
               ...meal,
@@ -363,9 +427,8 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
   }
 
   async function deleteFluidPhoto(localId: string, photo: ExistingWebPhoto) {
-    await deleteEntryPhotos(client, [photo]);
-    setOtherFluids((current) =>
-      current.map((fluid) =>
+    replaceOtherFluids(
+      otherFluidsRef.current.map((fluid) =>
         (fluid.localId ?? fluid.entryId) === localId
           ? {
               ...fluid,
@@ -414,8 +477,41 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
     setMessage(null);
 
     try {
+      const pendingPhotoDeletions = loadPendingPhotoDeletions(profile.id);
+      if (pendingPhotoDeletions.length) {
+        await deleteQueuedEntryPhotos(client, pendingPhotoDeletions);
+        try {
+          savePendingPhotoDeletions(profile.id, []);
+        } catch {
+          // Cleanup is idempotent; a stale queue can safely retry later.
+        }
+      }
+      if (normalizedHydration.hasOtherFluids !== true) {
+        stagedPhotoDeletionsRef.current = stageRemovedDraftEntryPhotos(
+          stagedPhotoDeletionsRef.current,
+          otherFluidsRef.current,
+          [],
+        );
+        const legacyFoodEntryId = photoLoadInput?.foodEntryId;
+        if (legacyFoodEntryId) {
+          const legacyFluidPhotos = (await listEntryPhotos(client, legacyFoodEntryId)).filter(
+            (photo) => photo.contextType === 'fluid',
+          );
+          stagedPhotoDeletionsRef.current = stageEntryPhotoDeletions(
+            stagedPhotoDeletionsRef.current,
+            legacyFluidPhotos,
+          );
+        }
+      }
+      await resolveStagedPhotoDeletions();
       const range = dayRange(day);
-      await savePatientFoodForm(client, range, normalizedHydration, mealsToSave);
+      await savePatientFoodForm(
+        client,
+        range,
+        normalizedHydration,
+        mealsToSave,
+        stagedPhotoDeletionsRef.current.photos.map((photo) => photo.id),
+      );
 
       const [foodRecord, mealRecords] = await Promise.all([
         getPatientFoodForm(client, profile.id, range.start, range.end),
@@ -426,41 +522,33 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
 
       // Retain the database identities immediately. If a later photo fails, the
       // next save updates these records instead of replacing their entries.
-      setMeals((current) =>
-        current.map((mealDraft) => {
-          const normalizedMealTime = normalizeMealDateTime(mealDraft.occurredAt);
-          const savedMeal = mealRecords.find(
-            (record) =>
-              record.entryId === mealDraft.entryId ||
-              (sameMinute(record.occurredAt, normalizedMealTime) &&
-                record.type === (mealDraft.type ?? null) &&
-                (record.name?.trim() ?? null) === (mealDraft.name?.trim() || null)),
-          );
-          return savedMeal?.entryId ? { ...mealDraft, entryId: savedMeal.entryId } : mealDraft;
-        }),
-      );
-      setOtherFluids((current) =>
-        current.map((fluidDraft) => {
-          const normalizedFluidTime = normalizeMealDateTime(fluidDraft.occurredAt);
-          const savedFluid = fluidRecords.find(
-            (record) =>
-              record.entryId === fluidDraft.entryId ||
-              (sameMinute(record.occurredAt, normalizedFluidTime) &&
-                (record.name?.trim() ?? null) === (fluidDraft.name?.trim() || null)),
-          );
-          return savedFluid?.entryId
-            ? { ...fluidDraft, entryId: savedFluid.entryId ?? undefined }
-            : fluidDraft;
-        }),
-      );
-
-      // Clean up legacy photo records if other fluids were disabled
-      if (hydration.hasOtherFluids !== true && foodEntryId) {
-        const legacyFluidPhotos = (await listEntryPhotos(client, foodEntryId)).filter(
-          (photo) => photo.contextType === 'fluid',
+      const mealsWithEntryIds = mealsRef.current.map((mealDraft) => {
+        const normalizedMealTime = normalizeMealDateTime(mealDraft.occurredAt);
+        const savedMeal = mealRecords.find(
+          (record) =>
+            record.entryId === mealDraft.entryId ||
+            (sameMinute(record.occurredAt, normalizedMealTime) &&
+              record.type === (mealDraft.type ?? null) &&
+              (record.name?.trim() ?? null) === (mealDraft.name?.trim() || null)),
         );
-        await deleteEntryPhotos(client, legacyFluidPhotos);
-      }
+        return savedMeal?.entryId ? { ...mealDraft, entryId: savedMeal.entryId } : mealDraft;
+      });
+      mealsRef.current = mealsWithEntryIds;
+      setMeals(mealsWithEntryIds);
+      const fluidsWithEntryIds = otherFluidsRef.current.map((fluidDraft) => {
+        const normalizedFluidTime = normalizeMealDateTime(fluidDraft.occurredAt);
+        const savedFluid = fluidRecords.find(
+          (record) =>
+            record.entryId === fluidDraft.entryId ||
+            (sameMinute(record.occurredAt, normalizedFluidTime) &&
+              (record.name?.trim() ?? null) === (fluidDraft.name?.trim() || null)),
+        );
+        return savedFluid?.entryId
+          ? { ...fluidDraft, entryId: savedFluid.entryId ?? undefined }
+          : fluidDraft;
+      });
+      otherFluidsRef.current = fluidsWithEntryIds;
+      setOtherFluids(fluidsWithEntryIds);
 
       // Handle meal photo uploads
       for (let i = 0; i < meals.length; i++) {
@@ -529,6 +617,9 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
         }
       }
 
+      await drainPendingPatientPhotoCleanups(client);
+      stagedPhotoDeletionsRef.current = createStagedEntryPhotoDeletions();
+
       // Re-fetch required medical data; optional photos are enriched independently.
       const [updatedFoodRecord, updatedMealRecords] = await Promise.all([
         getPatientFoodForm(client, profile.id, range.start, range.end),
@@ -547,6 +638,8 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
         finalFluidRecords,
         finalHydration.otherFluids,
       );
+      mealsRef.current = finalBaseMeals;
+      otherFluidsRef.current = finalBaseOtherFluids;
       setMeals(finalBaseMeals);
       setOtherFluids(finalBaseOtherFluids);
       setPhotoLoadFailed(false);
@@ -602,7 +695,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
           <MealFields
             createMeal={createEmptyMealDraft}
             meals={meals}
-            onChange={setMeals}
+            onChange={replaceMeals}
             onDeletePhoto={deleteMealPhoto}
           />
 
@@ -655,7 +748,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
             <OtherFluidFields
               createFluid={createEmptyOtherFluidDraft}
               fluids={otherFluids}
-              onChange={setOtherFluids}
+              onChange={replaceOtherFluids}
               onDeletePhoto={deleteFluidPhoto}
             />
           ) : null}
@@ -680,7 +773,7 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
           <div className="form-actions form-actions-row">
             {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
             {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
-            <button className="secondary-button" onClick={onBack} type="button">
+            <button className="secondary-button" disabled={saving} onClick={onBack} type="button">
               {t(locale, 'common.cancel')}
             </button>
             <button

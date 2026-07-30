@@ -19,13 +19,18 @@ export interface WebPreparedPhoto {
 }
 
 export async function prepareWebPhoto(file: File): Promise<WebPreparedPhoto> {
-  // Load file into Image object
-  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-    img.onload = () => resolve(img);
-    img.onerror = (err) => reject(err);
-  });
+  const sourceUrl = URL.createObjectURL(file);
+  let image: HTMLImageElement;
+  try {
+    image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.src = sourceUrl;
+      img.onload = () => resolve(img);
+      img.onerror = (err) => reject(err);
+    });
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
 
   // Calculate main photo dimensions
   const { widthPx: width, heightPx: height } = constrainPhotoDimensions(
@@ -95,8 +100,6 @@ export async function prepareWebPhoto(file: File): Promise<WebPreparedPhoto> {
     },
   };
 
-  // Clean up object URL
-  URL.revokeObjectURL(image.src);
 
   return {
     uploadId: createPhotoId(),

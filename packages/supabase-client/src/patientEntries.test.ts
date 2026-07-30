@@ -132,9 +132,10 @@ describe('deletePatientEntry', () => {
       error: options?.storageError ?? null,
     });
     const storageFrom = vi.fn(() => ({ remove }));
+    const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
 
     return {
-      client: { from, storage: { from: storageFrom } } as unknown as AppSupabaseClient,
+      client: { from, rpc, storage: { from: storageFrom } } as unknown as AppSupabaseClient,
       entryDeleteRows,
       metadataDeleteRows,
       remove,

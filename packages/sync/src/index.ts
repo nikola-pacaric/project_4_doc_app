@@ -5,6 +5,7 @@ export type OpenedDayEntryCache = Record<string, PatientEntry[]>;
 
 const patientOfflineStorageKeyPrefixes = [
   'project4:pending-entries:',
+  'project4:pending-photo-deletions:',
   'project4:recent-entries:',
   'project4:opened-day-entries:',
 ] as const;
@@ -57,11 +58,14 @@ export function createAuthSessionTransitionTracker(initialUserId: string | null 
   };
 }
 
-export function patientOfflineStorageKeys(patientId: string): readonly [string, string, string] {
+export function patientOfflineStorageKeys(
+  patientId: string,
+): readonly [string, string, string, string] {
   return [
     `project4:pending-entries:${patientId}`,
-    `project4:recent-entries:${patientId}`,
-    `project4:opened-day-entries:${patientId}`,
+    `project4:recent-entries:visible-v1:${patientId}`,
+    `project4:opened-day-entries:visible-v1:${patientId}`,
+    `project4:pending-photo-deletions:${patientId}`,
   ];
 }
 
@@ -89,6 +93,41 @@ export interface LocalPendingEntry {
   payload: PendingTextEntryPayload | PendingTimestampUpdatePayload | PendingNoteUpdatePayload;
   syncState?: 'pending' | 'failed';
   lastError?: string;
+}
+
+export interface PendingPhotoDeletion {
+  /**
+   * Legacy queue items can be path-only. Current items retain the row id so
+   * recovery removes both storage objects and database metadata.
+   */
+  id?: string;
+  photoPath: string;
+  thumbnailPath: string;
+}
+
+export function dedupePendingPhotoDeletions(
+  entries: readonly PendingPhotoDeletion[],
+): PendingPhotoDeletion[] {
+  return [
+    ...new Map(
+      entries.map((entry) => [`${entry.photoPath}\u0000${entry.thumbnailPath}`, entry]),
+    ).values(),
+  ];
+}
+
+export function failedPendingEntries(entries: readonly LocalPendingEntry[]): LocalPendingEntry[] {
+  return entries.filter((entry) => !isPendingEntryRetryable(entry));
+}
+
+export function retryPendingEntry(
+  entries: readonly LocalPendingEntry[],
+  entryId: string,
+): LocalPendingEntry[] {
+  return entries.map((entry) =>
+    entry.id === entryId && entry.syncState === 'failed'
+      ? { ...entry, syncState: 'pending', lastError: undefined }
+      : entry,
+  );
 }
 
 export function isPendingEntryRetryable(entry: LocalPendingEntry): boolean {

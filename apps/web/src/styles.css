@@ -2027,6 +2027,41 @@ button:focus-visible {
   gap: 10px;
 }
 
+.web-weight-reminder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px;
+  border: 1px solid color-mix(in srgb, var(--app-accent) 30%, var(--app-border));
+  border-radius: 18px;
+  background: var(--app-accent-soft);
+}
+
+.web-weight-reminder div {
+  display: grid;
+  gap: 4px;
+}
+
+.web-weight-reminder h2 {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.web-weight-reminder p {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.web-weight-reminder .primary-button {
+  flex: 0 0 auto;
+  min-height: 44px;
+}
+
 .web-home-grid {
   display: grid;
   grid-template-columns: minmax(280px, 1.15fr) minmax(260px, 0.85fr);
@@ -2226,6 +2261,92 @@ button:focus-visible {
   gap: 10px;
 }
 
+.web-sync-recovery {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--app-danger);
+  border-radius: 18px;
+  background: var(--app-surface);
+  padding: 16px;
+}
+
+.web-sync-recovery-heading,
+.web-sync-recovery-heading h2,
+.web-sync-recovery-heading p,
+.web-sync-recovery-list,
+.web-sync-recovery-list h3,
+.web-sync-recovery-list p {
+  margin: 0;
+}
+
+.web-sync-recovery-heading {
+  display: grid;
+  gap: 5px;
+}
+
+.web-sync-recovery-heading h2 {
+  font-size: 18px;
+}
+
+.web-sync-recovery-heading p,
+.web-sync-recovery-list p {
+  color: var(--app-muted);
+  font-size: 14px;
+}
+
+.web-sync-recovery-list {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.web-sync-recovery-list > li {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 14px;
+  background: var(--app-surface-alt);
+  padding: 13px 14px;
+}
+
+.web-sync-recovery-list h3 {
+  color: var(--app-text);
+  font-size: 15px;
+}
+
+.web-sync-recovery-list .web-sync-recovery-status {
+  color: var(--app-danger);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.web-sync-recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.web-sync-recovery-actions button {
+  min-height: 44px;
+  border: 1px solid var(--app-accent);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--app-accent);
+  padding: 8px 14px;
+  font-weight: 850;
+}
+
+.web-sync-recovery-actions button:last-child {
+  border-color: var(--app-danger);
+  color: var(--app-danger);
+}
+
+.web-sync-recovery-actions button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
 .web-recent-entry {
   display: grid;
   gap: 10px;
@@ -2238,6 +2359,11 @@ button:focus-visible {
 .web-recent-entry.pending {
   border-color: var(--app-warning);
   background: var(--app-warning-soft);
+}
+
+.web-recent-entry.failed {
+  border-color: var(--app-danger);
+  background: var(--app-surface);
 }
 
 .web-recent-entry.draft {
@@ -2300,6 +2426,13 @@ button:focus-visible {
 
 .web-recent-entry .web-entry-pending {
   color: var(--app-warning);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.web-recent-entry .web-entry-failed {
+  color: var(--app-danger);
   font-size: 12px;
   font-weight: 850;
   text-transform: uppercase;
@@ -2766,6 +2899,7 @@ button:focus-visible {
   }
 
   .web-home-hero,
+  .web-weight-reminder,
   .web-home-account,
   .web-section-heading {
     align-items: stretch;

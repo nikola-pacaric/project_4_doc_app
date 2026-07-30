@@ -22,9 +22,10 @@ describe('savePatientFoodForm', () => {
 
     await expect(savePatientFoodForm(client, range, {}, [])).resolves.toBe('entry-1');
 
-    expect(rpc).toHaveBeenCalledWith('save_patient_food_form', {
+    expect(rpc).toHaveBeenCalledWith('save_patient_food_form_with_photo_cleanup', {
       p_day_start: range.start,
       p_day_end: range.end,
+      p_delete_photo_ids: [],
       p_occurred_at: range.occurredAt,
       p_water_liters: null,
       p_has_other_fluids: null,
@@ -45,9 +46,10 @@ describe('savePatientFoodForm', () => {
       ),
     ).resolves.toBe('entry-1');
 
-    expect(rpc).toHaveBeenCalledWith('save_patient_food_form', {
+    expect(rpc).toHaveBeenCalledWith('save_patient_food_form_with_photo_cleanup', {
       p_day_start: range.start,
       p_day_end: range.end,
+      p_delete_photo_ids: [],
       p_occurred_at: range.occurredAt,
       p_water_liters: 1,
       p_has_other_fluids: false,
@@ -76,7 +78,7 @@ describe('savePatientFoodForm', () => {
     );
 
     expect(rpc).toHaveBeenCalledWith(
-      'save_patient_food_form',
+      'save_patient_food_form_with_photo_cleanup',
       expect.objectContaining({
         p_water_liters: 1.75,
         p_has_other_fluids: true,
@@ -112,7 +114,7 @@ describe('savePatientFoodForm', () => {
     );
 
     expect(rpc).toHaveBeenCalledWith(
-      'save_patient_food_form',
+      'save_patient_food_form_with_photo_cleanup',
       expect.objectContaining({ p_water_liters: 1.26 }),
     );
   });
@@ -130,7 +132,7 @@ describe('savePatientFoodForm', () => {
     ).resolves.toBe('entry-1');
 
     expect(rpc).toHaveBeenCalledWith(
-      'save_patient_food_form',
+      'save_patient_food_form_with_photo_cleanup',
       expect.objectContaining({
         p_has_other_fluids: true,
         p_other_fluids: null,
@@ -156,7 +158,7 @@ describe('savePatientFoodForm', () => {
     ).resolves.toBe('entry-1');
 
     expect(rpc).toHaveBeenCalledWith(
-      'save_patient_food_form',
+      'save_patient_food_form_with_photo_cleanup',
       expect.objectContaining({
         p_has_other_fluids: true,
         p_other_fluids:
@@ -184,7 +186,7 @@ describe('savePatientFoodForm', () => {
     ).resolves.toBe('entry-1');
 
     expect(rpc).toHaveBeenCalledWith(
-      'save_patient_food_form',
+      'save_patient_food_form_with_photo_cleanup',
       expect.objectContaining({
         p_meals: [
           {
@@ -208,5 +210,22 @@ describe('savePatientFoodForm', () => {
       ]),
     ).rejects.toThrow('Cannot persist meal data without a valid time.');
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('queues distinct photo deletions in the same food transaction', async () => {
+    const { client, rpc } = createClientMock();
+
+    await savePatientFoodForm(
+      client,
+      range,
+      { waterLiters: 1.5, hasOtherFluids: false },
+      [],
+      ['photo-1', 'photo-1', 'photo-2'],
+    );
+
+    expect(rpc).toHaveBeenCalledWith(
+      'save_patient_food_form_with_photo_cleanup',
+      expect.objectContaining({ p_delete_photo_ids: ['photo-1', 'photo-2'] }),
+    );
   });
 });

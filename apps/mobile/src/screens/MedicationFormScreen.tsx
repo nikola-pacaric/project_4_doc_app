@@ -5,9 +5,11 @@ import {
 } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
 import { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FormField } from '../components/FormField';
+import { PrimaryButton } from '../components/PrimaryButton';
+import { StatusMessage } from '../components/StatusMessage';
 import { TactileChoiceRow } from '../components/TactileChoiceRow';
 import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
 import { TactileSectionCard } from '../components/TactileSectionCard';
@@ -37,6 +39,9 @@ interface MedicationFormScreenProps {
   onBack: () => void;
   onCancelProfile?: () => void;
   onCancelTimeline?: () => void;
+  onRetryPhotos?: () => void;
+  photoError?: string | null;
+  photoLoading?: boolean;
   onSave: (draft: ClientMedicationDraft) => void | Promise<void>;
 }
 
@@ -59,6 +64,9 @@ export function MedicationFormScreen({
   onBack,
   onCancelProfile,
   onCancelTimeline,
+  onRetryPhotos,
+  photoError,
+  photoLoading = false,
   onSave,
 }: MedicationFormScreenProps) {
   const locale = getActiveLocale();
@@ -162,6 +170,24 @@ export function MedicationFormScreen({
           style={multi}
           value={draft.reason ?? ''}
         />
+        {photoLoading ? <ActivityIndicator color={palette.primary} /> : null}
+        {photoError ? (
+          <View style={{ gap: 8 }}>
+            <StatusMessage
+              message={photoError}
+              style={[layout.errorText, { color: palette.error }]}
+              tone="error"
+            />
+            {onRetryPhotos ? (
+              <PrimaryButton
+                label={t(locale, 'common.retry')}
+                onPress={onRetryPhotos}
+                variant="secondary"
+              />
+            ) : null}
+          </View>
+        ) : null}
+
 
         {draft.localPhoto ? (
           <View style={styles.photoRow}>
