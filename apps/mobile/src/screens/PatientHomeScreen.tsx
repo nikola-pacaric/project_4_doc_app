@@ -2,6 +2,7 @@ import {
   filterCachedCompactTimelineEntries,
   filterPatientTimelineEntries,
   isNoStoolTodayEntry,
+  recentResearchCalendarDays,
   type PatientEntry,
   type PatientBaselineProfile,
   type UserProfile,
@@ -128,14 +129,7 @@ function hasTodayNoStoolEntry(entries: PatientEntry[]): boolean {
 }
 
 function recentLocalDays(count = 8): string[] {
-  const days: string[] = [];
-  const today = new Date();
-  for (let index = 0; index < count; index += 1) {
-    const day = new Date(today);
-    day.setDate(today.getDate() - index);
-    days.push(toLocalDateInput(day));
-  }
-  return days;
+  return recentResearchCalendarDays(new Date(), count);
 }
 
 export function PatientHomeScreen({

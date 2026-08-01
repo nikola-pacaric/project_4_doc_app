@@ -8,6 +8,7 @@ import {
   parseLocalDateInput,
   parseLocalDateTime,
   startOfWeekMonday,
+  toDeviceCalendarDateInput,
   toLocalDateInput,
   toLocalMonthInput,
   toLocalTimeInput,
@@ -15,12 +16,17 @@ import {
 } from './dateTime';
 
 describe('mobile date and time helpers', () => {
-  it('formats local values for editable inputs', () => {
-    const value = new Date(2026, 5, 18, 9, 7);
+  it('formats Europe/Belgrade values for editable inputs', () => {
+    const value = new Date('2026-06-18T07:07:00.000Z');
 
     expect(toLocalDateInput(value)).toBe('2026-06-18');
     expect(toLocalMonthInput(value)).toBe('2026-06');
     expect(toLocalTimeInput(value)).toBe('09:07');
+  });
+
+  it('changes the tracked date at Belgrade midnight', () => {
+    expect(toLocalDateInput(new Date('2026-01-01T22:59:59.000Z'))).toBe('2026-01-01');
+    expect(toLocalDateInput(new Date('2026-01-01T23:00:00.000Z'))).toBe('2026-01-02');
   });
 
   it('keeps time input numeric and inserts the separator after two digits', () => {
@@ -41,15 +47,12 @@ describe('mobile date and time helpers', () => {
     expect(parseLocalDateTime('2026-02-31', '09:00')).toBeNull();
     expect(parseLocalDateTime('2026-06-18', '24:00')).toBeNull();
     expect(parseLocalDateTime('18-06-2026', '09:00')).toBeNull();
+    expect(parseLocalDateTime('2026-03-29', '02:30')).toBeNull();
   });
 
-  it('returns an ISO timestamp for valid local input', () => {
-    const result = parseLocalDateTime('2026-06-18', '09:07');
-
-    expect(result).not.toBeNull();
-    expect(new Date(result!).getFullYear()).toBe(2026);
-    expect(new Date(result!).getMonth()).toBe(5);
-    expect(new Date(result!).getDate()).toBe(18);
+  it('returns deterministic ISO timestamps for normal and repeated Belgrade times', () => {
+    expect(parseLocalDateTime('2026-06-18', '09:07')).toBe('2026-06-18T07:07:00.000Z');
+    expect(parseLocalDateTime('2026-10-25', '02:30')).toBe('2026-10-25T00:30:00.000Z');
   });
 
   it('validates tracked calendar days without allowing future dates', () => {
@@ -58,18 +61,20 @@ describe('mobile date and time helpers', () => {
     expect(isValidTrackedDay('2026-06-22', '2026-06-21')).toBe(false);
   });
 
-  it('creates local start, end, and midday timestamps for a tracked day', () => {
+  it('creates Europe/Belgrade start, end, and midday timestamps for a tracked day', () => {
     const range = localDayRange('2026-06-21');
 
-    expect(new Date(range.start).getHours()).toBe(0);
-    expect(new Date(range.end).getDate()).toBe(22);
-    expect(new Date(range.occurredAt).getHours()).toBe(12);
+    expect(range).toEqual({
+      start: '2026-06-20T22:00:00.000Z',
+      end: '2026-06-21T22:00:00.000Z',
+      occurredAt: '2026-06-21T10:00:00.000Z',
+    });
   });
 
   it('builds Monday-start week day keys for a local date', () => {
     // 2026-07-15 is a Wednesday
     const weekStart = startOfWeekMonday(parseLocalDateInput('2026-07-15'));
-    expect(toLocalDateInput(weekStart)).toBe('2026-07-13');
+    expect(toDeviceCalendarDateInput(weekStart)).toBe('2026-07-13');
     expect(weekDayKeys(weekStart)).toEqual([
       '2026-07-13',
       '2026-07-14',
@@ -79,6 +84,6 @@ describe('mobile date and time helpers', () => {
       '2026-07-18',
       '2026-07-19',
     ]);
-    expect(toLocalDateInput(addLocalDays(weekStart, 7))).toBe('2026-07-20');
+    expect(toDeviceCalendarDateInput(addLocalDays(weekStart, 7))).toBe('2026-07-20');
   });
 });

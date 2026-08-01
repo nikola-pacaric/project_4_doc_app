@@ -1,5 +1,10 @@
 import type { FoodFormDetails, UserProfile } from '@project4/contracts';
 import {
+  researchCalendarDay,
+  researchCalendarDayRange,
+  researchCalendarTime,
+} from '@project4/contracts';
+import {
   foodHydrationDefaults,
   getStartedMeals,
   mealDraftDefaults,
@@ -38,10 +43,11 @@ import type { ExistingWebPhoto } from '../components/PhotoUploader';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { loadPendingPhotoDeletions, savePendingPhotoDeletions } from '../offline/pendingEntries';
 import { StatusMessage } from '../components/StatusMessage';
+import type { StructuredFormExitReason } from './structuredFormDiscard';
 
 interface FoodFormScreenProps {
   client: AppSupabaseClient;
-  onBack: () => void;
+  onBack: (reason?: StructuredFormExitReason) => void;
   onSaved: () => void;
   profile: UserProfile;
 }
@@ -53,27 +59,15 @@ interface FoodPhotoLoadInput {
 }
 
 function localDateValue(date: Date): string {
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+  return researchCalendarDay(date);
 }
 
 function localTimeValue(date: Date): string {
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(11, 16);
+  return researchCalendarTime(date);
 }
 
 function dayRange(day: string): { start: string; end: string; occurredAt: string } {
-  const year = Number(day.split('-')[0]);
-  const month = Number(day.split('-')[1]);
-  const date = Number(day.split('-')[2]);
-  const start = new Date(year, month - 1, date);
-  const end = new Date(year, month - 1, date + 1);
-  const occurredAt = new Date(year, month - 1, date, 12);
-  return {
-    start: start.toISOString(),
-    end: end.toISOString(),
-    occurredAt: occurredAt.toISOString(),
-  };
+  return researchCalendarDayRange(day);
 }
 
 let localIdCounter = 0;
@@ -684,7 +678,11 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
             >
               {t(locale, 'common.retry')}
             </button>
-            <button className="secondary-button" onClick={onBack} type="button">
+            <button
+              className="secondary-button"
+              onClick={() => onBack('load-failed')}
+              type="button"
+            >
               {t(locale, 'common.back')}
             </button>
           </div>
@@ -773,7 +771,12 @@ export function FoodFormScreen({ client, onBack, onSaved, profile }: FoodFormScr
           <div className="form-actions form-actions-row">
             {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
             {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
-            <button className="secondary-button" disabled={saving} onClick={onBack} type="button">
+            <button
+              className="secondary-button"
+              disabled={saving}
+              onClick={() => onBack()}
+              type="button"
+            >
               {t(locale, 'common.cancel')}
             </button>
             <button

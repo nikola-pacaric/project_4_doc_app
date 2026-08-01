@@ -6,6 +6,9 @@ import {
   filterPatientTimelineEntries,
   isNoStoolTodayEntry,
   isWeightReminderDue,
+  recentResearchCalendarDays,
+  researchCalendarDay,
+  researchCalendarDayRange,
   type PatientEntry,
   type PatientBaselineProfile,
   type UserProfile,
@@ -27,6 +30,7 @@ import {
   markPendingEntryFailed,
   isPendingEntryId,
   mergePendingTextEntries,
+  reconnectRetryDelayMs,
   retryPendingEntry,
   pendingTimelineEntryIds,
   removePendingEntry,
@@ -68,6 +72,7 @@ import {
   saveCachedRecentEntries,
   updatePendingEntries,
 } from '../offline/pendingEntries';
+import { OfflineCacheNotice } from '../components/OfflineCacheNotice';
 import { PendingSyncRecovery } from '../components/PendingSyncRecovery';
 import { StatusMessage } from '../components/StatusMessage';
 import { withRequestTimeout } from '../utils/requestTimeout';
@@ -80,7 +85,10 @@ import { MedicationFormScreen } from './MedicationFormScreen';
 import { MenstruationFormScreen } from './MenstruationFormScreen';
 import { NoteFormScreen } from './NoteFormScreen';
 import { StoolFormScreen } from './StoolFormScreen';
-import { confirmStructuredFormDiscard } from './structuredFormDiscard';
+import {
+  confirmStructuredFormDiscard,
+  type StructuredFormExitReason,
+} from './structuredFormDiscard';
 import { SymptomFormScreen } from './SymptomFormScreen';
 import { getTimelinePhotoLoadStatus } from './timelinePhotoLoadState';
 
@@ -103,12 +111,9 @@ interface TimelineEntryPhoto {
 }
 
 const ONLINE_LOAD_TIMEOUT_MS = 2_500;
-const OFFLINE_RETRY_INITIAL_MS = 5_000;
-const OFFLINE_RETRY_MAX_MS = 60_000;
 
 function localDateValue(value: Date): string {
-  const offset = value.getTimezoneOffset() * 60_000;
-  return new Date(value.getTime() - offset).toISOString().slice(0, 10);
+  return researchCalendarDay(value);
 }
 
 function hasTodayEntry(entries: PatientEntry[], kind: PatientEntry['kind']): boolean {
@@ -126,28 +131,11 @@ function hasTodayNoStoolEntry(entries: PatientEntry[]): boolean {
 }
 
 function dayRange(day: string): { start: string; end: string; occurredAt: string } {
-  const year = Number(day.split('-')[0]);
-  const month = Number(day.split('-')[1]);
-  const date = Number(day.split('-')[2]);
-  const start = new Date(year, month - 1, date);
-  const end = new Date(year, month - 1, date + 1);
-  const occurredAt = new Date(year, month - 1, date, 12);
-  return {
-    start: start.toISOString(),
-    end: end.toISOString(),
-    occurredAt: occurredAt.toISOString(),
-  };
+  return researchCalendarDayRange(day);
 }
 
 function recentLocalDays(count = 8): string[] {
-  const days: string[] = [];
-  const today = new Date();
-  for (let index = 0; index < count; index += 1) {
-    const day = new Date(today);
-    day.setDate(today.getDate() - index);
-    days.push(localDateValue(day));
-  }
-  return days;
+  return recentResearchCalendarDays(new Date(), count);
 }
 
 function toDailyDraft(details: DailyFormDetails | null): DailyFormDraft {
@@ -790,17 +778,17 @@ export function TimelineScreen({
     if (!offlineMode) return;
 
     let cancelled = false;
-    let retryDelay = OFFLINE_RETRY_INITIAL_MS;
+    let retryAttempt = 1;
     let retryTimer: number | undefined;
 
     function scheduleRetry() {
       retryTimer = window.setTimeout(() => {
         void loadEntries({ showLoading: false }).finally(() => {
           if (cancelled || !offlineModeRef.current) return;
-          retryDelay = Math.min(retryDelay * 2, OFFLINE_RETRY_MAX_MS);
+          retryAttempt += 1;
           scheduleRetry();
         });
-      }, retryDelay);
+      }, reconnectRetryDelayMs(retryAttempt));
     }
 
     scheduleRetry();
@@ -898,8 +886,8 @@ export function TimelineScreen({
     );
   }
 
-  function confirmFormExit(onDiscard: () => void) {
-    confirmStructuredFormDiscard({ locale, onDiscard });
+  function confirmFormExit(onDiscard: () => void, reason?: StructuredFormExitReason) {
+    confirmStructuredFormDiscard({ locale, onDiscard, reason });
   }
 
   if (showBaseline) {
@@ -925,7 +913,7 @@ export function TimelineScreen({
         onActivityAnswerChange={handleActivityAnswerChange}
         onMedicationAnswerChange={handleMedicationAnswerChange}
         onMenstruationAnswerChange={handleMenstruationAnswerChange}
-        onBack={() => confirmFormExit(() => setShowDailyForm(false))}
+        onBack={(reason) => confirmFormExit(() => setShowDailyForm(false), reason)}
         onSaved={() => {
           setShowDailyForm(false);
           void loadEntries();
@@ -939,7 +927,7 @@ export function TimelineScreen({
     return (
       <FoodFormScreen
         client={client}
-        onBack={() => confirmFormExit(() => setShowFoodForm(false))}
+        onBack={(reason) => confirmFormExit(() => setShowFoodForm(false), reason)}
         onSaved={() => {
           setShowFoodForm(false);
           void loadEntries();
@@ -1212,6 +1200,8 @@ export function TimelineScreen({
           </div>
         </div>
 
+        <OfflineCacheNotice locale={locale} visible={offlineMode} />
+
         <label>
           <span>{t(locale, 'timeline.selectDay')}</span>
           <input
@@ -1410,6 +1400,7 @@ export function TimelineScreen({
           </button>
         </div>
       </section>
+      <OfflineCacheNotice locale={locale} visible={offlineMode} />
       {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
       {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
       {recoveryMessage ? (

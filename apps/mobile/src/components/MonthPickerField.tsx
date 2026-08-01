@@ -6,7 +6,7 @@ import { spacing } from '@project4/ui-tokens';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, sharedStyles, createThemedStyles } from '../theme';
-import { toLocalMonthInput } from '../utils/dateTime';
+import { toDeviceCalendarMonthInput } from '../utils/dateTime';
 
 interface MonthPickerFieldProps {
   label: string;
@@ -27,7 +27,7 @@ function toMonthDate(value: string): Date {
 export function MonthPickerField({ label, maximumDate, onChange, value }: MonthPickerFieldProps) {
   function selectMonth(event: DateTimePickerEvent, selectedDate?: Date) {
     if (event.type === 'set' && selectedDate) {
-      onChange(toLocalMonthInput(selectedDate));
+      onChange(toDeviceCalendarMonthInput(selectedDate));
     }
   }
 

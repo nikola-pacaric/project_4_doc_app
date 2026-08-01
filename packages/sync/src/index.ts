@@ -1,5 +1,7 @@
 import type { PatientEntry } from '@project4/contracts';
 
+export { RECONNECT_MAX_INTERVAL_MS, reconnectRetryDelayMs } from './reconnectPolicy';
+
 export type PendingEntryOperation = 'create_text_entry' | 'update_entry_timestamp' | 'update_note';
 export type OpenedDayEntryCache = Record<string, PatientEntry[]>;
 

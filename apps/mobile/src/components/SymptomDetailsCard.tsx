@@ -16,7 +16,7 @@ import { SelectField } from './SelectField';
 import { TimePickerField } from './TimePickerField';
 import { StatusMessage } from './StatusMessage';
 import { colors, sharedStyles, createThemedStyles } from '../theme';
-import { toLocalDateInput } from '../utils/dateTime';
+import { parseLocalDateInput, toLocalDateInput } from '../utils/dateTime';
 
 interface SymptomDetailsCardProps {
   draft: SymptomDraft;
@@ -51,6 +51,7 @@ export function SymptomDetailsCard({ draft, invalid, onChange }: SymptomDetailsC
   const symptomLabel = draft.type ? t(locale, `symptom.type.${draft.type}`) : '';
   const startDate = datePart(draft.startedAt) || toLocalDateInput(new Date());
   const endDate = datePart(draft.endedAt) || startDate;
+  const maximumPickerDate = parseLocalDateInput(toLocalDateInput(new Date()));
 
   return (
     <View style={[styles.card, invalid && styles.cardInvalid]}>
@@ -73,7 +74,7 @@ export function SymptomDetailsCard({ draft, invalid, onChange }: SymptomDetailsC
         <View style={styles.inputColumn}>
           <DatePickerField
             label={t(locale, 'symptom.startDate')}
-            maximumDate={new Date()}
+            maximumDate={maximumPickerDate}
             onChange={(value) => updateDateTime('startedAt', value, undefined)}
             value={startDate}
           />
@@ -91,7 +92,7 @@ export function SymptomDetailsCard({ draft, invalid, onChange }: SymptomDetailsC
         <View style={styles.inputColumn}>
           <DatePickerField
             label={t(locale, 'symptom.endDate')}
-            maximumDate={new Date()}
+            maximumDate={maximumPickerDate}
             onChange={(value) => updateDateTime('endedAt', value, undefined)}
             value={endDate}
           />

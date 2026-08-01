@@ -16,6 +16,7 @@ import {
   parseLocalDateInput,
   startOfWeekMonday,
   toLocalDateInput,
+  toDeviceCalendarDateInput,
   weekDayKeys,
 } from '../utils/dateTime';
 
@@ -81,7 +82,7 @@ export function WeekDayStrip({
   useEffect(() => {
     const selectedWeekStart = startOfWeekMonday(parseLocalDateInput(selectedDay));
     setWeekStart((current) =>
-      toLocalDateInput(selectedWeekStart) === toLocalDateInput(current)
+      toDeviceCalendarDateInput(selectedWeekStart) === toDeviceCalendarDateInput(current)
         ? current
         : selectedWeekStart,
     );
@@ -92,7 +93,7 @@ export function WeekDayStrip({
     () => startOfWeekMonday(parseLocalDateInput(maximumDay)),
     [maximumDay],
   );
-  const canGoNext = toLocalDateInput(weekStart) < toLocalDateInput(maxWeekStart);
+  const canGoNext = toDeviceCalendarDateInput(weekStart) < toDeviceCalendarDateInput(maxWeekStart);
 
   const weekLabel = useMemo(() => {
     const start = weekStart;
@@ -112,7 +113,7 @@ export function WeekDayStrip({
   const shiftWeek = useCallback(
     (deltaWeeks: number) => {
       const nextStart = addLocalDays(weekStart, deltaWeeks * 7);
-      if (toLocalDateInput(nextStart) > toLocalDateInput(maxWeekStart)) return;
+      if (toDeviceCalendarDateInput(nextStart) > toDeviceCalendarDateInput(maxWeekStart)) return;
 
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setWeekStart(nextStart);

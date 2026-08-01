@@ -1,4 +1,5 @@
 import type { PatientEntry, UserProfile } from '@project4/contracts';
+import { researchCalendarDateTime } from '@project4/contracts';
 import { normalizeNoteDateTime, type NoteDraft } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
 import {
@@ -31,13 +32,7 @@ function toDraft(entry: PatientEntry): NoteDraft {
   return {
     entryId: entry.id,
     text: entry.text ?? '',
-    occurredAt: `${occurredAt.getFullYear()}-${String(occurredAt.getMonth() + 1).padStart(
-      2,
-      '0',
-    )}-${String(occurredAt.getDate()).padStart(2, '0')} ${String(occurredAt.getHours()).padStart(
-      2,
-      '0',
-    )}:${String(occurredAt.getMinutes()).padStart(2, '0')}`,
+    occurredAt: researchCalendarDateTime(occurredAt, ' '),
   };
 }
 

@@ -8,9 +8,7 @@ describe('note validation', () => {
 
     expect(validateNote(draft)).toEqual({ valid: true, errors: {} });
     expect(isCompleteNoteDraft(draft)).toBe(true);
-    expect(normalizeNoteDateTime(draft.occurredAt)).toBe(
-      new Date(2026, 5, 21, 14, 30).toISOString(),
-    );
+    expect(normalizeNoteDateTime(draft.occurredAt)).toBe('2026-06-21T12:30:00.000Z');
   });
 
   it('requires non-blank text and an occurrence time', () => {

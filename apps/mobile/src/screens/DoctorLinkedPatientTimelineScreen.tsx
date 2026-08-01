@@ -48,6 +48,7 @@ import {
   formatEntryDate,
   formatEntryTime,
   toLocalDateInput,
+  parseLocalDateInput,
   toLocalMonthInput,
 } from '../utils/dateTime';
 
@@ -159,6 +160,7 @@ export function DoctorLinkedPatientTimelineScreen({
   >('selected_day');
   const [exportDate, setExportDate] = useState(() => toLocalDateInput(new Date()));
   const [exportMonth, setExportMonth] = useState(() => toLocalMonthInput(new Date()));
+  const maximumPickerDate = parseLocalDateInput(toLocalDateInput(new Date()));
   const [exporting, setExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -371,14 +373,14 @@ export function DoctorLinkedPatientTimelineScreen({
           {exportRangeType === 'selected_day' ? (
             <DatePickerField
               label={t(locale, 'doctor.exportDate')}
-              maximumDate={new Date()}
+              maximumDate={maximumPickerDate}
               onChange={setExportDate}
               value={exportDate}
             />
           ) : exportRangeType === 'partial_month' ? (
             <MonthPickerField
               label={t(locale, 'doctor.exportMonth')}
-              maximumDate={new Date()}
+              maximumDate={maximumPickerDate}
               onChange={setExportMonth}
               value={exportMonth}
             />
@@ -452,6 +454,7 @@ export function DoctorLinkedPatientTimelineScreen({
                   <View style={styles.photos}>
                     {photos.map((photo) => (
                       <Pressable
+                        accessibilityLabel={photo.label}
                         accessibilityRole="button"
                         key={photo.id}
                         onPress={() => setSelectedPhoto(photo)}

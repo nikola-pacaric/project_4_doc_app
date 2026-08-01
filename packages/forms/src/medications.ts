@@ -1,3 +1,5 @@
+import { normalizeResearchCalendarDateTime } from '@project4/contracts';
+
 export interface MedicationDraft {
   entryId?: string;
   name?: string;
@@ -19,29 +21,7 @@ export interface MedicationValidationResult {
 export const medicationDraftDefaults: MedicationDraft = { reason: '' };
 
 export function normalizeMedicationDateTime(value: string | undefined): string | null {
-  if (!value?.trim()) return null;
-  const trimmed = value.trim();
-  const localMatch = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/.exec(trimmed);
-
-  if (localMatch) {
-    const [, yearText, monthText, dayText, hourText, minuteText] = localMatch;
-    const year = Number(yearText);
-    const month = Number(monthText);
-    const day = Number(dayText);
-    const hour = Number(hourText);
-    const minute = Number(minuteText);
-    const parsed = new Date(year, month - 1, day, hour, minute, 0, 0);
-    const valid =
-      parsed.getFullYear() === year &&
-      parsed.getMonth() === month - 1 &&
-      parsed.getDate() === day &&
-      parsed.getHours() === hour &&
-      parsed.getMinutes() === minute;
-    return valid ? parsed.toISOString() : null;
-  }
-
-  const timestamp = Date.parse(trimmed);
-  return Number.isNaN(timestamp) ? null : new Date(timestamp).toISOString();
+  return normalizeResearchCalendarDateTime(value);
 }
 
 export function validateMedication(draft: MedicationDraft): MedicationValidationResult {

@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 import { colors, sharedStyles, createThemedStyles } from '../theme';
-import { toLocalTimeInput } from '../utils/dateTime';
+import { toDeviceCalendarTimeInput } from '../utils/dateTime';
 
 interface TimePickerFieldProps {
   label: string;
@@ -49,7 +49,7 @@ export function TimePickerField({
 
   function selectTime(event: DateTimePickerEvent, selectedDate?: Date) {
     if (event.type === 'set' && selectedDate) {
-      onChange(toLocalTimeInput(selectedDate));
+      onChange(toDeviceCalendarTimeInput(selectedDate));
     }
   }
 

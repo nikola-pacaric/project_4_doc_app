@@ -69,7 +69,7 @@ describe('food hydration validation', () => {
     expect(parseOtherFluids(saved)).toEqual([
       {
         entryId: 'fluid-entry-1',
-        occurredAt: new Date(2026, 5, 28, 12, 30).toISOString(),
+        occurredAt: '2026-06-28T10:30:00.000Z',
         name: 'Coffee',
       },
     ]);

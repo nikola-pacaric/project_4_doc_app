@@ -49,6 +49,7 @@ import {
   addLocalDays,
   formatEntryTime,
   parseLocalDateInput,
+  toDeviceCalendarDateInput,
   toLocalDateInput,
 } from '../utils/dateTime';
 
@@ -289,11 +290,11 @@ export function PatientTimelineScreen({
   function openCalendar() {
     DateTimePickerAndroid.open({
       display: 'calendar',
-      maximumDate: new Date(),
+      maximumDate: parseLocalDateInput(today),
       mode: 'date',
       onChange: (event: DateTimePickerEvent, date?: Date) => {
         if (event.type === 'set' && date) {
-          onSelectedDayChange(toLocalDateInput(date));
+          onSelectedDayChange(toDeviceCalendarDateInput(date));
         }
       },
       value: parseLocalDateInput(selectedDay),

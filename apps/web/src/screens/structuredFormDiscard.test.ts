@@ -27,4 +27,19 @@ describe('web structured-form discard protection', () => {
     );
     expect(onDiscard).toHaveBeenCalledOnce();
   });
+
+  it('leaves immediately after an initial load failure', () => {
+    const confirm = vi.fn(() => false);
+    const onDiscard = vi.fn();
+
+    confirmStructuredFormDiscard({
+      locale: 'en',
+      onDiscard,
+      confirm,
+      reason: 'load-failed',
+    });
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(onDiscard).toHaveBeenCalledOnce();
+  });
 });

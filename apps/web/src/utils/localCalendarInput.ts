@@ -1,13 +1,11 @@
-function pad(value: number): string {
-  return String(value).padStart(2, '0');
-}
+import { researchCalendarDay, researchCalendarMonth } from '@project4/contracts';
 
 export function toLocalDateInput(value: Date): string {
-  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+  return researchCalendarDay(value);
 }
 
 export function toLocalMonthInput(value: Date): string {
-  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}`;
+  return researchCalendarMonth(value);
 }
 
 export function isNormalizedLocalDateInput(value: string): boolean {

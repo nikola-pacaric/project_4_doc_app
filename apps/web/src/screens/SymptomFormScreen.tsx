@@ -1,5 +1,10 @@
 import type { SymptomRecord, SymptomType, UserProfile } from '@project4/contracts';
 import {
+  researchCalendarDateTime,
+  researchCalendarDay,
+  researchCalendarDayRange,
+} from '@project4/contracts';
+import {
   createSymptomDraft,
   validateSymptom,
   validateSymptoms,
@@ -27,9 +32,7 @@ interface SymptomFormScreenProps {
 
 function localDateTime(value: string | null): string {
   if (!value) return '';
-  const date = new Date(value);
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  return researchCalendarDateTime(new Date(value));
 }
 
 function currentLocalDateTime(): string {
@@ -38,10 +41,8 @@ function currentLocalDateTime(): string {
 
 function todayRange(): { start: string; end: string } {
   const now = new Date();
-  return {
-    start: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString(),
-    end: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString(),
-  };
+  const { start, end } = researchCalendarDayRange(researchCalendarDay(now));
+  return { start, end };
 }
 
 function toDraft(record: SymptomRecord): SymptomDraft {

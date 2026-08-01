@@ -6,7 +6,7 @@ import { spacing } from '@project4/ui-tokens';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, sharedStyles, createThemedStyles } from '../theme';
-import { toLocalDateInput } from '../utils/dateTime';
+import { toDeviceCalendarDateInput } from '../utils/dateTime';
 
 interface DatePickerFieldProps {
   label: string;
@@ -27,7 +27,7 @@ function toDate(value: string): Date {
 export function DatePickerField({ label, maximumDate, onChange, value }: DatePickerFieldProps) {
   function selectDate(event: DateTimePickerEvent, selectedDate?: Date) {
     if (event.type === 'set' && selectedDate) {
-      onChange(toLocalDateInput(selectedDate));
+      onChange(toDeviceCalendarDateInput(selectedDate));
     }
   }
 

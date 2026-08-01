@@ -1,4 +1,5 @@
 import type { MedicationRecord, UserProfile } from '@project4/contracts';
+import { researchCalendarDateTime } from '@project4/contracts';
 import {
   medicationDraftDefaults,
   normalizeMedicationDateTime,
@@ -42,9 +43,7 @@ export interface ClientMedicationDraft extends MedicationDraft {
 }
 
 function toLocalDateTime(value: Date): string {
-  const offset = value.getTimezoneOffset() * 60_000;
-  const localValue = new Date(value.getTime() - offset).toISOString();
-  return `${localValue.slice(0, 10)} ${localValue.slice(11, 16)}`;
+  return researchCalendarDateTime(value, ' ');
 }
 
 function createInitialDraft(): ClientMedicationDraft {

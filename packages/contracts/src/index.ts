@@ -12,6 +12,7 @@ export * from './meals';
 export * from './medications';
 export * from './menstruation';
 export * from './profiles';
+export * from './researchCalendarCore';
 export * from './weightReminder';
 export * from './roles';
 export * from './stools';

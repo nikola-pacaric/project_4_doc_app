@@ -1,6 +1,7 @@
 import {
   painDescriptions,
   painLocations,
+  researchCalendarDay,
   symptomTypes,
   type PainDescription,
   type PainLocation,
@@ -21,8 +22,7 @@ interface SymptomFieldsProps {
 }
 
 function localDateValue(value: Date): string {
-  const offset = value.getTimezoneOffset() * 60_000;
-  return new Date(value.getTime() - offset).toISOString().slice(0, 10);
+  return researchCalendarDay(value);
 }
 
 export function SymptomFields({

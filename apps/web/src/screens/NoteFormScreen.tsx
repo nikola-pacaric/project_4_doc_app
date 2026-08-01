@@ -1,4 +1,5 @@
 import type { PatientEntry, UserProfile } from '@project4/contracts';
+import { researchCalendarDateTime } from '@project4/contracts';
 import {
   normalizeNoteDateTime,
   noteDraftDefaults,
@@ -32,8 +33,7 @@ interface NoteFormScreenProps {
 }
 
 function toDatetimeLocal(value: Date): string {
-  const offset = value.getTimezoneOffset() * 60_000;
-  return new Date(value.getTime() - offset).toISOString().slice(0, 16);
+  return researchCalendarDateTime(value);
 }
 
 function createInitialDraft(entryToEdit?: PatientEntry | null): NoteDraft {

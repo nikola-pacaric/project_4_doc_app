@@ -1,4 +1,5 @@
 import type { SymptomRecord, UserProfile } from '@project4/contracts';
+import { researchCalendarDay, researchCalendarDayRange } from '@project4/contracts';
 import type { SymptomDraft } from '@project4/forms';
 import { getActiveLocale, t } from '@project4/i18n';
 import {
@@ -27,10 +28,8 @@ interface PatientSymptomsScreenProps {
 
 function todayRange(): { start: string; end: string } {
   const now = new Date();
-  return {
-    start: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString(),
-    end: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString(),
-  };
+  const { start, end } = researchCalendarDayRange(researchCalendarDay(now));
+  return { start, end };
 }
 
 function localDateTime(value: string | null): string {

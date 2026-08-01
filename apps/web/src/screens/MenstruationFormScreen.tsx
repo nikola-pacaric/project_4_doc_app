@@ -1,5 +1,6 @@
 import {
   menstruationFlows,
+  researchCalendarDateTime,
   type MenstruationRecord,
   type MenstruationPainLevel,
   type UserProfile,
@@ -32,8 +33,7 @@ interface MenstruationFormScreenProps {
 const painLevels: MenstruationPainLevel[] = [1, 2, 3];
 
 function toDatetimeLocal(value: Date): string {
-  const offset = value.getTimezoneOffset() * 60_000;
-  return new Date(value.getTime() - offset).toISOString().slice(0, 16);
+  return researchCalendarDateTime(value);
 }
 
 function createInitialDraft(): MenstruationDraft {

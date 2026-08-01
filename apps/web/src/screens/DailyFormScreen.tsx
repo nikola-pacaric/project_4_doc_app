@@ -1,5 +1,9 @@
 import type { UserProfile } from '@project4/contracts';
 import {
+  researchCalendarDay,
+  researchCalendarDayRange,
+} from '@project4/contracts';
+import {
   dailyFormDefaults,
   getDailyFormMissingFields,
   hasDailyFormProgress,
@@ -19,6 +23,7 @@ import { useEffect, useState } from 'react';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { StatusMessage } from '../components/StatusMessage';
 import { VoiceTextField } from '../components/VoiceTextField';
+import type { StructuredFormExitReason } from './structuredFormDiscard';
 
 interface DailyFormScreenProps {
   client: AppSupabaseClient;
@@ -26,27 +31,16 @@ interface DailyFormScreenProps {
   onMedicationAnswerChange: (answer: boolean | undefined) => void;
   onMenstruationAnswerChange: (answer: boolean | undefined) => void;
   profile: UserProfile;
-  onBack: () => void;
+  onBack: (reason?: StructuredFormExitReason) => void;
   onSaved: () => void;
 }
 
 function localDateValue(date: Date): string {
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+  return researchCalendarDay(date);
 }
 
 function dayRange(day: string): { start: string; end: string; occurredAt: string } {
-  const year = Number(day.split('-')[0]);
-  const month = Number(day.split('-')[1]);
-  const date = Number(day.split('-')[2]);
-  const start = new Date(year, month - 1, date);
-  const end = new Date(year, month - 1, date + 1);
-  const occurredAt = new Date(year, month - 1, date, 12);
-  return {
-    start: start.toISOString(),
-    end: end.toISOString(),
-    occurredAt: occurredAt.toISOString(),
-  };
+  return researchCalendarDayRange(day);
 }
 
 export function DailyFormScreen({
@@ -258,7 +252,11 @@ export function DailyFormScreen({
         <section className="structured-entry-form">
           <StatusMessage tone="error">{error ?? t(locale, 'daily.loadError')}</StatusMessage>
           <div className="button-row form-actions-row">
-            <button className="secondary-button" onClick={onBack} type="button">
+            <button
+              className="secondary-button"
+              onClick={() => onBack('load-failed')}
+              type="button"
+            >
               {t(locale, 'common.cancel')}
             </button>
             <button className="primary-button" onClick={retryLoad} type="button">
@@ -471,7 +469,12 @@ export function DailyFormScreen({
           <div className="form-actions">
             {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
             {message ? <StatusMessage tone="success">{message}</StatusMessage> : null}
-            <button className="secondary-button" disabled={saving} onClick={onBack} type="button">
+            <button
+              className="secondary-button"
+              disabled={saving}
+              onClick={() => onBack()}
+              type="button"
+            >
               {t(locale, 'common.cancel')}
             </button>
             <button

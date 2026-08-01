@@ -1,4 +1,5 @@
 import { exerciseIntensities, type ExerciseRecord, type UserProfile } from '@project4/contracts';
+import { researchCalendarDateTime } from '@project4/contracts';
 import { exerciseDraftDefaults, validateExercise, type ExerciseDraft } from '@project4/forms';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
@@ -21,9 +22,7 @@ interface ExerciseFormScreenProps {
 }
 
 function toLocalDateTime(value: Date): string {
-  const offset = value.getTimezoneOffset() * 60_000;
-  const localValue = new Date(value.getTime() - offset).toISOString();
-  return `${localValue.slice(0, 10)} ${localValue.slice(11, 16)}`;
+  return researchCalendarDateTime(value, ' ');
 }
 
 function toDraft(record: ExerciseRecord): ExerciseDraft {
