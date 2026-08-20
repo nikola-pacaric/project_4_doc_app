@@ -8,6 +8,14 @@ import {
 } from '@project4/contracts';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
+  beginTimelinePhotoRecovery,
+  completeTimelinePhotoRecovery,
+  createTimelinePhotoRecoveryState,
+  markTimelinePhotoRenderFailed,
+  shouldShowTimelinePhotoRecovery,
+  type TimelinePhotoRecoveryState,
+} from '@project4/photo';
+import {
   createDoctorPatientExportBundle,
   createEntryPhotoSignedUrl,
   getDoctorLinkedPatientTimeline,
@@ -19,7 +27,7 @@ import {
   type LinkedPatientSummary,
 } from '@project4/supabase-client';
 import { spacing } from '@project4/ui-tokens';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -153,6 +161,10 @@ export function DoctorLinkedPatientTimelineScreen({
   const [baseline, setBaseline] = useState<PatientBaselineProfile | null>(null);
   const [entries, setEntries] = useState<DoctorTimelineEntry[]>([]);
   const [entryPhotos, setEntryPhotos] = useState<Record<string, TimelineEntryPhoto[]>>({});
+  const [photoLoadState, setPhotoLoadState] = useState(() =>
+    createTimelinePhotoRecoveryState(initialPatient.patientId),
+  );
+  const [photoLoadRetryKey, setPhotoLoadRetryKey] = useState(0);
   const [selectedPhoto, setSelectedPhoto] = useState<TimelineEntryPhoto | null>(null);
   const [exportMode, setExportMode] = useState<ExportMode>('all_data_with_images');
   const [exportRangeType, setExportRangeType] = useState<
@@ -166,6 +178,7 @@ export function DoctorLinkedPatientTimelineScreen({
   const [exportError, setExportError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const photoLoadStateRef = useRef(photoLoadState);
 
   const requestTimeline = useCallback(
     () => getDoctorLinkedPatientTimeline(client, initialPatient.patientId),
@@ -194,6 +207,17 @@ export function DoctorLinkedPatientTimelineScreen({
     setSelectedPhoto(null);
     void fetchTimeline();
   }, [fetchTimeline]);
+
+  const replacePhotoLoadState = useCallback((next: TimelinePhotoRecoveryState) => {
+    photoLoadStateRef.current = next;
+    setPhotoLoadState(next);
+  }, []);
+
+  const retryPhotos = useCallback(() => {
+    setSelectedPhoto(null);
+    replacePhotoLoadState({ ...photoLoadStateRef.current, hasRenderError: false });
+    setPhotoLoadRetryKey((previous) => previous + 1);
+  }, [replacePhotoLoadState]);
 
   useEffect(() => {
     let active = true;
@@ -255,12 +279,23 @@ export function DoctorLinkedPatientTimelineScreen({
   useEffect(() => {
     let active = true;
     const photoEntries = entries.filter(canHaveTimelinePhotos);
+    const loadingPhotoState = beginTimelinePhotoRecovery(
+      photoLoadStateRef.current,
+      initialPatient.patientId,
+      photoEntries.length,
+    );
+    replacePhotoLoadState(loadingPhotoState);
+    const request = loadingPhotoState.request;
 
     void (async () => {
       if (!photoEntries.length) {
-        if (active) setEntryPhotos({});
+        if (active) {
+          setEntryPhotos({});
+        }
         return;
       }
+
+      setEntryPhotos({});
 
       try {
         const nextPhotos: Record<string, TimelineEntryPhoto[]> = {};
@@ -284,16 +319,35 @@ export function DoctorLinkedPatientTimelineScreen({
           }),
         );
 
-        if (active) setEntryPhotos(nextPhotos);
+        if (active) {
+          const nextPhotoState = completeTimelinePhotoRecovery(
+            photoLoadStateRef.current,
+            request,
+            photoEntries.length,
+          );
+          if (nextPhotoState === photoLoadStateRef.current) return;
+          setEntryPhotos(nextPhotos);
+          replacePhotoLoadState(nextPhotoState);
+        }
       } catch {
-        if (active) setEntryPhotos({});
+        if (active) {
+          const nextPhotoState = completeTimelinePhotoRecovery(
+            photoLoadStateRef.current,
+            request,
+            photoEntries.length,
+            true,
+          );
+          if (nextPhotoState === photoLoadStateRef.current) return;
+          setEntryPhotos({});
+          replacePhotoLoadState(nextPhotoState);
+        }
       }
     })();
 
     return () => {
       active = false;
     };
-  }, [client, entries, locale]);
+  }, [client, entries, initialPatient.patientId, locale, photoLoadRetryKey, replacePhotoLoadState]);
 
   return (
     <SafeAreaView style={sharedStyles.formScreen}>
@@ -404,10 +458,41 @@ export function DoctorLinkedPatientTimelineScreen({
         {!loading && !entries.length && !error ? (
           <Text style={styles.empty}>{t(locale, 'doctor.timelineEmpty')}</Text>
         ) : null}
+        {photoLoadState.status === 'loading' ? (
+          <View
+            accessibilityLabel={t(locale, 'app.loading')}
+            accessibilityRole="progressbar"
+            style={styles.photoLoadState}
+          >
+            <ActivityIndicator color={colors.accent} size="small" />
+            <Text style={styles.photoLoadText}>{t(locale, 'app.loading')}</Text>
+          </View>
+        ) : null}
+        {shouldShowTimelinePhotoRecovery(photoLoadState) ? (
+          <View style={styles.photoRecovery}>
+            <StatusMessage
+              message={t(locale, 'photo.loadError')}
+              style={sharedStyles.error}
+              tone="error"
+            />
+            <PrimaryButton
+              label={t(locale, 'common.retry')}
+              onPress={retryPhotos}
+              variant="secondary"
+            />
+          </View>
+        ) : null}
 
         {selectedPhoto ? (
           <View style={styles.selectedPhotoPanel}>
-            <Image source={{ uri: selectedPhoto.photoUrl }} style={styles.selectedPhoto} />
+            <Image
+              onError={() => {
+                setSelectedPhoto(null);
+                replacePhotoLoadState(markTimelinePhotoRenderFailed(photoLoadStateRef.current));
+              }}
+              source={{ uri: selectedPhoto.photoUrl }}
+              style={styles.selectedPhoto}
+            />
             <Text style={styles.photoLabel}>{selectedPhoto.label}</Text>
             <PrimaryButton
               label={t(locale, 'common.close')}
@@ -460,7 +545,15 @@ export function DoctorLinkedPatientTimelineScreen({
                         onPress={() => setSelectedPhoto(photo)}
                         style={styles.photoButton}
                       >
-                        <Image source={{ uri: photo.thumbnailUrl }} style={styles.thumbnail} />
+                        <Image
+                          onError={() =>
+                            replacePhotoLoadState(
+                              markTimelinePhotoRenderFailed(photoLoadStateRef.current),
+                            )
+                          }
+                          source={{ uri: photo.thumbnailUrl }}
+                          style={styles.thumbnail}
+                        />
                       </Pressable>
                     ))}
                   </View>
@@ -534,6 +627,14 @@ const styles = createThemedStyles(() =>
     exportTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
     exportHelp: { color: colors.mutedText, fontSize: 15, lineHeight: 22 },
     empty: { color: colors.mutedText, fontSize: 15, lineHeight: 22 },
+    photoLoadState: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+      justifyContent: 'center',
+    },
+    photoLoadText: { color: colors.mutedText, fontSize: 14, fontWeight: '700' },
+    photoRecovery: { gap: spacing.sm },
     list: { gap: spacing.sm },
     card: {
       backgroundColor: colors.surface,

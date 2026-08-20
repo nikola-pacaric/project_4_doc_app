@@ -139,7 +139,11 @@ export function DoctorPendingScreen({
   );
 
   useEffect(() => {
-    void loadDashboard();
+    const loadTimer = setTimeout(() => {
+      void loadDashboard();
+    }, 0);
+
+    return () => clearTimeout(loadTimer);
   }, [loadDashboard]);
 
   useEffect(() => {

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 
 import { colors, sharedStyles, createThemedStyles } from '../theme';
-import { useKeyboardAwareInput } from './KeyboardAwareScrollView';
+import { useKeyboardAwareInput } from './keyboardAwareInputContext';
 
 interface PasswordFieldProps {
   hidden: boolean;
@@ -88,63 +88,65 @@ export function PasswordField({
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
-  field: {
-    gap: spacing.xs,
-  },
-  inputWrap: {
-    position: 'relative',
-  },
-  input: {
-    paddingRight: 56,
-  },
-  leadingInput: {
-    paddingLeft: 52,
-  },
-  leadingIcon: {
-    alignItems: 'center',
-    bottom: 0,
-    justifyContent: 'center',
-    left: 4,
-    opacity: 0.72,
-    position: 'absolute',
-    top: 0,
-    width: 44,
-  },
-  toggle: {
-    position: 'absolute',
-    bottom: 0,
-    right: 2,
-    top: 0,
-    width: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    opacity: 0.5,
-  },
-  pressed: {
-    opacity: 0.55,
-  },
-  eye: {
-    width: 19,
-    height: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.mutedText,
-    borderRadius: 12,
-  },
-  iris: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.mutedText,
-  },
-  slash: {
-    position: 'absolute',
-    width: 22,
-    height: 1.5,
-    borderRadius: 1,
-    backgroundColor: colors.mutedText,
-    transform: [{ rotate: '42deg' }],
-  },
-}));
+const styles = createThemedStyles(() =>
+  StyleSheet.create({
+    field: {
+      gap: spacing.xs,
+    },
+    inputWrap: {
+      position: 'relative',
+    },
+    input: {
+      paddingRight: 56,
+    },
+    leadingInput: {
+      paddingLeft: 52,
+    },
+    leadingIcon: {
+      alignItems: 'center',
+      bottom: 0,
+      justifyContent: 'center',
+      left: 4,
+      opacity: 0.72,
+      position: 'absolute',
+      top: 0,
+      width: 44,
+    },
+    toggle: {
+      position: 'absolute',
+      bottom: 0,
+      right: 2,
+      top: 0,
+      width: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      opacity: 0.5,
+    },
+    pressed: {
+      opacity: 0.55,
+    },
+    eye: {
+      width: 19,
+      height: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      borderColor: colors.mutedText,
+      borderRadius: 12,
+    },
+    iris: {
+      width: 4,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.mutedText,
+    },
+    slash: {
+      position: 'absolute',
+      width: 22,
+      height: 1.5,
+      borderRadius: 1,
+      backgroundColor: colors.mutedText,
+      transform: [{ rotate: '42deg' }],
+    },
+  }),
+);

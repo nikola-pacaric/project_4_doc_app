@@ -6,7 +6,8 @@ import { Pressable, Text, View } from 'react-native';
 
 import { FormField } from '../components/FormField';
 import { TactileChoiceRow } from '../components/TactileChoiceRow';
-import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
+import { TactileFormShell } from '../components/TactileFormShell';
+import { useTactileFormPalette } from '../components/tactileFormPalette';
 import { TactileSectionCard } from '../components/TactileSectionCard';
 import {
   tactileFieldLabelStyle,
@@ -145,12 +146,7 @@ export function StoolFormScreen({
           })}
         </View>
         {draft.bristolType ? (
-          <View
-            style={[
-              layout.statusBanner,
-              { backgroundColor: palette.surfaceContainerLow },
-            ]}
-          >
+          <View style={[layout.statusBanner, { backgroundColor: palette.surfaceContainerLow }]}>
             <Text style={{ color: palette.primary, fontSize: 15, fontWeight: '800' }}>
               {t(locale, 'stool.bristolSelected').replace('{type}', String(draft.bristolType))}
             </Text>

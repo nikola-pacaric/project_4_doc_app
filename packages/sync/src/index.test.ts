@@ -32,6 +32,7 @@ describe('patientOfflineStorageKeys', () => {
       'project4:recent-entries:visible-v1:patient-1',
       'project4:opened-day-entries:visible-v1:patient-1',
       'project4:pending-photo-deletions:patient-1',
+      'project4:authorized-profile:v1:patient-1',
     ]);
   });
 
@@ -44,6 +45,7 @@ describe('patientOfflineStorageKeys', () => {
         'project4:recent-entries:patient-2',
         'project4:opened-day-entries:patient-3',
         'project4:pending-photo-deletions:patient-3',
+        'project4:authorized-profile:v1:patient-3',
         'project4:recent-entries:visible-v1:patient-4',
         'project4:opened-day-entries:visible-v1:patient-5',
       ]),
@@ -52,6 +54,7 @@ describe('patientOfflineStorageKeys', () => {
       'project4:recent-entries:patient-2',
       'project4:opened-day-entries:patient-3',
       'project4:pending-photo-deletions:patient-3',
+      'project4:authorized-profile:v1:patient-3',
       'project4:recent-entries:visible-v1:patient-4',
       'project4:opened-day-entries:visible-v1:patient-5',
     ]);

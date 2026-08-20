@@ -10,6 +10,7 @@ const patientOfflineStorageKeyPrefixes = [
   'project4:pending-photo-deletions:',
   'project4:recent-entries:',
   'project4:opened-day-entries:',
+  'project4:authorized-profile:v1:',
 ] as const;
 
 export function filterPatientOfflineStorageKeys(keys: readonly string[]): string[] {
@@ -62,12 +63,13 @@ export function createAuthSessionTransitionTracker(initialUserId: string | null 
 
 export function patientOfflineStorageKeys(
   patientId: string,
-): readonly [string, string, string, string] {
+): readonly [string, string, string, string, string] {
   return [
     `project4:pending-entries:${patientId}`,
     `project4:recent-entries:visible-v1:${patientId}`,
     `project4:opened-day-entries:visible-v1:${patientId}`,
     `project4:pending-photo-deletions:${patientId}`,
+    `project4:authorized-profile:v1:${patientId}`,
   ];
 }
 

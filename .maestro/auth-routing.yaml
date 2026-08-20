@@ -1,0 +1,14 @@
+appId: com.patientresearchtracking.app
+---
+- launchApp:
+    clearState: true
+- assertVisible: 'I am a...'
+- assertVisible: Patient
+- assertVisible: Doctor
+- tapOn: Doctor
+- assertVisible: Doctor sign in
+- assertVisible: Doctor credentials are provisioned by the research team.
+- tapOn: Patient
+- assertVisible: Welcome
+- assertVisible: Sign in
+- assertVisible: Create account

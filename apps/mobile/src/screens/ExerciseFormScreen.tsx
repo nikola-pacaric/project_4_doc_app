@@ -5,7 +5,8 @@ import { useState } from 'react';
 
 import { FormField } from '../components/FormField';
 import { TactileChoiceRow } from '../components/TactileChoiceRow';
-import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
+import { TactileFormShell } from '../components/TactileFormShell';
+import { useTactileFormPalette } from '../components/tactileFormPalette';
 import { TactileSectionCard } from '../components/TactileSectionCard';
 import { TimePickerField } from '../components/TimePickerField';
 import {

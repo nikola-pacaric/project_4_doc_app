@@ -8,6 +8,14 @@ import {
 } from '@project4/contracts';
 import { getActiveLocale, t, type TranslationKey } from '@project4/i18n';
 import {
+  beginTimelinePhotoRecovery,
+  completeTimelinePhotoRecovery,
+  createTimelinePhotoRecoveryState,
+  markTimelinePhotoRenderFailed,
+  shouldShowTimelinePhotoRecovery,
+  type TimelinePhotoRecoveryState,
+} from '@project4/photo';
+import {
   createDoctorPatientExportBundle,
   createEntryPhotoSignedUrl,
   getDoctorLinkedPatientTimeline,
@@ -18,7 +26,7 @@ import {
   type LinkedPatientSummary,
   type DoctorTimelineEntry,
 } from '@project4/supabase-client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   DoctorBaselineDetails,
@@ -149,6 +157,10 @@ export function DoctorLinkedPatientTimelineScreen({
   const [baseline, setBaseline] = useState<PatientBaselineProfile | null>(null);
   const [entries, setEntries] = useState<DoctorTimelineEntry[]>([]);
   const [entryPhotos, setEntryPhotos] = useState<Record<string, TimelineEntryPhoto[]>>({});
+  const [photoLoadState, setPhotoLoadState] = useState(() =>
+    createTimelinePhotoRecoveryState(initialPatient.patientId),
+  );
+  const [photoLoadRetryKey, setPhotoLoadRetryKey] = useState(0);
   const [lightboxPhoto, setLightboxPhoto] = useState<{ url: string; label: string } | null>(null);
   const [exportMode, setExportMode] = useState<ExportMode>('all_data_with_images');
   const [exportRangeType, setExportRangeType] = useState<
@@ -161,6 +173,7 @@ export function DoctorLinkedPatientTimelineScreen({
   const [exportError, setExportError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const photoLoadStateRef = useRef(photoLoadState);
   const exportMaximumDate = toLocalDateInput(new Date());
   const exportMaximumMonth = toLocalMonthInput(new Date());
   const hasValidExportRange =
@@ -196,6 +209,17 @@ export function DoctorLinkedPatientTimelineScreen({
     setLightboxPhoto(null);
     void fetchTimeline();
   }, [fetchTimeline]);
+
+  const replacePhotoLoadState = useCallback((next: TimelinePhotoRecoveryState) => {
+    photoLoadStateRef.current = next;
+    setPhotoLoadState(next);
+  }, []);
+
+  const retryPhotos = useCallback(() => {
+    setLightboxPhoto(null);
+    replacePhotoLoadState({ ...photoLoadStateRef.current, hasRenderError: false });
+    setPhotoLoadRetryKey((previous) => previous + 1);
+  }, [replacePhotoLoadState]);
 
   useEffect(() => {
     let active = true;
@@ -258,12 +282,23 @@ export function DoctorLinkedPatientTimelineScreen({
   useEffect(() => {
     let active = true;
     const photoEntries = entries.filter(canHaveTimelinePhotos);
+    const loadingPhotoState = beginTimelinePhotoRecovery(
+      photoLoadStateRef.current,
+      initialPatient.patientId,
+      photoEntries.length,
+    );
+    replacePhotoLoadState(loadingPhotoState);
+    const request = loadingPhotoState.request;
 
     void (async () => {
       if (!photoEntries.length) {
-        if (active) setEntryPhotos({});
+        if (active) {
+          setEntryPhotos({});
+        }
         return;
       }
+
+      setEntryPhotos({});
 
       try {
         const nextPhotos: Record<string, TimelineEntryPhoto[]> = {};
@@ -287,16 +322,35 @@ export function DoctorLinkedPatientTimelineScreen({
           }),
         );
 
-        if (active) setEntryPhotos(nextPhotos);
+        if (active) {
+          const nextPhotoState = completeTimelinePhotoRecovery(
+            photoLoadStateRef.current,
+            request,
+            photoEntries.length,
+          );
+          if (nextPhotoState === photoLoadStateRef.current) return;
+          setEntryPhotos(nextPhotos);
+          replacePhotoLoadState(nextPhotoState);
+        }
       } catch {
-        if (active) setEntryPhotos({});
+        if (active) {
+          const nextPhotoState = completeTimelinePhotoRecovery(
+            photoLoadStateRef.current,
+            request,
+            photoEntries.length,
+            true,
+          );
+          if (nextPhotoState === photoLoadStateRef.current) return;
+          setEntryPhotos({});
+          replacePhotoLoadState(nextPhotoState);
+        }
       }
     })();
 
     return () => {
       active = false;
     };
-  }, [client, entries, locale]);
+  }, [client, entries, initialPatient.patientId, locale, photoLoadRetryKey, replacePhotoLoadState]);
 
   return (
     <main className="baseline-layout structured-entry-layout web-timeline-view doctor-readonly-timeline">
@@ -419,6 +473,19 @@ export function DoctorLinkedPatientTimelineScreen({
       {!loading && entries.length === 0 && !error ? (
         <p className="empty-state">{t(locale, 'doctor.timelineEmpty')}</p>
       ) : null}
+      {photoLoadState.status === 'loading' ? (
+        <p aria-live="polite" className="empty-state" role="status">
+          {t(locale, 'app.loading')}
+        </p>
+      ) : null}
+      {shouldShowTimelinePhotoRecovery(photoLoadState) ? (
+        <div className="doctor-timeline-photo-recovery">
+          <StatusMessage tone="error">{t(locale, 'photo.loadError')}</StatusMessage>
+          <button className="secondary-button" onClick={retryPhotos} type="button">
+            {t(locale, 'common.retry')}
+          </button>
+        </div>
+      ) : null}
 
       <div className="web-recent-list web-timeline-list">
         {entries.map((entry) => {
@@ -462,6 +529,11 @@ export function DoctorLinkedPatientTimelineScreen({
                       <img
                         alt={photo.label}
                         className="timeline-entry-photo-thumb"
+                        onError={() =>
+                          replacePhotoLoadState(
+                            markTimelinePhotoRenderFailed(photoLoadStateRef.current),
+                          )
+                        }
                         src={photo.thumbnailUrl}
                       />
                     </button>
@@ -483,7 +555,15 @@ export function DoctorLinkedPatientTimelineScreen({
             >
               &times;
             </button>
-            <img src={lightboxPhoto.url} alt={lightboxPhoto.label} className="photo-lightbox-img" />
+            <img
+              alt={lightboxPhoto.label}
+              className="photo-lightbox-img"
+              onError={() => {
+                setLightboxPhoto(null);
+                replacePhotoLoadState(markTimelinePhotoRenderFailed(photoLoadStateRef.current));
+              }}
+              src={lightboxPhoto.url}
+            />
             <p className="photo-lightbox-label">{lightboxPhoto.label}</p>
           </div>
         </div>

@@ -7,6 +7,11 @@ import { useEffect, useState } from 'react';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { loadWebPreferences, saveWebPreferences } from './lib/preferences';
 import { clearAllPatientOfflineData } from './offline/pendingEntries';
+import {
+  clearCachedOfflinePatientProfile,
+  loadCachedOfflinePatientProfile,
+  saveCachedOfflinePatientProfile,
+} from './offline/patientProfileCache';
 import { StatusMessage } from './components/StatusMessage';
 import { AuthScreen } from './screens/AuthScreen';
 import { ConsentScreen } from './screens/ConsentScreen';
@@ -108,10 +113,23 @@ export function App() {
         if (active) {
           setProfile(nextProfile);
           setProfileError(!nextProfile);
+          if (nextProfile) {
+            saveCachedOfflinePatientProfile(nextProfile);
+          } else {
+            clearCachedOfflinePatientProfile(session.user.id);
+          }
         }
       })
       .catch(() => {
-        if (active) setProfileError(true);
+        if (!active) return;
+
+        const cachedProfile = loadCachedOfflinePatientProfile(session.user.id);
+        if (cachedProfile) {
+          setProfile(cachedProfile);
+          setProfileError(false);
+        } else {
+          setProfileError(true);
+        }
       });
 
     return () => {
@@ -132,7 +150,9 @@ export function App() {
 
   async function acceptConsent() {
     if (supabase && profile) {
-      setProfile(await acceptCurrentConsent(supabase, profile.id));
+      const acceptedProfile = await acceptCurrentConsent(supabase, profile.id);
+      setProfile(acceptedProfile);
+      saveCachedOfflinePatientProfile(acceptedProfile);
     }
   }
 

@@ -3,7 +3,8 @@ import { getActiveLocale, t } from '@project4/i18n';
 import { useState } from 'react';
 
 import { FormField } from '../components/FormField';
-import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
+import { TactileFormShell } from '../components/TactileFormShell';
+import { useTactileFormPalette } from '../components/tactileFormPalette';
 import { TactileSectionCard } from '../components/TactileSectionCard';
 import { TimePickerField } from '../components/TimePickerField';
 import { VoiceTextField } from '../components/VoiceTextField';

@@ -15,10 +15,17 @@
     "typecheck": "tsc -p tsconfig.check.json --noEmit",
     "lint": "eslint .",
     "format": "prettier --check .",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests --exclude=e2e/**",
+    "test:e2e:web": "playwright test",
+    "test:e2e:web:list": "playwright test --list",
+    "test:smoke:mobile:list": "node e2e/mobile/list-flows.mjs",
+    "test:smoke:mobile:validate": "prettier --check .maestro",
+    "test:smoke:mobile:auth": "maestro test .maestro/auth-routing.yaml",
+    "test:smoke:mobile": "node e2e/mobile/run-patient-timeline.mjs"
   },
   "devDependencies": {
     "@eslint/js": "latest",
+    "@playwright/test": "1.62.1",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@vitejs/plugin-react": "latest",

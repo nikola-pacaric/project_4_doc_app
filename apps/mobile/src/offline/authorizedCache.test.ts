@@ -11,35 +11,37 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
-const timelineEntries: PatientEntry[] = [
-  {
-    id: 'entry-note',
-    patientId: 'patient-1',
-    kind: 'note',
-    occurredAt: '2026-06-20T08:00:00.000Z',
-    text: 'Regular note',
-    createdAt: '2026-06-20T08:00:00.000Z',
-    updatedAt: '2026-06-20T08:00:00.000Z',
-  },
-  {
-    id: 'entry-fluid',
-    patientId: 'patient-1',
-    kind: 'fluid',
-    occurredAt: '2026-06-20T09:00:00.000Z',
-    text: 'Water',
-    createdAt: '2026-06-20T09:00:00.000Z',
-    updatedAt: '2026-06-20T09:00:00.000Z',
-  },
-  {
-    id: 'entry-menstruation',
-    patientId: 'patient-1',
-    kind: 'menstruation',
-    occurredAt: '2026-06-20T10:00:00.000Z',
-    text: null,
-    createdAt: '2026-06-20T10:00:00.000Z',
-    updatedAt: '2026-06-20T10:00:00.000Z',
-  },
-];
+function timelineEntries(patientId: string): PatientEntry[] {
+  return [
+    {
+      id: 'entry-note',
+      patientId,
+      kind: 'note',
+      occurredAt: '2026-06-20T08:00:00.000Z',
+      text: 'Regular note',
+      createdAt: '2026-06-20T08:00:00.000Z',
+      updatedAt: '2026-06-20T08:00:00.000Z',
+    },
+    {
+      id: 'entry-fluid',
+      patientId,
+      kind: 'fluid',
+      occurredAt: '2026-06-20T09:00:00.000Z',
+      text: 'Water',
+      createdAt: '2026-06-20T09:00:00.000Z',
+      updatedAt: '2026-06-20T09:00:00.000Z',
+    },
+    {
+      id: 'entry-menstruation',
+      patientId,
+      kind: 'menstruation',
+      occurredAt: '2026-06-20T10:00:00.000Z',
+      text: null,
+      createdAt: '2026-06-20T10:00:00.000Z',
+      updatedAt: '2026-06-20T10:00:00.000Z',
+    },
+  ];
+}
 
 const entryLocalDay = (entry: PatientEntry) => entry.occurredAt.slice(0, 10);
 
@@ -54,9 +56,13 @@ describe('authorized opened-day cache', () => {
   });
 
   it('preserves female history offline while excluding menstruation for non-female patients', async () => {
-    const femaleVisible = filterPatientTimelineEntries(timelineEntries, 'female', {
-      includeFluidEntries: true,
-    });
+    const femaleVisible = filterPatientTimelineEntries(
+      timelineEntries('female-patient'),
+      'female',
+      {
+        includeFluidEntries: true,
+      },
+    );
     await saveCachedOpenedDayEntries('female-patient', femaleVisible, entryLocalDay, [
       '2026-06-20',
     ]);
@@ -66,7 +72,7 @@ describe('authorized opened-day cache', () => {
       ),
     ).toEqual(['menstruation', 'fluid', 'note']);
 
-    const maleVisible = filterPatientTimelineEntries(timelineEntries, 'male', {
+    const maleVisible = filterPatientTimelineEntries(timelineEntries('male-patient'), 'male', {
       includeFluidEntries: true,
     });
     await saveCachedOpenedDayEntries('male-patient', maleVisible, entryLocalDay, ['2026-06-20']);

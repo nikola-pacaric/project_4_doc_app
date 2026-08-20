@@ -9,7 +9,8 @@ import { useState } from 'react';
 
 import { FormField } from '../components/FormField';
 import { TactileChoiceRow } from '../components/TactileChoiceRow';
-import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
+import { TactileFormShell } from '../components/TactileFormShell';
+import { useTactileFormPalette } from '../components/tactileFormPalette';
 import { TactileSectionCard } from '../components/TactileSectionCard';
 import { TimePickerField } from '../components/TimePickerField';
 import {
@@ -50,9 +51,7 @@ export function MenstruationFormScreen({
 }: MenstruationFormScreenProps) {
   const locale = getActiveLocale();
   const palette = useTactileFormPalette();
-  const [draft, setDraft] = useState<MenstruationDraft>(
-    () => initialDraft ?? createInitialDraft(),
-  );
+  const [draft, setDraft] = useState<MenstruationDraft>(() => initialDraft ?? createInitialDraft());
   const [showErrors, setShowErrors] = useState(false);
   const pill = tactilePillInputStyle(palette);
   const multi = tactileMultilineInputStyle(palette);

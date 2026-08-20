@@ -38,6 +38,19 @@ function toDraft(record: MenstruationRecord): MenstruationDraft {
 }
 
 export function PatientMenstruationScreen({
+  entryToEdit,
+  ...props
+}: PatientMenstruationScreenProps) {
+  return (
+    <PatientMenstruationScreenContent
+      key={`${entryToEdit?.id ?? 'new'}:${entryToEdit?.occurredAt ?? ''}`}
+      entryToEdit={entryToEdit}
+      {...props}
+    />
+  );
+}
+
+function PatientMenstruationScreenContent({
   client,
   entryToEdit,
   onBack,
@@ -55,17 +68,9 @@ export function PatientMenstruationScreen({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!entryToEdit) {
-      setInitialDraft(null);
-      setLoading(false);
-      setLoadFailed(false);
-      return;
-    }
+    if (!entryToEdit) return;
 
     let active = true;
-    setLoading(true);
-    setError(null);
-    setLoadFailed(false);
     void getPatientMenstruation(client, entryToEdit.id, entryToEdit.occurredAt)
       .then((record) => {
         if (!active) return;
@@ -120,18 +125,19 @@ export function PatientMenstruationScreen({
 
   if (loadFailed) {
     return (
-      <View style={[sharedStyles.screen, { gap: spacing.md, justifyContent: 'center', padding: spacing.lg }]}>
+      <View
+        style={[
+          sharedStyles.screen,
+          { gap: spacing.md, justifyContent: 'center', padding: spacing.lg },
+        ]}
+      >
         <StatusMessage
           message={error ?? t(locale, 'menstruation.loadError')}
           style={sharedStyles.error}
           tone="error"
         />
         <PrimaryButton label={t(locale, 'common.retry')} onPress={retryLoad} />
-        <PrimaryButton
-          label={t(locale, 'common.cancel')}
-          onPress={onBack}
-          variant="secondary"
-        />
+        <PrimaryButton label={t(locale, 'common.cancel')} onPress={onBack} variant="secondary" />
       </View>
     );
   }

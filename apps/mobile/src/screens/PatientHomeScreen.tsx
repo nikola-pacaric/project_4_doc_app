@@ -71,6 +71,7 @@ import {
   refreshForegroundPatientData,
 } from '../lib/foregroundReconnectPolicy';
 import { primarySubmitHelpKey } from '../lib/dailyProgressState';
+import { scheduleInitialTimelineLoad } from '../lib/initialTimelineStartup';
 import { localDayRange, toLocalDateInput } from '../utils/dateTime';
 import { BaselineScreen } from './BaselineScreen';
 import { DailyProgressHomeScreen } from './DailyProgressHomeScreen';
@@ -427,12 +428,16 @@ export function PatientHomeScreen({
 
   const initialTabAppliedRef = useRef(false);
   useEffect(() => {
-    if (initialTabAppliedRef.current) return;
-    initialTabAppliedRef.current = true;
-    if (initialTab === 'timeline') {
-      openTimeline();
-    }
-  }, [initialTab, openTimeline]);
+    if (initialTab !== 'timeline') return;
+
+    return scheduleInitialTimelineLoad(
+      () => initialTabAppliedRef.current,
+      () => {
+        initialTabAppliedRef.current = true;
+      },
+      () => void loadTimelineDay(timelineDayRef.current),
+    );
+  }, [initialTab, loadTimelineDay]);
 
   const handleTimelineDayChange = useCallback(
     (day: string) => {
@@ -704,15 +709,12 @@ export function PatientHomeScreen({
   );
 
   useEffect(() => {
-    let active = true;
-    void loadPendingQueue();
-    void loadEntries().finally(() => {
-      if (!active) return;
-    });
+    const startupTimer = setTimeout(() => {
+      void loadPendingQueue();
+      void loadEntries();
+    }, 0);
 
-    return () => {
-      active = false;
-    };
+    return () => clearTimeout(startupTimer);
   }, [loadEntries, loadPendingQueue]);
 
   useEffect(() => {

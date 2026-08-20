@@ -1,11 +1,7 @@
 import type { UserProfile } from '@project4/contracts';
-import {
-  researchCalendarDay,
-  researchCalendarDayRange,
-} from '@project4/contracts';
+import { researchCalendarDay, researchCalendarDayRange } from '@project4/contracts';
 import {
   dailyFormDefaults,
-  getDailyFormMissingFields,
   hasDailyFormProgress,
   isCompleteDailyForm,
   toDailyFormDraft,
@@ -205,13 +201,11 @@ export function DailyFormScreen({
   }
 
   function optionField<T extends string>({
-    id,
     labelKey,
     onChange,
     options,
     value,
   }: {
-    id: string;
     labelKey: TranslationKey;
     onChange: (value: T) => void;
     options: Array<{ value: T; label: string }>;
@@ -311,7 +305,6 @@ export function DailyFormScreen({
             </div>
           </fieldset>
           {optionField({
-            id: 'appetite',
             labelKey: 'daily.appetite',
             onChange: (appetite: NonNullable<DailyFormDraft['appetite']>) =>
               setDraft((value) => ({ ...value, appetite })),

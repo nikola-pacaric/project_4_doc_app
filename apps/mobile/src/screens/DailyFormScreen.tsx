@@ -19,7 +19,8 @@ import { useEffect, useState } from 'react';
 import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { TactileChoiceRow } from '../components/TactileChoiceRow';
-import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
+import { TactileFormShell } from '../components/TactileFormShell';
+import { useTactileFormPalette } from '../components/tactileFormPalette';
 import { TactileSectionCard } from '../components/TactileSectionCard';
 import { TimePickerField } from '../components/TimePickerField';
 import {
@@ -221,7 +222,6 @@ export function DailyFormScreen({
       </TactileFormShell>
     );
   }
-
 
   return (
     <TactileFormShell
@@ -430,11 +430,7 @@ export function DailyFormScreen({
             ]}
             palette={palette}
             value={
-              draft.hadMenstruation === undefined
-                ? undefined
-                : draft.hadMenstruation
-                  ? 'yes'
-                  : 'no'
+              draft.hadMenstruation === undefined ? undefined : draft.hadMenstruation ? 'yes' : 'no'
             }
           />
         ) : null}
@@ -465,9 +461,7 @@ export function DailyFormScreen({
           label={t(locale, 'daily.dayDescription')}
           labelStyle={label}
           multiline
-          onChangeText={(dayDescription) =>
-            setDraft((current) => ({ ...current, dayDescription }))
-          }
+          onChangeText={(dayDescription) => setDraft((current) => ({ ...current, dayDescription }))}
           style={multi}
           value={draft.dayDescription ?? ''}
         />

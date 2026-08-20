@@ -11,7 +11,8 @@ import { FormField } from '../components/FormField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { StatusMessage } from '../components/StatusMessage';
 import { TactileChoiceRow } from '../components/TactileChoiceRow';
-import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
+import { TactileFormShell } from '../components/TactileFormShell';
+import { useTactileFormPalette } from '../components/tactileFormPalette';
 import { TactileSectionCard } from '../components/TactileSectionCard';
 import { TimePickerField } from '../components/TimePickerField';
 import {
@@ -187,7 +188,6 @@ export function MedicationFormScreen({
             ) : null}
           </View>
         ) : null}
-
 
         {draft.localPhoto ? (
           <View style={styles.photoRow}>

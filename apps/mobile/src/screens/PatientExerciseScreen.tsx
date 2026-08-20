@@ -42,7 +42,17 @@ function toDraft(record: ExerciseRecord): ExerciseDraft {
   };
 }
 
-export function PatientExerciseScreen({
+export function PatientExerciseScreen({ entryToEdit, ...props }: PatientExerciseScreenProps) {
+  return (
+    <PatientExerciseScreenContent
+      key={`${entryToEdit?.id ?? 'new'}:${entryToEdit?.occurredAt ?? ''}`}
+      entryToEdit={entryToEdit}
+      {...props}
+    />
+  );
+}
+
+function PatientExerciseScreenContent({
   client,
   entryToEdit,
   onBack,
@@ -62,17 +72,9 @@ export function PatientExerciseScreen({
   const [formVersion, setFormVersion] = useState(0);
 
   useEffect(() => {
-    if (!entryToEdit) {
-      setInitialDraft(null);
-      setLoading(false);
-      setLoadFailed(false);
-      return;
-    }
+    if (!entryToEdit) return;
 
     let active = true;
-    setLoading(true);
-    setError(null);
-    setLoadFailed(false);
     void getPatientExercise(client, entryToEdit.id, entryToEdit.occurredAt)
       .then((record) => {
         if (!active) return;
@@ -174,11 +176,7 @@ export function PatientExerciseScreen({
           tone="error"
         />
         <PrimaryButton label={t(locale, 'common.retry')} onPress={retryLoad} />
-        <PrimaryButton
-          label={t(locale, 'common.cancel')}
-          onPress={onBack}
-          variant="secondary"
-        />
+        <PrimaryButton label={t(locale, 'common.cancel')} onPress={onBack} variant="secondary" />
       </View>
     );
   }
@@ -197,28 +195,30 @@ export function PatientExerciseScreen({
   );
 }
 
-const styles = createThemedStyles(() => StyleSheet.create({
-  content: {
-    alignItems: 'stretch',
-    flexGrow: 1,
-    gap: spacing.md,
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  successIcon: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: 36,
-    height: 72,
-    justifyContent: 'center',
-    width: 72,
-  },
-  successIconText: { color: '#ffffff', fontSize: 38, fontWeight: '800' },
-  title: { color: colors.text, fontSize: 28, fontWeight: '800', textAlign: 'center' },
-  activity: { color: colors.accent, fontSize: 20, fontWeight: '800', textAlign: 'center' },
-  detail: { color: colors.mutedText, fontSize: 16, lineHeight: 24, textAlign: 'center' },
-  actions: { gap: spacing.sm, paddingTop: spacing.md },
-  loadingScreen: { alignItems: 'center', justifyContent: 'center' },
-  loadFailure: { gap: spacing.md, justifyContent: 'center', padding: spacing.lg },
-}));
+const styles = createThemedStyles(() =>
+  StyleSheet.create({
+    content: {
+      alignItems: 'stretch',
+      flexGrow: 1,
+      gap: spacing.md,
+      justifyContent: 'center',
+      padding: spacing.lg,
+    },
+    successIcon: {
+      alignItems: 'center',
+      alignSelf: 'center',
+      backgroundColor: colors.accent,
+      borderRadius: 36,
+      height: 72,
+      justifyContent: 'center',
+      width: 72,
+    },
+    successIconText: { color: '#ffffff', fontSize: 38, fontWeight: '800' },
+    title: { color: colors.text, fontSize: 28, fontWeight: '800', textAlign: 'center' },
+    activity: { color: colors.accent, fontSize: 20, fontWeight: '800', textAlign: 'center' },
+    detail: { color: colors.mutedText, fontSize: 16, lineHeight: 24, textAlign: 'center' },
+    actions: { gap: spacing.sm, paddingTop: spacing.md },
+    loadingScreen: { alignItems: 'center', justifyContent: 'center' },
+    loadFailure: { gap: spacing.md, justifyContent: 'center', padding: spacing.lg },
+  }),
+);

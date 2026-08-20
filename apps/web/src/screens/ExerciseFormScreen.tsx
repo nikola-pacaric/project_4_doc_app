@@ -43,7 +43,17 @@ function createInitialDraft(): ExerciseDraft {
   };
 }
 
-export function ExerciseFormScreen({
+export function ExerciseFormScreen({ entryToEdit, ...props }: ExerciseFormScreenProps) {
+  return (
+    <ExerciseFormContent
+      key={entryToEdit ? `${entryToEdit.id}:${entryToEdit.occurredAt}` : 'new'}
+      entryToEdit={entryToEdit}
+      {...props}
+    />
+  );
+}
+
+function ExerciseFormContent({
   client,
   entryToEdit,
   onBack,
@@ -60,18 +70,9 @@ export function ExerciseFormScreen({
   const [savedExercise, setSavedExercise] = useState<ExerciseRecord | null>(null);
 
   useEffect(() => {
-    if (!entryToEdit) {
-      setDraft(createInitialDraft());
-      setSavedExercise(null);
-      setLoading(false);
-      setLoadFailed(false);
-      return;
-    }
+    if (!entryToEdit) return;
 
     let active = true;
-    setLoading(true);
-    setLoadFailed(false);
-    setError(null);
     void getPatientExercise(client, entryToEdit.id, entryToEdit.occurredAt)
       .then((record) => {
         if (!active) return;

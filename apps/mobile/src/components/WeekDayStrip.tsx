@@ -1,5 +1,5 @@
 import { t, type Locale } from '@project4/i18n';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   LayoutAnimation,
   PanResponder,
@@ -49,11 +49,7 @@ function localeTag(locale: Locale): string {
   return locale === 'sr' ? 'sr-Latn' : 'en';
 }
 
-function pickDayInWeek(
-  weekDays: string[],
-  preferredDay: string,
-  maximumDay: string,
-): string {
+function pickDayInWeek(weekDays: string[], preferredDay: string, maximumDay: string): string {
   if (weekDays.includes(preferredDay) && preferredDay <= maximumDay) {
     return preferredDay;
   }
@@ -68,7 +64,11 @@ function pickDayInWeek(
   return available[available.length - 1] ?? weekDays[0] ?? preferredDay;
 }
 
-export function WeekDayStrip({
+export function WeekDayStrip({ selectedDay, ...props }: WeekDayStripProps) {
+  return <WeekDayStripContent key={selectedDay} selectedDay={selectedDay} {...props} />;
+}
+
+function WeekDayStripContent({
   locale,
   maximumDay = toLocalDateInput(new Date()),
   onSelectedDayChange,
@@ -78,15 +78,6 @@ export function WeekDayStrip({
   const [weekStart, setWeekStart] = useState(() =>
     startOfWeekMonday(parseLocalDateInput(selectedDay)),
   );
-
-  useEffect(() => {
-    const selectedWeekStart = startOfWeekMonday(parseLocalDateInput(selectedDay));
-    setWeekStart((current) =>
-      toDeviceCalendarDateInput(selectedWeekStart) === toDeviceCalendarDateInput(current)
-        ? current
-        : selectedWeekStart,
-    );
-  }, [selectedDay]);
 
   const weekDays = useMemo(() => weekDayKeys(weekStart), [weekStart]);
   const maxWeekStart = useMemo(
@@ -208,9 +199,7 @@ export function WeekDayStrip({
               style={({ pressed }) => [
                 styles.dayChip,
                 {
-                  backgroundColor: selected
-                    ? palette.primaryContainer
-                    : palette.surfaceContainer,
+                  backgroundColor: selected ? palette.primaryContainer : palette.surfaceContainer,
                   shadowColor: palette.shadow,
                 },
                 selected && styles.dayChipSelected,

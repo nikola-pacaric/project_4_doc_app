@@ -1,14 +1,5 @@
 import { spacing } from '@project4/ui-tokens';
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Dimensions,
   findNodeHandle,
@@ -24,16 +15,7 @@ import {
   type ScrollViewProps,
 } from 'react-native';
 
-type KeyboardAwareScrollContextValue = {
-  onInputFocus: (target?: number | null) => void;
-  onInputContentChange: () => void;
-};
-
-const KeyboardAwareScrollContext = createContext<KeyboardAwareScrollContextValue | null>(null);
-
-export function useKeyboardAwareInput() {
-  return useContext(KeyboardAwareScrollContext);
-}
+import { KeyboardAwareScrollContext } from './keyboardAwareInputContext';
 
 interface KeyboardAwareScrollViewProps extends ScrollViewProps {
   children: ReactNode;
@@ -60,7 +42,8 @@ export function KeyboardAwareScrollView({
   const scrollFocusedInputIntoView = useCallback(() => {
     const fallbackInput = TextInput.State.currentlyFocusedInput?.();
     const target =
-      focusedInputTargetRef.current ?? (fallbackInput ? findNodeHandle(fallbackInput as never) : null);
+      focusedInputTargetRef.current ??
+      (fallbackInput ? findNodeHandle(fallbackInput as never) : null);
     if (!target || keyboardHeightRef.current <= 0) return;
 
     const responder = scrollRef.current?.getScrollResponder?.();
@@ -82,12 +65,15 @@ export function KeyboardAwareScrollView({
     });
   }, []);
 
-  const onInputFocus = useCallback((target?: number | null) => {
-    focusedInputTargetRef.current = target ?? focusedInputTargetRef.current;
-    globalThis.setTimeout(scrollFocusedInputIntoView, 80);
-    globalThis.setTimeout(scrollFocusedInputIntoView, 280);
-    globalThis.setTimeout(scrollFocusedInputIntoView, 520);
-  }, [scrollFocusedInputIntoView]);
+  const onInputFocus = useCallback(
+    (target?: number | null) => {
+      focusedInputTargetRef.current = target ?? focusedInputTargetRef.current;
+      globalThis.setTimeout(scrollFocusedInputIntoView, 80);
+      globalThis.setTimeout(scrollFocusedInputIntoView, 280);
+      globalThis.setTimeout(scrollFocusedInputIntoView, 520);
+    },
+    [scrollFocusedInputIntoView],
+  );
 
   useEffect(() => {
     const showListener = Keyboard.addListener('keyboardDidShow', (event) => {
@@ -153,10 +139,7 @@ export function KeyboardAwareScrollView({
         >
           {children}
           {keyboardPadding > 0 ? (
-            <View
-              pointerEvents="none"
-              style={{ height: keyboardPadding + spacing.xl * 2 }}
-            />
+            <View pointerEvents="none" style={{ height: keyboardPadding + spacing.xl * 2 }} />
           ) : null}
         </ScrollView>
       </KeyboardAvoidingView>

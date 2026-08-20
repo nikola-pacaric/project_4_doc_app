@@ -48,7 +48,17 @@ function toDraft(record: MedicationRecord): ClientMedicationDraft {
   };
 }
 
-export function PatientMedicationScreen({
+export function PatientMedicationScreen({ entryToEdit, ...props }: PatientMedicationScreenProps) {
+  return (
+    <PatientMedicationScreenContent
+      key={`${entryToEdit?.id ?? 'new'}:${entryToEdit?.occurredAt ?? ''}`}
+      entryToEdit={entryToEdit}
+      {...props}
+    />
+  );
+}
+
+function PatientMedicationScreenContent({
   client,
   entryToEdit,
   onBack,
@@ -73,7 +83,6 @@ export function PatientMedicationScreen({
   const preparedPhotoRef = useRef<PreparedPhoto | null>(null);
   const uploadedPhotoIdsRef = useRef(new Set<string>());
   const stagedPhotoDeletionsRef = useRef(createStagedEntryPhotoDeletions());
-  const entryIdentityRef = useRef(entryToEdit?.id ?? null);
 
   useEffect(
     () => () => {
@@ -84,34 +93,9 @@ export function PatientMedicationScreen({
   );
 
   useEffect(() => {
-    const nextEntryId = entryToEdit?.id ?? null;
-    savedEntryIdRef.current = nextEntryId;
-    if (entryIdentityRef.current === nextEntryId) return;
-
-    entryIdentityRef.current = nextEntryId;
-    stagedPhotoDeletionsRef.current = createStagedEntryPhotoDeletions();
-    uploadedPhotoIdsRef.current.clear();
-    const preparedPhoto = preparedPhotoRef.current;
-    preparedPhotoRef.current = null;
-    void cleanupPreparedPhoto(preparedPhoto);
-    setExistingPhotos([]);
-  }, [entryToEdit?.id]);
-
-  useEffect(() => {
-    if (!entryToEdit) {
-      setInitialDraft(null);
-      setExistingPhotos([]);
-      setLoading(false);
-      setLoadFailed(false);
-      setPhotoLoading(false);
-      setPhotoError(null);
-      return;
-    }
+    if (!entryToEdit) return;
 
     let active = true;
-    setLoading(true);
-    setError(null);
-    setLoadFailed(false);
     void getPatientMedication(client, entryToEdit.id, entryToEdit.occurredAt)
       .then((record) => {
         if (!active) return;

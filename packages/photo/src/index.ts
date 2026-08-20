@@ -1,4 +1,5 @@
 export * from './stagedDeletions';
+export * from './timelinePhotoLoadState';
 
 export const PHOTO_MAX_WIDTH_PX = 1280;
 export const PHOTO_JPEG_QUALITY = 0.8;

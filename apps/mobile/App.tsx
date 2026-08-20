@@ -28,6 +28,11 @@ import { StatusMessage } from './src/components/StatusMessage';
 import { cleanupAllPreparedPhotos } from './src/lib/preparedPhotos';
 import { registerAuthAutoRefreshForAppState } from './src/lib/authRefreshLifecycle';
 import { isSupabaseConfigured, supabase } from './src/lib/supabase';
+import {
+  clearAuthorizedPatientProfile,
+  loadAuthorizedPatientProfile,
+  saveAuthorizedPatientProfile,
+} from './src/offline/authorizedPatientProfile';
 import { clearAllPatientOfflineData } from './src/offline/pendingEntries';
 import { SymptomPreview } from './src/preview/SymptomPreview';
 import { AuthScreen } from './src/screens/AuthScreen';
@@ -176,11 +181,20 @@ function MainApp() {
         if (active) {
           setProfile(nextProfile);
           setProfileError(!nextProfile);
+          setPatientOfflineMode(false);
+          if (nextProfile) {
+            void saveAuthorizedPatientProfile(session.user.id, nextProfile);
+          } else {
+            void clearAuthorizedPatientProfile(session.user.id);
+          }
         }
       })
-      .catch(() => {
+      .catch(async () => {
+        const cachedProfile = await loadAuthorizedPatientProfile(session.user.id);
         if (active) {
-          setProfileError(true);
+          setProfile(cachedProfile);
+          setProfileError(!cachedProfile);
+          setPatientOfflineMode(Boolean(cachedProfile));
         }
       });
 
@@ -208,7 +222,9 @@ function MainApp() {
       return;
     }
 
-    setProfile(await acceptCurrentConsent(supabase, profile.id));
+    const acceptedProfile = await acceptCurrentConsent(supabase, profile.id);
+    setProfile(acceptedProfile);
+    void saveAuthorizedPatientProfile(acceptedProfile.id, acceptedProfile);
   }
 
   function retryProfile() {

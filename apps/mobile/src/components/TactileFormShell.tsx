@@ -6,13 +6,12 @@ import { KeyboardAwareScrollView } from './KeyboardAwareScrollView';
 import { StatusMessage } from './StatusMessage';
 import { useDiscardGuard } from '../hooks/useDiscardGuard';
 import {
-  getTactilePalette,
   isDarkThemeActive,
   tactileFormLayout as layout,
   tactileStitch,
-  type TactilePalette,
 } from '../theme/tactileForm';
 import { colors } from '../theme';
+import { useTactileFormPalette } from './tactileFormPalette';
 
 interface TactileFormShellProps {
   title: string;
@@ -41,10 +40,6 @@ interface TactileFormShellProps {
   guardUnsavedChanges?: boolean;
 }
 
-export function useTactileFormPalette(): TactilePalette {
-  return getTactilePalette();
-}
-
 /**
  * Baseline-style form chrome with form bottom nav:
  * Today / Timeline / Profile = cancel, pink Save = save.
@@ -67,7 +62,7 @@ export function TactileFormShell({
   hideNav = false,
   guardUnsavedChanges = true,
 }: TactileFormShellProps) {
-  const palette = getTactilePalette();
+  const palette = useTactileFormPalette();
   const dark = isDarkThemeActive();
 
   const confirmDiscard = useDiscardGuard({

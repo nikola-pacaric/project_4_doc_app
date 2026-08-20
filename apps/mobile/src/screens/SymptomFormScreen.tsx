@@ -11,7 +11,8 @@ import { Text, View } from 'react-native';
 
 import { SymptomDetailsCard } from '../components/SymptomDetailsCard';
 import { SymptomSelector } from '../components/SymptomSelector';
-import { TactileFormShell, useTactileFormPalette } from '../components/TactileFormShell';
+import { TactileFormShell } from '../components/TactileFormShell';
+import { useTactileFormPalette } from '../components/tactileFormPalette';
 import { TactileSectionCard } from '../components/TactileSectionCard';
 import { tactileFormLayout as layout } from '../theme/tactileForm';
 import { toLocalDateInput, toLocalTimeInput } from '../utils/dateTime';

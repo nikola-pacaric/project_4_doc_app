@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 import { colors, sharedStyles, createThemedStyles } from '../theme';
-import { useKeyboardAwareInput } from './KeyboardAwareScrollView';
+import { useKeyboardAwareInput } from './keyboardAwareInputContext';
 import {
   appendVoiceTranscript,
   createVoiceInputSession,

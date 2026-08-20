@@ -3266,6 +3266,13 @@ button:focus-visible {
   transform: scale(1.05);
 }
 
+.doctor-timeline-photo-recovery {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* Photo Modal / Lightbox */
 .photo-lightbox {
   position: fixed;

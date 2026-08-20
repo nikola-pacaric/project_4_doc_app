@@ -57,4 +57,17 @@ describe('web pending photo deletion queue', () => {
       legacyPhoto,
     ]);
   });
+
+  it('discards only a malformed patient cleanup queue', () => {
+    const storage = new MemoryStorage();
+    vi.stubGlobal('window', { localStorage: storage });
+    storage.setItem('project4:pending-photo-deletions:patient-1', '{');
+    storage.setItem('project4:pending-photo-deletions:patient-2', '[]');
+    storage.setItem('project4:preferences', 'preserved');
+
+    expect(loadPendingPhotoDeletions('patient-1')).toEqual([]);
+    expect(storage.getItem('project4:pending-photo-deletions:patient-1')).toBeNull();
+    expect(storage.getItem('project4:pending-photo-deletions:patient-2')).toBe('[]');
+    expect(storage.getItem('project4:preferences')).toBe('preserved');
+  });
 });

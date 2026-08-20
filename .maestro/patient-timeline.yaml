@@ -1,0 +1,14 @@
+appId: com.patientresearchtracking.app
+---
+- launchApp:
+    clearState: true
+- assertVisible: 'I am a...'
+- tapOn: Email address
+- inputText: ${E2E_PATIENT_EMAIL}
+- tapOn: Password
+- inputText: ${E2E_PATIENT_PASSWORD}
+- tapOn: Sign in
+- assertVisible: Today
+- tapOn: Timeline
+- assertVisible: Timeline
+- assertVisible: Open calendar

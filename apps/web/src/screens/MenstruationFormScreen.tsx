@@ -53,7 +53,17 @@ function toDraft(record: MenstruationRecord): MenstruationDraft {
   };
 }
 
-export function MenstruationFormScreen({
+export function MenstruationFormScreen({ entryToEdit, ...props }: MenstruationFormScreenProps) {
+  return (
+    <MenstruationFormContent
+      key={entryToEdit ? `${entryToEdit.id}:${entryToEdit.occurredAt}` : 'new'}
+      entryToEdit={entryToEdit}
+      {...props}
+    />
+  );
+}
+
+function MenstruationFormContent({
   client,
   entryToEdit,
   onBack,
@@ -69,17 +79,9 @@ export function MenstruationFormScreen({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!entryToEdit) {
-      setDraft(createInitialDraft());
-      setLoading(false);
-      setLoadFailed(false);
-      return;
-    }
+    if (!entryToEdit) return;
 
     let active = true;
-    setLoading(true);
-    setLoadFailed(false);
-    setError(null);
     void getPatientMenstruation(client, entryToEdit.id, entryToEdit.occurredAt)
       .then((record) => {
         if (!active) return;

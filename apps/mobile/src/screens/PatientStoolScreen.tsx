@@ -42,7 +42,17 @@ function toDraft(record: StoolRecord): StoolDraft {
   };
 }
 
-export function PatientStoolScreen({
+export function PatientStoolScreen({ entryToEdit, ...props }: PatientStoolScreenProps) {
+  return (
+    <PatientStoolScreenContent
+      key={`${entryToEdit?.id ?? 'new'}:${entryToEdit?.occurredAt ?? ''}`}
+      entryToEdit={entryToEdit}
+      {...props}
+    />
+  );
+}
+
+function PatientStoolScreenContent({
   client,
   entryToEdit,
   onBack,
@@ -64,18 +74,9 @@ export function PatientStoolScreen({
   const [formVersion, setFormVersion] = useState(0);
 
   useEffect(() => {
-    if (!entryToEdit) {
-      setInitialDraft(null);
-      setOccurredAt(undefined);
-      setLoading(false);
-      setLoadFailed(false);
-      return;
-    }
+    if (!entryToEdit) return;
 
     let active = true;
-    setLoading(true);
-    setError(null);
-    setLoadFailed(false);
     void getPatientStool(client, entryToEdit.id, entryToEdit.occurredAt)
       .then((record) => {
         if (!active) return;
@@ -173,15 +174,10 @@ export function PatientStoolScreen({
           tone="error"
         />
         <PrimaryButton label={t(locale, 'common.retry')} onPress={retryLoad} />
-        <PrimaryButton
-          label={t(locale, 'common.cancel')}
-          onPress={onBack}
-          variant="secondary"
-        />
+        <PrimaryButton label={t(locale, 'common.cancel')} onPress={onBack} variant="secondary" />
       </View>
     );
   }
-
 
   if (savedStool || savedNoStool) {
     return (

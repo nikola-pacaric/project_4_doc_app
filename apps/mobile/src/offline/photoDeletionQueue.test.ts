@@ -55,4 +55,15 @@ describe('mobile pending photo deletion queue', () => {
       await updatePendingPhotoDeletions('patient-1', (current) => [...current, photo]),
     ).toEqual([photo, legacyPhoto]);
   });
+
+  it('discards only a malformed patient cleanup queue', async () => {
+    values.set('project4:pending-photo-deletions:patient-1', '{');
+    values.set('project4:pending-photo-deletions:patient-2', '[]');
+    values.set('project4:preferences', 'preserved');
+
+    expect(await loadPendingPhotoDeletions('patient-1')).toEqual([]);
+    expect(values.has('project4:pending-photo-deletions:patient-1')).toBe(false);
+    expect(values.get('project4:pending-photo-deletions:patient-2')).toBe('[]');
+    expect(values.get('project4:preferences')).toBe('preserved');
+  });
 });

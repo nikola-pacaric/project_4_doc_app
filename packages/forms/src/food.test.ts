@@ -53,12 +53,10 @@ describe('food hydration validation', () => {
   });
 
   it('validates repeatable other fluid rows with time and name', () => {
-    expect(
-      validateOtherFluidProgress([{ occurredAt: '2026-06-28 12:30', name: 'Coffee' }]),
-    ).toBe(true);
-    expect(validateOtherFluidProgress([{ occurredAt: '2026-06-28 12:30', name: '' }])).toBe(
-      false,
+    expect(validateOtherFluidProgress([{ occurredAt: '2026-06-28 12:30', name: 'Coffee' }])).toBe(
+      true,
     );
+    expect(validateOtherFluidProgress([{ occurredAt: '2026-06-28 12:30', name: '' }])).toBe(false);
     expect(validateOtherFluidProgress([{ occurredAt: 'bad time', name: 'Tea' }])).toBe(false);
   });
 
@@ -94,7 +92,7 @@ describe('food hydration validation', () => {
     });
 
     it('is not complete when water is missing', () => {
-      const hydration = { hasOtherFluids: false } as any;
+      const hydration = { hasOtherFluids: false };
       const meals = [{ type: 'breakfast', name: 'Eggs' }];
       expect(isFoodFormComplete(hydration, meals)).toBe(false);
     });
@@ -120,9 +118,7 @@ describe('food hydration validation', () => {
       const hydration = {
         waterLiters: 1.5,
         hasOtherFluids: true,
-        otherFluids: serializeOtherFluids([
-          { occurredAt: '2026-06-23 12:00', name: 'Tea' },
-        ]),
+        otherFluids: serializeOtherFluids([{ occurredAt: '2026-06-23 12:00', name: 'Tea' }]),
       };
       const meals = [{ type: 'breakfast', name: 'Eggs' }];
       expect(isFoodFormComplete(hydration, meals)).toBe(true);
@@ -135,14 +131,17 @@ describe('food hydration validation', () => {
 
     it('is not complete when any meal is incomplete', () => {
       const hydration = { waterLiters: 1.5, hasOtherFluids: false };
-      const meals = [{ type: 'breakfast', name: 'Eggs' }, { type: null, name: 'Snack' }];
+      const meals = [
+        { type: 'breakfast', name: 'Eggs' },
+        { type: null, name: 'Snack' },
+      ];
       expect(isFoodFormComplete(hydration, meals)).toBe(false);
     });
 
     it('is started when any meal is logged or any hydration fields are set', () => {
       expect(isFoodFormStarted(null, [{ type: 'breakfast', name: 'Eggs' }])).toBe(true);
-      expect(isFoodFormStarted({ waterLiters: 1.5 } as any, [])).toBe(true);
-      expect(isFoodFormStarted({ hasOtherFluids: false } as any, [])).toBe(true);
+      expect(isFoodFormStarted({ waterLiters: 1.5 }, [])).toBe(true);
+      expect(isFoodFormStarted({ hasOtherFluids: false }, [])).toBe(true);
       expect(isFoodFormStarted(null, [])).toBe(false);
     });
   });

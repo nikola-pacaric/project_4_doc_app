@@ -110,7 +110,11 @@ export function DoctorPendingScreen({
   }, [client, locale]);
 
   useEffect(() => {
-    void loadDashboard();
+    const loadTimer = setTimeout(() => {
+      void loadDashboard();
+    }, 0);
+
+    return () => clearTimeout(loadTimer);
   }, [loadDashboard]);
 
   async function createInvite() {
